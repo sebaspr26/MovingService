@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import AddModal from './AddModal'
+import ScanButton from './ScanButton'
 
 const fields = [
   { name: 'order_number', label: 'Orden #', required: true },
@@ -46,6 +47,14 @@ export default function OrdersTable({ truckId, period }) {
     fetchRows()
   }
 
+  function handleScan(result) {
+    if (result.type === 'order' && result.data) {
+      setEditRow(null)
+      setShowModal(true)
+      setTimeout(() => setEditRow({ ...result.data, _scanned: true }), 50)
+    }
+  }
+
   const total = rows.reduce((s, r) => s + (Number(r.rate) || 0), 0)
   const totalMiles = rows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -56,12 +65,15 @@ export default function OrdersTable({ truckId, period }) {
         <div className="text-sm text-gray-400">
           {rows.length} ordenes | {totalMiles.toLocaleString()} mi | Total: <span className="text-green-400 font-semibold">{fmt(total)}</span>
         </div>
-        <button
-          onClick={() => { setEditRow(null); setShowModal(true) }}
-          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
-        >
-          + Agregar Orden
-        </button>
+        <div className="flex gap-2">
+          <ScanButton onResult={handleScan} label="Escanear Orden" />
+          <button
+            onClick={() => { setEditRow(null); setShowModal(true) }}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
+          >
+            + Agregar Orden
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -117,7 +129,7 @@ export default function OrdersTable({ truckId, period }) {
         onSave={handleSave}
         fields={fields}
         initialData={editRow}
-        title={editRow ? 'Editar Orden' : 'Agregar Orden'}
+        title={editRow?._scanned ? 'Verificar Orden (Escaneada)' : editRow ? 'Editar Orden' : 'Agregar Orden'}
       />
     </div>
   )

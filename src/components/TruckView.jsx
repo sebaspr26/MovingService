@@ -8,32 +8,42 @@ import AccountingTable from './AccountingTable'
 import PartnersPanel from './PartnersPanel'
 import CashBox from './CashBox'
 
-function getWeekRange(date = new Date()) {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diffToMon = day === 0 ? -6 : 1 - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + diffToMon)
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  sunday.setHours(23, 59, 59, 999)
-  return {
-    start: monday.toISOString().split('T')[0],
-    end: sunday.toISOString().split('T')[0],
-  }
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+function getMonthRange(date = new Date()) {
+  const y = date.getFullYear(), m = date.getMonth()
+  const start = new Date(y, m, 1)
+  const end = new Date(y, m + 1, 0)
+  return { start: fmt_d(start), end: fmt_d(end), year: y, month: m }
 }
 
-function shiftWeek(start, end, direction) {
-  const s = new Date(start)
-  const e = new Date(end)
-  s.setDate(s.getDate() + direction * 7)
-  e.setDate(e.getDate() + direction * 7)
-  return {
-    start: s.toISOString().split('T')[0],
-    end: e.toISOString().split('T')[0],
-  }
+function shiftMonth(year, month, dir) {
+  const d = new Date(year, month + dir, 1)
+  return getMonthRange(d)
 }
+
+function getWeeksInMonth(year, month) {
+  const weeks = []
+  const first = new Date(year, month, 1)
+  const last = new Date(year, month + 1, 0)
+  let d = new Date(first)
+  // Go to first Monday on or before the 1st
+  const day = d.getDay()
+  const diffToMon = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diffToMon)
+
+  while (d <= last || weeks.length === 0) {
+    const mon = new Date(d)
+    const sun = new Date(d)
+    sun.setDate(d.getDate() + 6)
+    weeks.push({ start: fmt_d(mon), end: fmt_d(sun), label: `${fmt_d(mon)} a ${fmt_d(sun)}` })
+    d.setDate(d.getDate() + 7)
+    if (d > last && weeks.length > 0) break
+  }
+  return weeks
+}
+
+function fmt_d(d) { return d.toISOString().split('T')[0] }
 
 const TABS = [
   { key: 'orders', label: 'Orders' },
@@ -46,9 +56,14 @@ export default function TruckView() {
   const { id } = useParams()
   const [truck, setTruck] = useState(null)
   const [tab, setTab] = useState('orders')
-  const [period, setPeriod] = useState(getWeekRange())
+  const now = new Date()
+  const [monthData, setMonthData] = useState(getMonthRange(now))
+  const [selectedWeek, setSelectedWeek] = useState(null) // null = full month
   const [summary, setSummary] = useState({ income: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
   const [cuadreCaja, setCuadreCaja] = useState(0)
+
+  const period = selectedWeek || { start: monthData.start, end: monthData.end }
+  const weeks = getWeeksInMonth(monthData.year, monthData.month)
 
   useEffect(() => {
     supabase.from('trucks').select('*').eq('id', id).single()
@@ -57,7 +72,7 @@ export default function TruckView() {
 
   useEffect(() => {
     fetchSummary()
-  }, [id, period])
+  }, [id, period.start, period.end])
 
   async function fetchSummary() {
     const [orders, diesel, expenses, accounting] = await Promise.all([
@@ -79,6 +94,11 @@ export default function TruckView() {
     })
   }
 
+  function handleMonthShift(dir) {
+    setMonthData(shiftMonth(monthData.year, monthData.month, dir))
+    setSelectedWeek(null)
+  }
+
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const totalExpenses = summary.diesel + summary.expenses
   const balance = summary.debito - summary.credito
@@ -96,46 +116,66 @@ export default function TruckView() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-white">{truck.name}</h2>
-          <p className="text-sm text-gray-500">#{truck.number}</p>
-        </div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white">{truck.name}</h2>
+        <p className="text-sm text-gray-500">#{truck.number}</p>
       </div>
 
-      {/* Period selector */}
-      <div className="flex items-center gap-3 mb-6 bg-gray-900 rounded-lg p-3 border border-gray-800 w-fit">
-        <button
-          onClick={() => setPeriod(p => shiftWeek(p.start, p.end, -1))}
-          className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-800"
-        >
+      {/* Month selector */}
+      <div className="flex items-center gap-3 mb-4 bg-gray-900 rounded-lg p-3 border border-gray-800 w-fit">
+        <button onClick={() => handleMonthShift(-1)} className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-800">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
         </button>
         <div className="text-sm">
-          <span className="text-gray-400">Semana: </span>
-          <span className="text-white font-medium">{period.start}</span>
-          <span className="text-gray-600 mx-1">a</span>
-          <span className="text-white font-medium">{period.end}</span>
+          <span className="text-white font-semibold">{MONTH_NAMES[monthData.month]}</span>
+          <span className="text-gray-400 ml-2">{monthData.year}</span>
         </div>
-        <button
-          onClick={() => setPeriod(p => shiftWeek(p.start, p.end, 1))}
-          className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-800"
-        >
+        <button onClick={() => handleMonthShift(1)} className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-800">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
           </svg>
         </button>
         <button
-          onClick={() => setPeriod(getWeekRange())}
+          onClick={() => { setMonthData(getMonthRange(new Date())); setSelectedWeek(null) }}
           className="text-xs text-blue-400 hover:text-blue-300 ml-2"
         >
           Hoy
         </button>
       </div>
 
-      {/* Summary cards - Breakdown */}
+      {/* Week filter */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setSelectedWeek(null)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            !selectedWeek ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+          }`}
+        >
+          Todo el mes
+        </button>
+        {weeks.map((w, i) => (
+          <button
+            key={w.start}
+            onClick={() => setSelectedWeek(w)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              selectedWeek?.start === w.start ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+            }`}
+          >
+            Sem {i + 1}
+          </button>
+        ))}
+      </div>
+
+      {/* Period indicator */}
+      <div className="text-xs text-gray-500 mb-4">
+        Mostrando: <span className="text-gray-300">{period.start}</span>
+        <span className="mx-1">a</span>
+        <span className="text-gray-300">{period.end}</span>
+      </div>
+
+      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <p className="text-xs text-gray-500 mb-1">Ingresos (Orders)</p>
@@ -166,9 +206,7 @@ export default function TruckView() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t.key
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-500 hover:text-gray-300'
+              tab === t.key ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
             {t.label}
@@ -184,15 +222,9 @@ export default function TruckView() {
         {tab === 'accounting' && <AccountingTable truckId={id} period={period} />}
       </div>
 
-      {/* Cash Box - Debito/Credito flow */}
+      {/* Cash Box */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <CashBox
-          truckId={id}
-          period={period}
-          debito={summary.debito}
-          credito={summary.credito}
-          onCuadreChange={setCuadreCaja}
-        />
+        <CashBox truckId={id} period={period} debito={summary.debito} credito={summary.credito} onCuadreChange={setCuadreCaja} />
       </div>
 
       {/* Partners & Dividends */}
