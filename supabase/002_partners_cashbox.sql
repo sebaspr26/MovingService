@@ -15,6 +15,7 @@ create table if not exists cashbox (
   period_start date not null,
   period_end date not null,
   previous_balance numeric(10,2) default 0,
+  cuadre_caja numeric(10,2) default 0,
   created_at timestamptz default now(),
   unique(truck_id, period_start, period_end)
 );

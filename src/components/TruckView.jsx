@@ -47,7 +47,8 @@ export default function TruckView() {
   const [truck, setTruck] = useState(null)
   const [tab, setTab] = useState('orders')
   const [period, setPeriod] = useState(getWeekRange())
-  const [summary, setSummary] = useState({ income: 0, diesel: 0, expenses: 0 })
+  const [summary, setSummary] = useState({ income: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
+  const [cuadreCaja, setCuadreCaja] = useState(0)
 
   useEffect(() => {
     supabase.from('trucks').select('*').eq('id', id).single()
@@ -59,24 +60,29 @@ export default function TruckView() {
   }, [id, period])
 
   async function fetchSummary() {
-    const [orders, diesel, expenses] = await Promise.all([
+    const [orders, diesel, expenses, accounting] = await Promise.all([
       supabase.from('orders').select('rate').eq('truck_id', id)
         .gte('period_start', period.start).lte('period_end', period.end),
       supabase.from('diesel').select('value').eq('truck_id', id)
         .gte('period_start', period.start).lte('period_end', period.end),
       supabase.from('expenses').select('amount').eq('truck_id', id)
         .gte('period_start', period.start).lte('period_end', period.end),
+      supabase.from('accounting').select('debit, credit').eq('truck_id', id)
+        .gte('period_start', period.start).lte('period_end', period.end),
     ])
     setSummary({
       income: (orders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0),
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       expenses: (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      debito: (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0),
+      credito: (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0),
     })
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const totalExpenses = summary.diesel + summary.expenses
-  const balance = summary.income - totalExpenses
+  const balance = summary.debito - summary.credito
+  const aRepartir = balance - cuadreCaja
 
   if (!truck) return <div className="text-gray-500 text-center py-12">Cargando...</div>
 
@@ -129,8 +135,8 @@ export default function TruckView() {
         </button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {/* Summary cards - Breakdown */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <p className="text-xs text-gray-500 mb-1">Ingresos (Orders)</p>
           <p className="text-lg font-bold text-green-400">{fmt(summary.income)}</p>
@@ -144,8 +150,12 @@ export default function TruckView() {
           <p className="text-lg font-bold text-red-400">{fmt(summary.expenses)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Balance</p>
-          <p className={`text-lg font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
+          <p className="text-xs text-gray-500 mb-1">Debito (Contabilidad)</p>
+          <p className="text-lg font-bold text-green-400">{fmt(summary.debito)}</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <p className="text-xs text-gray-500 mb-1">Credito (Contabilidad)</p>
+          <p className="text-lg font-bold text-red-400">{fmt(summary.credito)}</p>
         </div>
       </div>
 
@@ -174,19 +184,20 @@ export default function TruckView() {
         {tab === 'accounting' && <AccountingTable truckId={id} period={period} />}
       </div>
 
-      {/* Cash Box */}
+      {/* Cash Box - Debito/Credito flow */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
         <CashBox
           truckId={id}
           period={period}
-          income={summary.income}
-          totalExpenses={totalExpenses}
+          debito={summary.debito}
+          credito={summary.credito}
+          onCuadreChange={setCuadreCaja}
         />
       </div>
 
       {/* Partners & Dividends */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <PartnersPanel truckId={id} netProfit={balance} />
+        <PartnersPanel truckId={id} aRepartir={aRepartir} />
       </div>
     </div>
   )

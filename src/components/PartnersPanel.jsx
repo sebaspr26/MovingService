@@ -8,7 +8,7 @@ const fields = [
   { name: 'invested', label: 'Invertido ($)', type: 'number', step: '0.01', default: '0' },
 ]
 
-export default function PartnersPanel({ truckId, netProfit }) {
+export default function PartnersPanel({ truckId, aRepartir }) {
   const [partners, setPartners] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -41,7 +41,7 @@ export default function PartnersPanel({ truckId, netProfit }) {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const totalPct = partners.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
-  const dividends = netProfit > 0 ? netProfit : 0
+  const dividends = aRepartir > 0 ? aRepartir : 0
 
   return (
     <div>
