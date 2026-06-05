@@ -72,14 +72,14 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
       {/* Flow visualization */}
       <div className="space-y-4">
         {/* Row 1: Debito & Credito */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-green-500">
-            <p className="text-xs text-gray-500 mb-1">Total Debito (Ingresos)</p>
-            <p className="text-xl font-bold text-green-400">{fmt(debito)}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Debito (Ingresos)</p>
+            <p className="text-lg sm:text-xl font-bold text-green-400">{fmt(debito)}</p>
           </div>
-          <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-red-500">
-            <p className="text-xs text-gray-500 mb-1">Total Credito (Gastos)</p>
-            <p className="text-xl font-bold text-red-400">{fmt(credito)}</p>
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-red-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Credito (Gastos)</p>
+            <p className="text-lg sm:text-xl font-bold text-red-400">{fmt(credito)}</p>
           </div>
         </div>
 
@@ -91,15 +91,15 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
         </div>
 
         {/* Row 2: Balance del periodo */}
-        <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-blue-500">
-          <p className="text-xs text-gray-500 mb-1">Balance del Periodo (Debito - Credito)</p>
-          <p className={`text-xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
+        <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-blue-500">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Balance del Periodo (Debito - Credito)</p>
+          <p className={`text-lg sm:text-xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
         </div>
 
         {/* Row 3: Saldo anterior + Balance = Ganancia */}
-        <div className="grid grid-cols-3 gap-3 items-end">
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 mb-1">Saldo Anterior</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 items-end">
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Saldo Anterior</p>
             {editingPrev ? (
               <div className="flex gap-2">
                 <input
@@ -123,11 +123,11 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
               </p>
             )}
           </div>
-          <div className="flex justify-center text-gray-600 pb-4">
+          <div className="hidden sm:flex justify-center text-gray-600 pb-4">
             <span className="text-2xl">+</span>
           </div>
-          <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-purple-500">
-            <p className="text-xs text-gray-500 mb-1">Ganancia Total</p>
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-purple-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Ganancia Total</p>
             <p className={`text-lg font-bold ${ganancia >= 0 ? 'text-purple-400' : 'text-red-400'}`}>{fmt(ganancia)}</p>
           </div>
         </div>
@@ -140,9 +140,9 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
         </div>
 
         {/* Row 4: Cuadre de caja y A repartir */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-yellow-500">
-            <p className="text-xs text-gray-500 mb-1">Cuadre de Caja (siguiente periodo)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-yellow-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Cuadre de Caja (sig. periodo)</p>
             {editingCuadre ? (
               <div className="flex gap-2">
                 <input
@@ -166,9 +166,9 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
               </p>
             )}
           </div>
-          <div className="bg-gray-800/50 rounded-lg p-4 border-l-4 border-emerald-500">
-            <p className="text-xs text-gray-500 mb-1">A Repartir (Dividendos)</p>
-            <p className={`text-xl font-bold ${aRepartir >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(aRepartir)}</p>
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-emerald-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">A Repartir (Dividendos)</p>
+            <p className={`text-lg sm:text-xl font-bold ${aRepartir >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(aRepartir)}</p>
           </div>
         </div>
       </div>

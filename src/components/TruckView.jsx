@@ -176,36 +176,36 @@ export default function TruckView() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Ingresos (Orders)</p>
-          <p className="text-lg font-bold text-green-400">{fmt(summary.income)}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Ingresos (Orders)</p>
+          <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.income)}</p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Diesel</p>
-          <p className="text-lg font-bold text-orange-400">{fmt(summary.diesel)}</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Diesel</p>
+          <p className="text-sm sm:text-lg font-bold text-orange-400">{fmt(summary.diesel)}</p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Otros Gastos</p>
-          <p className="text-lg font-bold text-red-400">{fmt(summary.expenses)}</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Otros Gastos</p>
+          <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(summary.expenses)}</p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Debito (Contabilidad)</p>
-          <p className="text-lg font-bold text-green-400">{fmt(summary.debito)}</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Debito</p>
+          <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.debito)}</p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Credito (Contabilidad)</p>
-          <p className="text-lg font-bold text-red-400">{fmt(summary.credito)}</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4 col-span-2 sm:col-span-1">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
+          <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(summary.credito)}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 border border-gray-800 w-fit">
+      <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 border border-gray-800 w-full sm:w-fit overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               tab === t.key ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
@@ -215,7 +215,7 @@ export default function TruckView() {
       </div>
 
       {/* Tab content */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
         {tab === 'orders' && <OrdersTable truckId={id} period={period} />}
         {tab === 'diesel' && <DieselTable truckId={id} period={period} />}
         {tab === 'expenses' && <ExpensesTable truckId={id} period={period} />}

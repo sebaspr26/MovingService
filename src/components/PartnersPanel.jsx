@@ -70,12 +70,12 @@ export default function PartnersPanel({ truckId, aRepartir }) {
             const pending = share - (Number(p.invested) || 0)
             return (
               <div key={p.id} className="bg-gray-800/50 rounded-lg p-4 flex items-center justify-between group">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-white font-medium">{p.name}</span>
+                    <span className="text-white font-medium text-sm sm:text-base">{p.name}</span>
                     <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">{p.percentage}%</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-xs">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs">
                     <div>
                       <span className="text-gray-500">Dividendo</span>
                       <p className="text-green-400 font-semibold">{fmt(share)}</p>

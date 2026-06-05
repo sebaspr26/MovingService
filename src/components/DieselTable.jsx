@@ -59,12 +59,12 @@ export default function DieselTable({ truckId, period }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="text-xs sm:text-sm text-gray-400">
           {rows.length} registros | {totalGallons.toFixed(1)} gal | Total: <span className="text-red-400 font-semibold">{fmt(totalValue)}</span>
         </div>
         <div className="flex gap-2">
-          <ScanButton onResult={handleScan} label="Escanear Diesel" />
+          <ScanButton onResult={handleScan} label="Escanear" />
           <button
             onClick={() => { setEditRow(null); setShowModal(true) }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"

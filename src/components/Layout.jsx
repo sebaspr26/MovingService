@@ -67,7 +67,7 @@ export default function Layout() {
           <h1 className="text-lg font-bold text-white">ETG Moving</h1>
         </header>
 
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-3 sm:p-6 overflow-auto">
           <Outlet />
         </main>
       </div>

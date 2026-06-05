@@ -61,12 +61,12 @@ export default function OrdersTable({ truckId, period }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="text-xs sm:text-sm text-gray-400">
           {rows.length} ordenes | {totalMiles.toLocaleString()} mi | Total: <span className="text-green-400 font-semibold">{fmt(total)}</span>
         </div>
         <div className="flex gap-2">
-          <ScanButton onResult={handleScan} label="Escanear Orden" />
+          <ScanButton onResult={handleScan} label="Escanear" />
           <button
             onClick={() => { setEditRow(null); setShowModal(true) }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"

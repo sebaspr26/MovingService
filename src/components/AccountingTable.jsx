@@ -50,8 +50,8 @@ export default function AccountingTable({ truckId, period }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-400 flex gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap gap-2 sm:gap-4">
           <span>Debito: <span className="text-green-400 font-semibold">{fmt(totalDebit)}</span></span>
           <span>Credito: <span className="text-red-400 font-semibold">{fmt(totalCredit)}</span></span>
           <span>Balance: <span className={`font-semibold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</span></span>
