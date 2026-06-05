@@ -5,6 +5,8 @@ import OrdersTable from './OrdersTable'
 import DieselTable from './DieselTable'
 import ExpensesTable from './ExpensesTable'
 import AccountingTable from './AccountingTable'
+import PartnersPanel from './PartnersPanel'
+import CashBox from './CashBox'
 
 function getWeekRange(date = new Date()) {
   const d = new Date(date)
@@ -172,23 +174,19 @@ export default function TruckView() {
         {tab === 'accounting' && <AccountingTable truckId={id} period={period} />}
       </div>
 
-      {/* Cash/Dividends panel */}
+      {/* Cash Box */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h3 className="text-lg font-semibold text-white mb-4">Caja / Dividendos</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 mb-1">Total Ingresos</p>
-            <p className="text-xl font-bold text-green-400">{fmt(summary.income)}</p>
-          </div>
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 mb-1">Total Gastos</p>
-            <p className="text-xl font-bold text-red-400">{fmt(totalExpenses)}</p>
-          </div>
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 mb-1">Neto (Disponible)</p>
-            <p className={`text-xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(balance)}</p>
-          </div>
-        </div>
+        <CashBox
+          truckId={id}
+          period={period}
+          income={summary.income}
+          totalExpenses={totalExpenses}
+        />
+      </div>
+
+      {/* Partners & Dividends */}
+      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <PartnersPanel truckId={id} netProfit={balance} />
       </div>
     </div>
   )
