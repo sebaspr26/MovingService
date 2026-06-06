@@ -230,7 +230,8 @@ export default function TruckView() {
       </div>
 
       {/* Cash Box */}
-      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
+        <h3 className="text-lg font-semibold text-white mb-5">Caja</h3>
         <CashBox truckId={id} period={period} debito={summary.debito} credito={summary.credito} grossIncome={summary.income} netIncome={netIncome} discount13={discount13} onCuadreChange={setCuadreCaja} />
       </div>
 
