@@ -22,8 +22,8 @@ export default function Layout() {
         flex flex-col
       `}>
         <div className="p-6 border-b border-gray-800">
-          <h1 className="text-xl font-bold text-white tracking-tight">ETG Moving</h1>
-          <p className="text-xs text-gray-500 mt-1">Services Management</p>
+          <h1 className="text-xl font-bold text-white tracking-tight">ETG Moving Services</h1>
+          <p className="text-xs text-gray-500 mt-1">Driving Is Work LLC</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -64,7 +64,7 @@ export default function Layout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold text-white">ETG Moving</h1>
+          <h1 className="text-lg font-bold text-white">ETG Moving Services</h1>
         </header>
 
         <main className="flex-1 p-3 sm:p-6 overflow-auto">
