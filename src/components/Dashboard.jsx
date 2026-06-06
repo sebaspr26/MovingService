@@ -73,7 +73,6 @@ export default function Dashboard() {
       supabase.from('diesel').delete().eq('truck_id', id),
       supabase.from('expenses').delete().eq('truck_id', id),
       supabase.from('accounting').delete().eq('truck_id', id),
-      supabase.from('partners').delete().eq('truck_id', id),
       supabase.from('cashbox').delete().eq('truck_id', id),
     ])
     await supabase.from('trucks').delete().eq('id', id)
@@ -177,7 +176,7 @@ export default function Dashboard() {
             <div className="p-5 border-b border-gray-800">
               <h3 className="text-lg font-semibold text-white">Eliminar {deleteTarget.name}</h3>
               <p className="text-sm text-gray-400 mt-2">
-                Esta accion eliminara permanentemente el camion y <span className="text-red-400 font-medium">todos sus registros</span> (ordenes, diesel, gastos, contabilidad, socios).
+                Esta accion eliminara permanentemente el camion y <span className="text-red-400 font-medium">todos sus registros</span> (ordenes, diesel, gastos, contabilidad).
               </p>
             </div>
             <div className="p-5">

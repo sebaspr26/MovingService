@@ -5,7 +5,6 @@ import OrdersTable from './OrdersTable'
 import DieselTable from './DieselTable'
 import ExpensesTable from './ExpensesTable'
 import AccountingTable from './AccountingTable'
-import PartnersPanel from './PartnersPanel'
 import CashBox from './CashBox'
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -60,7 +59,6 @@ export default function TruckView() {
   const [monthData, setMonthData] = useState(getMonthRange(now))
   const [selectedWeek, setSelectedWeek] = useState(null) // null = full month
   const [summary, setSummary] = useState({ income: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
-  const [cuadreCaja, setCuadreCaja] = useState(0)
 
   const period = selectedWeek || { start: monthData.start, end: monthData.end }
   const weeks = getWeeksInMonth(monthData.year, monthData.month)
@@ -103,8 +101,6 @@ export default function TruckView() {
   const discount13 = summary.income * 0.13
   const netIncome = summary.income - discount13
   const totalExpenses = summary.diesel + summary.expenses
-  const balance = summary.debito - summary.credito
-  const aRepartir = balance - cuadreCaja
 
   if (!truck) return <div className="text-gray-500 text-center py-12">Cargando...</div>
 
@@ -229,15 +225,19 @@ export default function TruckView() {
         {tab === 'accounting' && <AccountingTable truckId={id} period={period} />}
       </div>
 
-      {/* Cash Box */}
+      {/* Cash Box & Dividends */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-white mb-5">Caja</h3>
-        <CashBox truckId={id} period={period} debito={summary.debito} credito={summary.credito} grossIncome={summary.income} netIncome={netIncome} discount13={discount13} onCuadreChange={setCuadreCaja} />
-      </div>
-
-      {/* Partners & Dividends */}
-      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <PartnersPanel truckId={id} aRepartir={aRepartir} />
+        <CashBox
+          truckId={id}
+          period={period}
+          debito={summary.debito}
+          credito={summary.credito}
+          grossIncome={summary.income}
+          netIncome={netIncome}
+          discount13={discount13}
+          onMonthClosed={() => handleMonthShift(1)}
+        />
       </div>
     </div>
   )
