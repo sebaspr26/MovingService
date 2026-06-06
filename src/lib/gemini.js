@@ -1,5 +1,5 @@
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = 'gemini-2.0-flash-lite'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`
 
 const PROMPT = `Analyze this receipt/invoice image and extract the data.
@@ -52,7 +52,12 @@ Rules:
 - If it's a load confirmation or bill of lading, type is "order"
 - Otherwise, type is "expense"`
 
-async function callGemini(base64, mimeType) {
+export async function analyzeReceipt(imageFile) {
+  if (!GEMINI_KEY) throw new Error('API key de Gemini no configurada')
+
+  const base64 = await fileToBase64(imageFile)
+  const mimeType = imageFile.type || 'image/jpeg'
+
   const response = await fetch(GEMINI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -70,30 +75,17 @@ async function callGemini(base64, mimeType) {
     })
   })
 
-  if (response.ok) return response
-
-  if (response.status === 429) {
-    throw new Error('Limite de requests alcanzado. Espera unos segundos e intenta de nuevo.')
+  if (!response.ok) {
+    const status = response.status
+    if (status === 429) throw new Error('Limite de requests alcanzado. Intenta de nuevo en unos segundos.')
+    if (status === 503) throw new Error('Servicio no disponible. Intenta de nuevo en unos momentos.')
+    if (status === 400) throw new Error('Imagen no valida o formato no soportado.')
+    throw new Error(`Error del servidor (${status}). Intenta de nuevo.`)
   }
-  if (response.status === 503) {
-    throw new Error('Servicio de Gemini no disponible. Intenta de nuevo en unos momentos.')
-  }
 
-  const err = await response.text()
-  throw new Error(`Error Gemini (${response.status}): ${err}`)
-}
-
-export async function analyzeReceipt(imageFile) {
-  if (!GEMINI_KEY) throw new Error('API key de Gemini no configurada')
-
-  const base64 = await fileToBase64(imageFile)
-  const mimeType = imageFile.type || 'image/jpeg'
-
-  const response = await callGemini(base64, mimeType)
   const result = await response.json()
-
   const text = result.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('No se pudo analizar la imagen')
+  if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
 
   return JSON.parse(text)
 }
@@ -102,7 +94,7 @@ function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result.split(',')[1])
-    reader.onerror = reject
+    reader.onerror = () => reject(new Error('Error leyendo la imagen'))
     reader.readAsDataURL(file)
   })
 }

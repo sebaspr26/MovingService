@@ -26,7 +26,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   }
 
   async function handleScanFile(file) {
-    if (!file || !file.type.startsWith('image/')) return
+    if (!file || !file.type.startsWith('image/') || scanning) return
     setScanning(true)
     setScanError(null)
     try {
@@ -45,9 +45,10 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
       if (onScan) onScan(res)
     } catch (err) {
       setScanError(err.message)
+    } finally {
+      setScanning(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
-    setScanning(false)
-    if (fileRef.current) fileRef.current.value = ''
   }
 
   return (
@@ -143,7 +144,8 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+              disabled={scanning}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Guardar
             </button>
