@@ -5,17 +5,13 @@ import { analyzeReceipt } from '../lib/gemini'
 const TYPE_LABELS = { order: 'Orden / Carga', diesel: 'Diesel', expense: 'Gasto' }
 const TYPE_COLORS = { order: 'text-green-400', diesel: 'text-orange-400', expense: 'text-red-400' }
 
-function getWeekRange(date = new Date()) {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diffToMon = day === 0 ? -6 : 1 - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + diffToMon)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
+function getMonthRange(date = new Date()) {
+  const y = date.getFullYear(), m = date.getMonth()
+  const start = new Date(y, m, 1)
+  const end = new Date(y, m + 1, 0)
   return {
-    start: monday.toISOString().split('T')[0],
-    end: sunday.toISOString().split('T')[0],
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
   }
 }
 
@@ -71,7 +67,7 @@ export default function Scanner() {
     if (!selectedTruck || !result) return
     setSaving(true)
     setError(null)
-    const period = getWeekRange()
+    const period = getMonthRange()
     const record = {
       ...formData,
       truck_id: selectedTruck,
