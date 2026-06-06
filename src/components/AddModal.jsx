@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { analyzeReceipt } from '../lib/gemini'
 
-export default function AddModal({ isOpen, onClose, onSave, fields, initialData, title }) {
+export default function AddModal({ isOpen, onClose, onSave, fields, initialData, title, onScan }) {
   const [formData, setFormData] = useState({})
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState(null)
+  const fileRef = useRef()
 
   useEffect(() => {
     if (isOpen) {
@@ -10,6 +14,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
         initial[f.name] = initialData?.[f.name] ?? f.default ?? ''
       })
       setFormData(initial)
+      setScanError(null)
     }
   }, [isOpen, initialData, fields])
 
@@ -18,6 +23,31 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   const handleSubmit = (e) => {
     e.preventDefault()
     onSave(formData)
+  }
+
+  async function handleScanFile(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    setScanning(true)
+    setScanError(null)
+    try {
+      const res = await analyzeReceipt(file)
+      if (res.data) {
+        setFormData(prev => {
+          const updated = { ...prev }
+          for (const [key, val] of Object.entries(res.data)) {
+            if (fields.some(f => f.name === key) && val !== '' && val !== 0) {
+              updated[key] = val
+            }
+          }
+          return updated
+        })
+      }
+      if (onScan) onScan(res)
+    } catch (err) {
+      setScanError(err.message)
+    }
+    setScanning(false)
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   return (
@@ -33,6 +63,45 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Scan button inside modal */}
+          {onScan !== undefined && (
+            <div>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={scanning}
+                className="w-full px-4 py-3 bg-purple-600/20 border border-purple-600/50 text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-600/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {scanning ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Analizando imagen...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                    </svg>
+                    Escanear recibo con camara
+                  </>
+                )}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleScanFile(e.target.files[0])}
+              />
+              {scanError && <p className="text-xs text-red-400 mt-1">{scanError}</p>}
+            </div>
+          )}
+
           {fields.map(field => (
             <div key={field.name}>
               <label className="block text-sm font-medium text-gray-400 mb-1">

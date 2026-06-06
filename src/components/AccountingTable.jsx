@@ -9,7 +9,7 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses }) {
+export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses, discountPct }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -47,7 +47,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
 
   // Auto-generated rows from other tables
   const autoRows = [
-    { description: 'Ingreso Neto (Orders -13%)', reference: 'Auto', debit: netIncome || 0, credit: 0 },
+    { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: netIncome || 0, credit: 0 },
     { description: 'Total Diesel', reference: 'Auto', debit: 0, credit: totalDiesel || 0 },
     { description: 'Total Gastos', reference: 'Auto', debit: 0, credit: totalExpenses || 0 },
   ]

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import AddModal from './AddModal'
-import ScanButton from './ScanButton'
 
 const CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -53,14 +52,6 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
     if (onDataChange) onDataChange()
   }
 
-  function handleScan(result) {
-    if (result.data) {
-      setEditRow(null)
-      setShowModal(true)
-      setTimeout(() => setEditRow({ ...result.data, _scanned: true }), 50)
-    }
-  }
-
   const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -71,7 +62,6 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
           {rows.length} gastos | Total: <span className="text-red-400 font-semibold">{fmt(total)}</span>
         </div>
         <div className="flex gap-2">
-          <ScanButton onResult={handleScan} label="Escanear" />
           <button
             onClick={() => { setEditRow(null); setShowModal(true) }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
@@ -132,7 +122,8 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
         onSave={handleSave}
         fields={fields}
         initialData={editRow}
-        title={editRow?._scanned ? 'Verificar Gasto (Escaneado)' : editRow ? 'Editar Gasto' : 'Agregar Gasto'}
+        title={editRow ? 'Editar Gasto' : 'Agregar Gasto'}
+        onScan={() => {}}
       />
     </div>
   )

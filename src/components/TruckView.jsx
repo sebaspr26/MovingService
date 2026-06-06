@@ -88,10 +88,12 @@ export default function TruckView() {
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
-  const discount13 = summary.income * 0.13
-  const netIncome = summary.income - discount13
+  const discountPct = Number(truck?.discount_percent) || 13
+  const discountAmount = summary.income * (discountPct / 100)
+  const netIncome = summary.income - discountAmount
   const totalExpenses = summary.diesel + summary.expenses
   // Debito/credito = auto (from orders/diesel/expenses) + manual (from accounting table)
+  const discount13 = discountAmount // alias for props
   const totalDebito = netIncome + summary.debito
   const totalCredito = summary.diesel + summary.expenses + summary.credito
 
@@ -199,9 +201,9 @@ export default function TruckView() {
           <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.income)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Neto (-13%)</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Neto (-{discountPct}%)</p>
           <p className="text-sm sm:text-lg font-bold text-emerald-400">{fmt(netIncome)}</p>
-          <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">-{fmt(discount13)}</p>
+          <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">-{fmt(discountAmount)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Diesel</p>
@@ -241,7 +243,7 @@ export default function TruckView() {
         {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} />}
         {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} />}
         {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} />}
-        {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalExpenses={summary.expenses} />}
+        {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalExpenses={summary.expenses} discountPct={discountPct} />}
       </div>
 
       {/* Cash Box & Dividends */}
@@ -255,6 +257,7 @@ export default function TruckView() {
           grossIncome={summary.income}
           netIncome={netIncome}
           discount13={discount13}
+          discountPct={discountPct}
           onMonthClosed={() => handleMonthShift(1)}
         />
       </div>

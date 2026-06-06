@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const PARTNERS = [
-  { name: 'Jairo', percentage: 20 },
-  { name: 'Angela', percentage: 20 },
-  { name: 'Simon', percentage: 30 },
-  { name: 'Mateo', percentage: 30 },
-]
-
-export default function CashBox({ truckId, period, debito, credito, grossIncome, netIncome, discount13, onMonthClosed }) {
+export default function CashBox({ truckId, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onMonthClosed }) {
+  const [partners, setPartners] = useState([])
   const [previousBalance, setPreviousBalance] = useState(0)
   const [cuadreCaja, setCuadreCaja] = useState(0)
   const [cashboxId, setCashboxId] = useState(null)
@@ -18,6 +12,13 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { fetchCashbox() }, [truckId, period.start, period.end])
+  useEffect(() => { fetchPartners() }, [truckId])
+
+  async function fetchPartners() {
+    const { data } = await supabase.from('partners').select('*')
+      .eq('truck_id', truckId).order('created_at')
+    setPartners(data || [])
+  }
 
   async function fetchCashbox() {
     setLoading(true)
@@ -114,13 +115,13 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
         </div>
       </div>
 
-      {/* 13% DESCUENTO */}
+      {/* DESCUENTO */}
       {grossIncome > 0 && (
         <div className="bg-gray-800/30 rounded-lg p-3 sm:p-4 border border-gray-800">
-          <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Descuento 13% sobre Orders</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Descuento {discountPct || 13}% sobre Orders</p>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
             <span className="text-gray-400">Gross: <span className="text-white font-semibold">{fmt(grossIncome)}</span></span>
-            <span className="text-red-400">- 13%: <span className="font-semibold">{fmt(discount13)}</span></span>
+            <span className="text-red-400">- {discountPct || 13}%: <span className="font-semibold">{fmt(discount13)}</span></span>
             <span className="text-emerald-400">= Neto: <span className="font-semibold">{fmt(netIncome)}</span></span>
           </div>
         </div>
@@ -184,7 +185,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
 
           <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Dividendos por Socio</p>
           <div className="space-y-2">
-            {PARTNERS.map(p => {
+            {partners.map(p => {
               const repartido = ganancia - cuadreCaja
               const share = repartido > 0 ? repartido * (p.percentage / 100) : 0
               return (
@@ -231,7 +232,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
             <div className="mb-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Dividendos por Socio</p>
               <div className="space-y-2">
-                {PARTNERS.map(p => {
+                {partners.map(p => {
                   const share = (ganancia - inputCuadre) * (p.percentage / 100)
                   return (
                     <div key={p.name} className="bg-gray-800/40 rounded-lg p-3 flex items-center justify-between">

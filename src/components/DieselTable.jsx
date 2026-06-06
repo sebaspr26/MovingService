@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import AddModal from './AddModal'
-import ScanButton from './ScanButton'
 
 const fields = [
   { name: 'invoice_number', label: 'Invoice #', required: true },
@@ -47,14 +46,6 @@ export default function DieselTable({ truckId, period, onDataChange }) {
     if (onDataChange) onDataChange()
   }
 
-  function handleScan(result) {
-    if (result.type === 'diesel' && result.data) {
-      setEditRow(null)
-      setShowModal(true)
-      setTimeout(() => setEditRow({ ...result.data, _scanned: true }), 50)
-    }
-  }
-
   const totalGallons = rows.reduce((s, r) => s + (Number(r.gallons) || 0), 0)
   const totalValue = rows.reduce((s, r) => s + (Number(r.value) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -66,7 +57,6 @@ export default function DieselTable({ truckId, period, onDataChange }) {
           {rows.length} registros | {totalGallons.toFixed(1)} gal | Total: <span className="text-red-400 font-semibold">{fmt(totalValue)}</span>
         </div>
         <div className="flex gap-2">
-          <ScanButton onResult={handleScan} label="Escanear" />
           <button
             onClick={() => { setEditRow(null); setShowModal(true) }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
@@ -125,7 +115,8 @@ export default function DieselTable({ truckId, period, onDataChange }) {
         onSave={handleSave}
         fields={fields}
         initialData={editRow}
-        title={editRow?._scanned ? 'Verificar Diesel (Escaneado)' : editRow ? 'Editar Diesel' : 'Agregar Diesel'}
+        title={editRow ? 'Editar Diesel' : 'Agregar Diesel'}
+        onScan={() => {}}
       />
     </div>
   )

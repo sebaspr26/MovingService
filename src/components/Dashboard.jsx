@@ -16,19 +16,59 @@ function shiftMonth(year, month, dir) {
   return getMonthRange(new Date(year, month + dir, 1))
 }
 
-const truckFields = [
-  { name: 'name', label: 'Nombre', required: true, placeholder: 'Ej: Truck 109' },
-  { name: 'number', label: 'Numero', required: true, placeholder: 'Ej: 109' },
+const EXPENSE_CATEGORIES = [
+  'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
+  'Lavado', 'Parqueo', 'Multas', 'Comida', 'DEF', 'Otros'
+]
+
+const orderFields = [
+  { name: 'order_number', label: 'Orden #', required: true },
+  { name: 'pu_date', label: 'Fecha Pickup', type: 'date', required: true },
+  { name: 'pu_city', label: 'Ciudad Pickup', required: true },
+  { name: 'do_date', label: 'Fecha Delivery', type: 'date', required: true },
+  { name: 'do_city', label: 'Ciudad Delivery', required: true },
+  { name: 'miles', label: 'Millas', type: 'number', step: '0.01' },
+  { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
+]
+
+const dieselFields = [
+  { name: 'invoice_number', label: 'Invoice #', required: true },
+  { name: 'date', label: 'Fecha', type: 'date', required: true },
+  { name: 'city', label: 'Ciudad', required: true },
+  { name: 'gallons', label: 'Galones', type: 'number', step: '0.01', required: true },
+  { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
+]
+
+const expenseFields = [
+  { name: 'category', label: 'Categoria', type: 'select', required: true,
+    options: EXPENSE_CATEGORIES.map(c => ({ value: c, label: c })) },
+  { name: 'invoice_number', label: 'Invoice #' },
+  { name: 'description', label: 'Descripcion', required: true },
+  { name: 'amount', label: 'Monto ($)', type: 'number', step: '0.01', required: true },
+  { name: 'date', label: 'Fecha', type: 'date', required: true },
 ]
 
 export default function Dashboard() {
   const [trucks, setTrucks] = useState([])
   const [summaries, setSummaries] = useState({})
   const [monthData, setMonthData] = useState(getMonthRange())
-  const [showModal, setShowModal] = useState(false)
+  const [showTruckModal, setShowTruckModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
+
+  // Quick add state
+  const [quickAdd, setQuickAdd] = useState(null) // 'order' | 'diesel' | 'expense' | null
+  const [quickTruckId, setQuickTruckId] = useState('')
+
+  // Truck creation form state
+  const [truckName, setTruckName] = useState('')
+  const [truckNumber, setTruckNumber] = useState('')
+  const [truckPartners, setTruckPartners] = useState([{ name: '', percentage: '' }])
+  const [truckCajaInicial, setTruckCajaInicial] = useState('')
+  const [truckDiscount, setTruckDiscount] = useState('13')
+  const [truckDiscountCustom, setTruckDiscountCustom] = useState('')
+  const [truckError, setTruckError] = useState('')
 
   const period = { start: monthData.start, end: monthData.end }
 
@@ -60,9 +100,81 @@ export default function Dashboard() {
     setSummaries(sums)
   }
 
-  async function handleAddTruck(data) {
-    const { error } = await supabase.from('trucks').insert(data)
-    if (!error) { await fetchTrucks(); setShowModal(false) }
+  function openTruckModal() {
+    setTruckName('')
+    setTruckNumber('')
+    setTruckPartners([{ name: '', percentage: '' }])
+    setTruckCajaInicial('')
+    setTruckDiscount('13')
+    setTruckDiscountCustom('')
+    setTruckError('')
+    setShowTruckModal(true)
+  }
+
+  function addPartnerRow() {
+    setTruckPartners(prev => [...prev, { name: '', percentage: '' }])
+  }
+
+  function updatePartner(index, field, value) {
+    setTruckPartners(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
+  }
+
+  function removePartner(index) {
+    setTruckPartners(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleCreateTruck(e) {
+    e.preventDefault()
+    setTruckError('')
+
+    // Validate partners
+    const validPartners = truckPartners.filter(p => p.name.trim() && p.percentage)
+    if (validPartners.length > 0) {
+      const totalPct = validPartners.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
+      if (Math.abs(totalPct - 100) > 0.01) {
+        setTruckError(`Los porcentajes suman ${totalPct}% (deben sumar 100%)`)
+        return
+      }
+    }
+
+    // Create truck
+    const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
+    const { data: truck, error } = await supabase.from('trucks')
+      .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
+      .select().single()
+
+    if (error || !truck) {
+      setTruckError('Error creando camion')
+      return
+    }
+
+    // Create partners
+    if (validPartners.length > 0) {
+      await supabase.from('partners').insert(
+        validPartners.map(p => ({
+          truck_id: truck.id,
+          name: p.name.trim(),
+          percentage: Number(p.percentage),
+          invested: 0,
+        }))
+      )
+    }
+
+    // Create initial cashbox if caja inicial provided
+    const cajaInicial = Number(truckCajaInicial) || 0
+    if (cajaInicial > 0) {
+      await supabase.from('cashbox').insert({
+        truck_id: truck.id,
+        period_start: period.start,
+        period_end: period.end,
+        previous_balance: cajaInicial,
+        cuadre_caja: 0,
+        closed: false,
+      })
+    }
+
+    setShowTruckModal(false)
+    await fetchTrucks()
   }
 
   async function handleDeleteTruck() {
@@ -74,11 +186,29 @@ export default function Dashboard() {
       supabase.from('expenses').delete().eq('truck_id', id),
       supabase.from('accounting').delete().eq('truck_id', id),
       supabase.from('cashbox').delete().eq('truck_id', id),
+      supabase.from('partners').delete().eq('truck_id', id),
     ])
     await supabase.from('trucks').delete().eq('id', id)
     setDeleteTarget(null)
     setDeleteInput('')
     await fetchTrucks()
+  }
+
+  // Quick add handlers
+  function openQuickAdd(type) {
+    setQuickTruckId(trucks.length === 1 ? trucks[0].id : '')
+    setQuickAdd(type)
+  }
+
+  async function handleQuickSave(data) {
+    if (!quickTruckId) return
+    const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : 'expenses'
+    const record = { ...data, truck_id: quickTruckId, period_start: period.start, period_end: period.end }
+    const { error } = await supabase.from(table).insert(record)
+    if (!error) {
+      setQuickAdd(null)
+      fetchSummaries()
+    }
   }
 
   function handleMonthShift(dir) {
@@ -87,6 +217,40 @@ export default function Dashboard() {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0)
 
+  // Build quick add fields with truck selector prepended
+  function getQuickFields(baseFields) {
+    const truckField = {
+      name: '_truck_select',
+      label: 'Camion',
+      type: 'select',
+      required: true,
+      options: trucks.map(t => ({ value: t.id, label: `${t.name} (#${t.number})` })),
+    }
+    return [truckField, ...baseFields]
+  }
+
+  function handleQuickSaveWrapped(data) {
+    const { _truck_select, ...rest } = data
+    setQuickTruckId(_truck_select)
+    if (!_truck_select) return
+    const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : 'expenses'
+    const record = { ...rest, truck_id: _truck_select, period_start: period.start, period_end: period.end }
+    supabase.from(table).insert(record).then(({ error }) => {
+      if (!error) {
+        setQuickAdd(null)
+        fetchSummaries()
+      }
+    })
+  }
+
+  const quickConfig = {
+    order: { fields: getQuickFields(orderFields), title: 'Agregar Orden' },
+    diesel: { fields: getQuickFields(dieselFields), title: 'Agregar Diesel' },
+    expense: { fields: getQuickFields(expenseFields), title: 'Agregar Gasto' },
+  }
+
+  const totalPct = truckPartners.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -94,13 +258,40 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-white">Dashboard</h2>
           <p className="text-sm text-gray-500 mt-1">Resumen de camiones por periodo</p>
         </div>
-        <button onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors flex items-center gap-2 self-start">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Agregar Camion
-        </button>
+        <div className="flex flex-wrap gap-2 self-start">
+          {trucks.length > 0 && (
+            <>
+              <button onClick={() => openQuickAdd('order')}
+                className="px-3 py-2 bg-green-600/20 border border-green-600/40 text-green-400 rounded-lg text-xs font-medium hover:bg-green-600/30 transition-colors flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Orden
+              </button>
+              <button onClick={() => openQuickAdd('diesel')}
+                className="px-3 py-2 bg-orange-600/20 border border-orange-600/40 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Diesel
+              </button>
+              <button onClick={() => openQuickAdd('expense')}
+                className="px-3 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Gasto
+              </button>
+            </>
+          )}
+          <button onClick={openTruckModal}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Agregar Camion
+          </button>
+        </div>
       </div>
 
       {/* Month selector */}
@@ -211,7 +402,191 @@ export default function Dashboard() {
         </div>
       )}
 
-      <AddModal isOpen={showModal} onClose={() => setShowModal(false)} onSave={handleAddTruck} fields={truckFields} title="Agregar Camion" />
+      {/* Create Truck Modal (custom form) */}
+      {showTruckModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+              <h3 className="text-lg font-semibold text-white">Agregar Camion</h3>
+              <button onClick={() => setShowTruckModal(false)} className="text-gray-500 hover:text-gray-300">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTruck} className="p-4 space-y-4">
+              {/* Truck info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    value={truckName}
+                    onChange={(e) => setTruckName(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Ej: Truck 109"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Numero</label>
+                  <input
+                    type="text"
+                    value={truckNumber}
+                    onChange={(e) => setTruckNumber(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Ej: 109"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Discount percentage */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Descuento sobre Orders (%)</label>
+                <div className="flex gap-2">
+                  {['13', '11'].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => { setTruckDiscount(val); setTruckDiscountCustom('') }}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        truckDiscount === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                      }`}
+                    >
+                      {val}%
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setTruckDiscount('custom')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      truckDiscount === 'custom'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                    }`}
+                  >
+                    Otro
+                  </button>
+                  {truckDiscount === 'custom' && (
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={truckDiscountCustom}
+                        onChange={(e) => setTruckDiscountCustom(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                        placeholder="Ej: 10"
+                        autoFocus
+                        required
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Partners section */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-400">Socios</label>
+                  <span className={`text-xs ${Math.abs(totalPct - 100) < 0.01 && truckPartners.some(p => p.percentage) ? 'text-green-400' : totalPct > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
+                    {totalPct > 0 ? `${totalPct}%` : ''}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {truckPartners.map((p, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={p.name}
+                        onChange={(e) => updatePartner(i, 'name', e.target.value)}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                        placeholder="Nombre"
+                      />
+                      <div className="relative w-24">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={p.percentage}
+                          onChange={(e) => updatePartner(i, 'percentage', e.target.value)}
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                          placeholder="%"
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                      </div>
+                      {truckPartners.length > 1 && (
+                        <button type="button" onClick={() => removePartner(i)} className="p-1.5 text-gray-500 hover:text-red-400">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={addPartnerRow}
+                  className="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Agregar Socio
+                </button>
+              </div>
+
+              {/* Caja inicial */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Caja Inicial ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={truckCajaInicial}
+                  onChange={(e) => setTruckCajaInicial(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="0.00 (saldo anterior del primer mes)"
+                />
+              </div>
+
+              {truckError && (
+                <div className="bg-red-900/30 border border-red-800 rounded-lg p-3">
+                  <p className="text-xs text-red-400">{truckError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTruckModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+                >
+                  Crear Camion
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Modals */}
+      {quickAdd && (
+        <AddModal
+          isOpen={true}
+          onClose={() => setQuickAdd(null)}
+          onSave={handleQuickSaveWrapped}
+          fields={quickConfig[quickAdd].fields}
+          title={quickConfig[quickAdd].title}
+          onScan={() => {}}
+        />
+      )}
     </div>
   )
 }
