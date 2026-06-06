@@ -17,7 +17,7 @@ const fields = [
   { name: 'date', label: 'Fecha', type: 'date', required: true },
 ]
 
-export default function ExpensesTable({ truckId, period }) {
+export default function ExpensesTable({ truckId, period, onDataChange }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -43,12 +43,14 @@ export default function ExpensesTable({ truckId, period }) {
     setShowModal(false)
     setEditRow(null)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
     await supabase.from('expenses').delete().eq('id', id)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   function handleScan(result) {

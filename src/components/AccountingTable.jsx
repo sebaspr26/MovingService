@@ -9,7 +9,7 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-export default function AccountingTable({ truckId, period }) {
+export default function AccountingTable({ truckId, period, onDataChange }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -35,12 +35,14 @@ export default function AccountingTable({ truckId, period }) {
     setShowModal(false)
     setEditRow(null)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
     await supabase.from('accounting').delete().eq('id', id)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)

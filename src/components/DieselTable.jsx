@@ -11,7 +11,7 @@ const fields = [
   { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
 ]
 
-export default function DieselTable({ truckId, period }) {
+export default function DieselTable({ truckId, period, onDataChange }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -37,12 +37,14 @@ export default function DieselTable({ truckId, period }) {
     setShowModal(false)
     setEditRow(null)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
     await supabase.from('diesel').delete().eq('id', id)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   function handleScan(result) {

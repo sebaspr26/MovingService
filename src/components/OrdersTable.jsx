@@ -13,7 +13,7 @@ const fields = [
   { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
 ]
 
-export default function OrdersTable({ truckId, period }) {
+export default function OrdersTable({ truckId, period, onDataChange }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -39,12 +39,14 @@ export default function OrdersTable({ truckId, period }) {
     setShowModal(false)
     setEditRow(null)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
     await supabase.from('orders').delete().eq('id', id)
     fetchRows()
+    if (onDataChange) onDataChange()
   }
 
   function handleScan(result) {

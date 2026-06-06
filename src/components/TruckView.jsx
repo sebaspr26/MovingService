@@ -219,10 +219,10 @@ export default function TruckView() {
 
       {/* Tab content */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
-        {tab === 'orders' && <OrdersTable truckId={id} period={period} />}
-        {tab === 'diesel' && <DieselTable truckId={id} period={period} />}
-        {tab === 'expenses' && <ExpensesTable truckId={id} period={period} />}
-        {tab === 'accounting' && <AccountingTable truckId={id} period={period} />}
+        {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} />}
+        {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} />}
+        {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} />}
+        {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} />}
       </div>
 
       {/* Cash Box & Dividends */}
