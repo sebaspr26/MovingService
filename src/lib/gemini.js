@@ -52,55 +52,35 @@ Rules:
 - If it's a load confirmation or bill of lading, type is "order"
 - Otherwise, type is "expense"`
 
-// Throttle: track last call time to enforce 5s minimum gap
-let lastCallTime = 0
-
-async function waitForThrottle() {
-  const now = Date.now()
-  const elapsed = now - lastCallTime
-  const minGap = 5000
-  if (elapsed < minGap) {
-    await new Promise(r => setTimeout(r, minGap - elapsed))
-  }
-  lastCallTime = Date.now()
-}
-
-async function callGeminiWithRetry(base64, mimeType, maxRetries = 3) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    await waitForThrottle()
-
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: PROMPT },
-            { inline_data: { mime_type: mimeType, data: base64 } }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-        }
-      })
+async function callGemini(base64, mimeType) {
+  const response = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: PROMPT },
+          { inline_data: { mime_type: mimeType, data: base64 } }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      }
     })
+  })
 
-    if (response.ok) {
-      return response
-    }
+  if (response.ok) return response
 
-    if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
-      const backoff = Math.pow(2, attempt + 1) * 2000 // 4s, 8s, 16s
-      console.warn(`Gemini ${response.status}, reintentando en ${backoff / 1000}s... (intento ${attempt + 1}/${maxRetries})`)
-      await new Promise(r => setTimeout(r, backoff))
-      lastCallTime = Date.now()
-      continue
-    }
-
-    const err = await response.text()
-    throw new Error(`Error Gemini (${response.status}): ${err}`)
+  if (response.status === 429) {
+    throw new Error('Limite de requests alcanzado. Espera unos segundos e intenta de nuevo.')
   }
+  if (response.status === 503) {
+    throw new Error('Servicio de Gemini no disponible. Intenta de nuevo en unos momentos.')
+  }
+
+  const err = await response.text()
+  throw new Error(`Error Gemini (${response.status}): ${err}`)
 }
 
 export async function analyzeReceipt(imageFile) {
@@ -109,7 +89,7 @@ export async function analyzeReceipt(imageFile) {
   const base64 = await fileToBase64(imageFile)
   const mimeType = imageFile.type || 'image/jpeg'
 
-  const response = await callGeminiWithRetry(base64, mimeType)
+  const response = await callGemini(base64, mimeType)
   const result = await response.json()
 
   const text = result.candidates?.[0]?.content?.parts?.[0]?.text
