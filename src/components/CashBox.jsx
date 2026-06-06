@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function CashBox({ truckId, period, debito, credito, onCuadreChange }) {
+export default function CashBox({ truckId, period, debito, credito, grossIncome, netIncome, discount13, onCuadreChange }) {
   const [previousBalance, setPreviousBalance] = useState(0)
   const [cuadreCaja, setCuadreCaja] = useState(0)
   const [cashboxId, setCashboxId] = useState(null)
@@ -71,6 +71,18 @@ export default function CashBox({ truckId, period, debito, credito, onCuadreChan
 
       {/* Flow visualization */}
       <div className="space-y-4">
+        {/* Row 0: 13% Deduction */}
+        {grossIncome > 0 && (
+          <div className="bg-gray-800/30 rounded-lg p-3 sm:p-4 border border-gray-800">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Descuento 13% sobre Orders</p>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
+              <span className="text-gray-400">Gross: <span className="text-white font-semibold">{fmt(grossIncome)}</span></span>
+              <span className="text-red-400">- 13%: <span className="font-semibold">{fmt(discount13)}</span></span>
+              <span className="text-emerald-400">= Neto: <span className="font-semibold">{fmt(netIncome)}</span></span>
+            </div>
+          </div>
+        )}
+
         {/* Row 1: Debito & Credito */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
           <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">

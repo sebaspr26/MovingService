@@ -100,6 +100,8 @@ export default function TruckView() {
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  const discount13 = summary.income * 0.13
+  const netIncome = summary.income - discount13
   const totalExpenses = summary.diesel + summary.expenses
   const balance = summary.debito - summary.credito
   const aRepartir = balance - cuadreCaja
@@ -176,10 +178,15 @@ export default function TruckView() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Ingresos (Orders)</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Gross Orders</p>
           <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.income)}</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Neto (-13%)</p>
+          <p className="text-sm sm:text-lg font-bold text-emerald-400">{fmt(netIncome)}</p>
+          <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">-{fmt(discount13)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Diesel</p>
@@ -193,7 +200,7 @@ export default function TruckView() {
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Debito</p>
           <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.debito)}</p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4 col-span-2 sm:col-span-1">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
           <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(summary.credito)}</p>
         </div>
@@ -224,7 +231,7 @@ export default function TruckView() {
 
       {/* Cash Box */}
       <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <CashBox truckId={id} period={period} debito={summary.debito} credito={summary.credito} onCuadreChange={setCuadreCaja} />
+        <CashBox truckId={id} period={period} debito={summary.debito} credito={summary.credito} grossIncome={summary.income} netIncome={netIncome} discount13={discount13} onCuadreChange={setCuadreCaja} />
       </div>
 
       {/* Partners & Dividends */}
