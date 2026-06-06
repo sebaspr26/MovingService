@@ -8,6 +8,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   const fileRef = useRef()
   const processingRef = useRef(false)
 
+  const fieldsKey = fields.map(f => f.name).join(',')
   useEffect(() => {
     if (isOpen) {
       const initial = {}
@@ -17,7 +18,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
       setFormData(initial)
       setScanError(null)
     }
-  }, [isOpen, initialData, fields])
+  }, [isOpen, initialData, fieldsKey])
 
   if (!isOpen) return null
 
