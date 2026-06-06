@@ -1,4 +1,5 @@
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 const PROMPT = `Analyze this receipt/invoice image and extract the data into JSON format.
 Determine the type of document and return ONE of these formats:
@@ -33,7 +34,7 @@ If it's a GENERAL EXPENSE (maintenance, tolls, repairs, tires, etc):
 {
   "type": "expense",
   "data": {
-    "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|Otros",
+    "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|DEF|Otros",
     "invoice_number": "string",
     "description": "brief description",
     "amount": number,
@@ -55,32 +56,33 @@ export async function analyzeReceipt(imageFile) {
   const base64 = await fileToBase64(imageFile)
   const mimeType = imageFile.type || 'image/jpeg'
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: PROMPT },
-            { inline_data: { mime_type: mimeType, data: base64 } }
-          ]
-        }]
-      })
-    }
-  )
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'nvidia/nemotron-nano-12b-v2-vl:free',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } }
+        ]
+      }]
+    })
+  })
 
   if (!response.ok) {
     const err = await response.text()
-    throw new Error(`Gemini API error: ${err}`)
+    throw new Error(`Error al analizar: ${err}`)
   }
 
   const result = await response.json()
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('No response from Gemini')
+  const text = result.choices?.[0]?.message?.content
+  if (!text) throw new Error('No se pudo analizar la imagen')
 
-  // Clean markdown code blocks if present
   const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
   return JSON.parse(cleaned)
 }
