@@ -22,24 +22,14 @@ function shiftMonth(year, month, dir) {
 }
 
 function getWeeksInMonth(year, month) {
-  const weeks = []
-  const first = new Date(year, month, 1)
   const last = new Date(year, month + 1, 0)
-  let d = new Date(first)
-  // Go to first Monday on or before the 1st
-  const day = d.getDay()
-  const diffToMon = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diffToMon)
-
-  while (d <= last || weeks.length === 0) {
-    const mon = new Date(d)
-    const sun = new Date(d)
-    sun.setDate(d.getDate() + 6)
-    weeks.push({ start: fmt_d(mon), end: fmt_d(sun), label: `${fmt_d(mon)} a ${fmt_d(sun)}` })
-    d.setDate(d.getDate() + 7)
-    if (d > last && weeks.length > 0) break
-  }
-  return weeks
+  const lastDay = last.getDate()
+  return [
+    { start: fmt_d(new Date(year, month, 1)), end: fmt_d(new Date(year, month, 7)) },
+    { start: fmt_d(new Date(year, month, 8)), end: fmt_d(new Date(year, month, 14)) },
+    { start: fmt_d(new Date(year, month, 15)), end: fmt_d(new Date(year, month, 21)) },
+    { start: fmt_d(new Date(year, month, 22)), end: fmt_d(new Date(year, month, lastDay)) },
+  ]
 }
 
 function fmt_d(d) { return d.toISOString().split('T')[0] }
@@ -146,6 +136,22 @@ export default function TruckView() {
         </button>
       </div>
 
+      {/* Month ended banner */}
+      {(() => {
+        const today = new Date()
+        const monthEnd = new Date(monthData.year, monthData.month + 1, 0)
+        const isCurrentOrFuture = monthData.year > today.getFullYear() || (monthData.year === today.getFullYear() && monthData.month >= today.getMonth())
+        const isPastMonth = today > monthEnd && !isCurrentOrFuture
+        return isPastMonth ? (
+          <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+            <svg className="w-4 h-4 text-yellow-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+            <p className="text-xs text-yellow-400">Este mes ya finalizo. Cierra la caja para abrir el siguiente periodo.</p>
+          </div>
+        ) : null
+      })()}
+
       {/* Week filter */}
       <div className="flex flex-wrap gap-2 mb-6">
         <button
@@ -156,17 +162,27 @@ export default function TruckView() {
         >
           Todo el mes
         </button>
-        {weeks.map((w, i) => (
-          <button
-            key={w.start}
-            onClick={() => setSelectedWeek(w)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              selectedWeek?.start === w.start ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            Sem {i + 1}
-          </button>
-        ))}
+        {weeks.map((w, i) => {
+          const today = fmt_d(new Date())
+          const isCurrentMonth = monthData.year === new Date().getFullYear() && monthData.month === new Date().getMonth()
+          const enabled = !isCurrentMonth || today >= w.start
+          return (
+            <button
+              key={w.start}
+              onClick={() => enabled && setSelectedWeek(w)}
+              disabled={!enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                !enabled
+                  ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+                  : selectedWeek?.start === w.start
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              Sem {i + 1}
+            </button>
+          )
+        })}
       </div>
 
       {/* Period indicator */}
