@@ -105,7 +105,10 @@ export async function analyzeReceipt(imageFile) {
 
     const response = await callGemini(body)
     const result = await response.json()
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text
+    const parts = result.candidates?.[0]?.content?.parts || []
+    // Gemini 2.5 Flash is a thinking model — skip thought parts, get the actual response
+    const outputPart = parts.filter(p => !p.thought).pop()
+    const text = outputPart?.text
     if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
 
     return JSON.parse(text)
