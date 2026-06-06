@@ -101,6 +101,9 @@ export default function TruckView() {
   const discount13 = summary.income * 0.13
   const netIncome = summary.income - discount13
   const totalExpenses = summary.diesel + summary.expenses
+  // Debito/credito = auto (from orders/diesel/expenses) + manual (from accounting table)
+  const totalDebito = netIncome + summary.debito
+  const totalCredito = summary.diesel + summary.expenses + summary.credito
 
   if (!truck) return <div className="text-gray-500 text-center py-12">Cargando...</div>
 
@@ -194,11 +197,11 @@ export default function TruckView() {
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Debito</p>
-          <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.debito)}</p>
+          <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(totalDebito)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
-          <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(summary.credito)}</p>
+          <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(totalCredito)}</p>
         </div>
       </div>
 
@@ -222,7 +225,7 @@ export default function TruckView() {
         {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} />}
         {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} />}
         {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} />}
-        {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} />}
+        {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalExpenses={summary.expenses} />}
       </div>
 
       {/* Cash Box & Dividends */}
@@ -231,8 +234,8 @@ export default function TruckView() {
         <CashBox
           truckId={id}
           period={period}
-          debito={summary.debito}
-          credito={summary.credito}
+          debito={totalDebito}
+          credito={totalCredito}
           grossIncome={summary.income}
           netIncome={netIncome}
           discount13={discount13}

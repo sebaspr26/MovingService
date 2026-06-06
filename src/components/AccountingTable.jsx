@@ -9,7 +9,7 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-export default function AccountingTable({ truckId, period, onDataChange }) {
+export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -45,8 +45,19 @@ export default function AccountingTable({ truckId, period, onDataChange }) {
     if (onDataChange) onDataChange()
   }
 
-  const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
-  const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
+  // Auto-generated rows from other tables
+  const autoRows = [
+    { description: 'Ingreso Neto (Orders -13%)', reference: 'Auto', debit: netIncome || 0, credit: 0 },
+    { description: 'Total Diesel', reference: 'Auto', debit: 0, credit: totalDiesel || 0 },
+    { description: 'Total Gastos', reference: 'Auto', debit: 0, credit: totalExpenses || 0 },
+  ]
+
+  const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
+  const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
+  const autoDebit = (netIncome || 0)
+  const autoCredit = (totalDiesel || 0) + (totalExpenses || 0)
+  const totalDebit = autoDebit + manualDebit
+  const totalCredit = autoCredit + manualCredit
   const balance = totalDebit - totalCredit
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -78,6 +89,33 @@ export default function AccountingTable({ truckId, period, onDataChange }) {
             </tr>
           </thead>
           <tbody>
+            {/* Auto-generated rows */}
+            {autoRows.map((row, i) => (
+              <tr key={`auto-${i}`} className="border-b border-gray-800/50 bg-gray-800/20">
+                <td className="py-2.5 pr-4 text-gray-300 italic">{row.description}</td>
+                <td className="py-2.5 pr-4">
+                  <span className="text-[10px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded">Auto</span>
+                </td>
+                <td className="py-2.5 pr-4 text-right text-green-400/70">
+                  {row.debit ? fmt(row.debit) : '-'}
+                </td>
+                <td className="py-2.5 pr-4 text-right text-red-400/70">
+                  {row.credit ? fmt(row.credit) : '-'}
+                </td>
+                <td className="py-2.5"></td>
+              </tr>
+            ))}
+
+            {/* Separator */}
+            {rows.length > 0 && (
+              <tr>
+                <td colSpan={5} className="py-1">
+                  <div className="border-t border-dashed border-gray-700"></div>
+                </td>
+              </tr>
+            )}
+
+            {/* Manual rows */}
             {rows.map(row => (
               <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="py-2.5 pr-4 text-white">{row.description}</td>
@@ -104,9 +142,14 @@ export default function AccountingTable({ truckId, period, onDataChange }) {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={5} className="py-8 text-center text-gray-600">Sin registros contables en este periodo</td></tr>
-            )}
+
+            {/* Totals */}
+            <tr className="border-t-2 border-gray-700">
+              <td className="py-3 pr-4 text-white font-semibold" colSpan={2}>TOTAL</td>
+              <td className="py-3 pr-4 text-right text-green-400 font-bold">{fmt(totalDebit)}</td>
+              <td className="py-3 pr-4 text-right text-red-400 font-bold">{fmt(totalCredit)}</td>
+              <td></td>
+            </tr>
           </tbody>
         </table>
       </div>
