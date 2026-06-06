@@ -52,16 +52,45 @@ Rules:
 - If it's a load confirmation or bill of lading, type is "order"
 - Otherwise, type is "expense"`
 
-export async function analyzeReceipt(imageFile) {
-  if (!GEMINI_KEY) throw new Error('API key de Gemini no configurada')
+// Global lock — prevents duplicate calls from StrictMode or double clicks
+let isProcessing = false
 
-  const base64 = await fileToBase64(imageFile)
-  const mimeType = imageFile.type || 'image/jpeg'
-
+async function callGemini(body) {
   const response = await fetch(GEMINI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: JSON.stringify(body)
+  })
+
+  if (response.ok) return response
+
+  // Silent retry only for 503 (Google momentary blip)
+  if (response.status === 503) {
+    await new Promise(r => setTimeout(r, 1000))
+    const retry = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (retry.ok) return retry
+    throw new Error('Servicio no disponible. Intenta de nuevo en unos momentos.')
+  }
+
+  if (response.status === 429) throw new Error('Limite de requests alcanzado. Intenta de nuevo en unos segundos.')
+  if (response.status === 400) throw new Error('Imagen no valida o formato no soportado.')
+  throw new Error(`Error del servidor (${response.status}). Intenta de nuevo.`)
+}
+
+export async function analyzeReceipt(imageFile) {
+  if (!GEMINI_KEY) throw new Error('API key de Gemini no configurada')
+  if (isProcessing) throw new Error('Ya se esta procesando una imagen. Espera un momento.')
+
+  isProcessing = true
+  try {
+    const base64 = await fileToBase64(imageFile)
+    const mimeType = imageFile.type || 'image/jpeg'
+
+    const body = {
       contents: [{
         parts: [
           { text: PROMPT },
@@ -72,22 +101,21 @@ export async function analyzeReceipt(imageFile) {
         responseMimeType: 'application/json',
         temperature: 0.1,
       }
-    })
-  })
+    }
 
-  if (!response.ok) {
-    const status = response.status
-    if (status === 429) throw new Error('Limite de requests alcanzado. Intenta de nuevo en unos segundos.')
-    if (status === 503) throw new Error('Servicio no disponible. Intenta de nuevo en unos momentos.')
-    if (status === 400) throw new Error('Imagen no valida o formato no soportado.')
-    throw new Error(`Error del servidor (${status}). Intenta de nuevo.`)
+    const response = await callGemini(body)
+    const result = await response.json()
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
+
+    return JSON.parse(text)
+  } finally {
+    isProcessing = false
   }
+}
 
-  const result = await response.json()
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
-
-  return JSON.parse(text)
+export function isScannerBusy() {
+  return isProcessing
 }
 
 function fileToBase64(file) {

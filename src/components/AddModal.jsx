@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { analyzeReceipt } from '../lib/gemini'
+import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 
 export default function AddModal({ isOpen, onClose, onSave, fields, initialData, title, onScan }) {
   const [formData, setFormData] = useState({})
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState(null)
   const fileRef = useRef()
+  const processingRef = useRef(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -26,7 +27,9 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   }
 
   async function handleScanFile(file) {
-    if (!file || !file.type.startsWith('image/') || scanning) return
+    if (!file || !file.type.startsWith('image/')) return
+    if (processingRef.current || isScannerBusy()) return
+    processingRef.current = true
     setScanning(true)
     setScanError(null)
     try {
@@ -46,6 +49,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
     } catch (err) {
       setScanError(err.message)
     } finally {
+      processingRef.current = false
       setScanning(false)
       if (fileRef.current) fileRef.current.value = ''
     }
