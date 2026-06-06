@@ -5,6 +5,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   const [formData, setFormData] = useState({})
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState(null)
+  const [scanned, setScanned] = useState(false)
   const fileRef = useRef()
   const processingRef = useRef(false)
 
@@ -17,6 +18,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
       })
       setFormData(initial)
       setScanError(null)
+      setScanned(false)
     }
   }, [isOpen, initialData, fieldsKey])
 
@@ -46,6 +48,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
           return updated
         })
       }
+      setScanned(true)
       if (onScan) onScan(res)
     } catch (err) {
       setScanError(err.message)
@@ -107,6 +110,15 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
             </div>
           )}
 
+          {scanned && (
+            <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <p className="text-xs text-emerald-400">Datos escaneados. Revisa que todo este correcto antes de confirmar.</p>
+            </div>
+          )}
+
           {fields.map(field => (
             <div key={field.name}>
               <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -149,9 +161,11 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
             <button
               type="submit"
               disabled={scanning}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex-1 px-4 py-2 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                scanned ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'
+              }`}
             >
-              Guardar
+              {scanned ? 'Confirmar Datos' : 'Guardar'}
             </button>
           </div>
         </form>
