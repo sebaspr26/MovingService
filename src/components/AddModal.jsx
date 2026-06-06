@@ -95,7 +95,6 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={(e) => handleScanFile(e.target.files[0])}
               />
