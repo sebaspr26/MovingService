@@ -34,7 +34,7 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
   const previousBalance = Number(cycle?.previous_balance) || 0
   const cuadreCaja = Number(cycle?.cuadre_caja) || 0
   const closed = cycle?.closed || false
-  const balance = debito - credito
+  const balance = credito - debito
   const ganancia = previousBalance + balance
   const inputCuadre = Number(cierreInput) || 0
 
@@ -78,7 +78,7 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
             <p className="text-lg sm:text-xl font-bold text-red-400">{fmt(credito)}</p>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-blue-500">
-            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Balance (D - C)</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Balance (C - D)</p>
             <p className={`text-lg sm:text-xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
           </div>
         </div>

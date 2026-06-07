@@ -53,9 +53,9 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   }
 
   const autoRows = [
-    { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: netIncome || 0, credit: 0 },
-    { description: 'Total Diesel', reference: 'Auto', debit: 0, credit: totalDiesel || 0 },
-    { description: 'Total Gastos', reference: 'Auto', debit: 0, credit: totalExpenses || 0 },
+    { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: 0, credit: netIncome || 0 },
+    { description: 'Total Diesel', reference: 'Auto', debit: totalDiesel || 0, credit: 0 },
+    { description: 'Total Gastos', reference: 'Auto', debit: totalExpenses || 0, credit: 0 },
   ]
 
   const q = search.toLowerCase()
@@ -74,11 +74,11 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
 
   const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
   const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
-  const autoDebit = (netIncome || 0)
-  const autoCredit = (totalDiesel || 0) + (totalExpenses || 0)
+  const autoDebit = (totalDiesel || 0) + (totalExpenses || 0)
+  const autoCredit = (netIncome || 0)
   const totalDebit = autoDebit + manualDebit
   const totalCredit = autoCredit + manualCredit
-  const balance = totalDebit - totalCredit
+  const balance = totalCredit - totalDebit
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   return (

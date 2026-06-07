@@ -99,8 +99,8 @@ export default function TruckView() {
   const discountAmount = summary.income * (discountPct / 100)
   const netIncome = summary.income - discountAmount
   const discount13 = discountAmount
-  const totalDebito = netIncome + summary.debito
-  const totalCredito = summary.diesel + summary.expenses + summary.credito
+  const totalDebito = summary.diesel + summary.expenses + summary.debito
+  const totalCredito = netIncome + summary.credito
 
   if (!truck || loading) return (
     <div className="animate-pulse">
