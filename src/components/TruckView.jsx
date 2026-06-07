@@ -34,7 +34,8 @@ export default function TruckView() {
   const today = fmt_d(new Date())
   const cycleEnd = cycle?.end_date || today
   const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
-  const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date) : []
+  const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date, cycle.closed) : []
+  const hasActiveCycle = cycles.some(c => !c.closed)
 
   useEffect(() => {
     supabase.from('trucks').select('*').eq('id', id).single()
@@ -181,6 +182,36 @@ export default function TruckView() {
               </svg>
             </button>
           </div>
+
+          {/* Open new cycle button when all cycles are closed */}
+          {!hasActiveCycle && (
+            <div className="mb-4">
+              {openingCycle ? (
+                <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 inline-flex items-center gap-3">
+                  <label className="text-sm text-gray-400">Fecha inicio:</label>
+                  <input
+                    type="date"
+                    value={newCycleDate}
+                    onChange={(e) => setNewCycleDate(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <button onClick={() => setOpeningCycle(false)}
+                    className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
+                    Cancelar
+                  </button>
+                  <button onClick={handleOpenCycle}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-500 transition-colors">
+                    Abrir Ciclo
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setOpeningCycle(true)}
+                  className="px-4 py-2 bg-blue-600/20 border border-blue-600/40 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+                  + Abrir Nuevo Ciclo
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Closed cycle banner */}
           {readOnly && (

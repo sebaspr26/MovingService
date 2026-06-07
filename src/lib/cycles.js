@@ -8,13 +8,14 @@ function fmt(d) { return d.toISOString().split('T')[0] }
  * Week 2+ = Sunday to Saturday.
  * Only includes weeks that have started (up to today).
  */
-export function computeWeeks(startDate, endDate) {
+export function computeWeeks(startDate, endDate, isClosed = false) {
   const start = new Date(startDate + 'T00:00:00')
   const end = endDate ? new Date(endDate + 'T00:00:00') : new Date()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const limit = end < today ? end : today
+  // Closed cycles show all weeks up to end_date; active cycles limit to today
+  const limit = isClosed ? end : (end < today ? end : today)
   const weeks = []
   let current = new Date(start)
 

@@ -81,11 +81,13 @@ export default function Dashboard() {
 
     for (const truck of truckList) {
       const activeCycle = await getActiveCycle(truck.id)
-      cyclesMap[truck.id] = activeCycle
+      // If no active cycle, get the latest closed one for display
+      const displayCycle = activeCycle || await getLatestClosedCycle(truck.id)
+      cyclesMap[truck.id] = displayCycle
 
-      if (activeCycle) {
-        const periodStart = activeCycle.start_date
-        const periodEnd = activeCycle.end_date || today
+      if (displayCycle) {
+        const periodStart = displayCycle.start_date
+        const periodEnd = displayCycle.end_date || today
 
         const [orders, diesel, expenses] = await Promise.all([
           supabase.from('orders').select('rate').eq('truck_id', truck.id)
@@ -265,8 +267,8 @@ export default function Dashboard() {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0)
 
-  // Only allow quick add for trucks with active cycles
-  const trucksWithCycles = trucks.filter(t => truckCycles[t.id])
+  // Only allow quick add for trucks with active (non-closed) cycles
+  const trucksWithCycles = trucks.filter(t => truckCycles[t.id] && !truckCycles[t.id].closed)
 
   function getQuickFields(baseFields) {
     const truckField = {
@@ -341,7 +343,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {trucks.map(truck => {
             const s = summaries[truck.id] || {}
-            const activeCycle = truckCycles[truck.id]
+            const displayCycle = truckCycles[truck.id]
+            const isActive = displayCycle && !displayCycle.closed
             return (
               <div key={truck.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors group">
                 <div className="flex items-start justify-between mb-4">
@@ -365,29 +368,61 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {activeCycle ? (
-                  <Link to={`/truck/${truck.id}`} className="block">
-                    <div className="text-[10px] text-gray-600 mb-2">
-                      Ciclo: {activeCycle.start_date} → Activo
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Ingresos</p>
-                        <p className="text-sm font-semibold text-green-400">{fmt(s.income)}</p>
+                {displayCycle ? (
+                  <div>
+                    <Link to={`/truck/${truck.id}`} className="block">
+                      <div className="text-[10px] text-gray-600 mb-2 flex items-center gap-2">
+                        <span>Ciclo: {displayCycle.start_date} → {isActive ? 'Activo' : displayCycle.end_date}</span>
+                        {displayCycle.closed && (
+                          <span className="text-[9px] bg-emerald-900/40 text-emerald-400 px-1 py-0.5 rounded">Cerrado</span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Gastos</p>
-                        <p className="text-sm font-semibold text-red-400">{fmt(s.expenses)}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Ingresos</p>
+                          <p className="text-sm font-semibold text-green-400">{fmt(s.income)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Gastos</p>
+                          <p className="text-sm font-semibold text-red-400">{fmt(s.expenses)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Balance</p>
+                          <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Balance</p>
-                        <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
+                    </Link>
+                    {!isActive && (
+                      <div className="mt-3 pt-3 border-t border-gray-800">
+                        {openCycleTarget?.id === truck.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              value={openCycleDate}
+                              onChange={(e) => setOpenCycleDate(e.target.value)}
+                              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                            />
+                            <button onClick={() => setOpenCycleTarget(null)}
+                              className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
+                              Cancelar
+                            </button>
+                            <button onClick={handleOpenCycleForTruck}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-500 transition-colors">
+                              Abrir
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setOpenCycleTarget(truck); setOpenCycleDate(new Date().toISOString().split('T')[0]) }}
+                            className="w-full px-3 py-1.5 bg-blue-600/20 border border-blue-600/40 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+                            + Abrir Nuevo Ciclo
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  </Link>
+                    )}
+                  </div>
                 ) : (
                   <div className="text-center py-3">
-                    <p className="text-xs text-gray-500 mb-3">Sin ciclo activo</p>
+                    <p className="text-xs text-gray-500 mb-3">Sin ciclos</p>
                     {openCycleTarget?.id === truck.id ? (
                       <div className="flex flex-col items-center gap-2">
                         <input
