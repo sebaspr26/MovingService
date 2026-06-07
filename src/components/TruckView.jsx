@@ -215,11 +215,11 @@ export default function TruckView() {
 
           {/* Closed cycle banner */}
           {readOnly && (
-            <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
-              <svg className="w-4 h-4 text-yellow-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
               </svg>
-              <p className="text-xs text-yellow-400">Este ciclo ha sido cerrado. No se permiten modificaciones.</p>
+              <p className="text-xs text-gray-400">Este ciclo ha sido cerrado. No se permiten modificaciones.</p>
             </div>
           )}
 
