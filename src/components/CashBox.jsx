@@ -1,17 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { closeCycle, reopenCycle } from '../lib/cycles'
 
-export default function CashBox({ truckId, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onMonthClosed }) {
+export default function CashBox({ truckId, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
   const [partners, setPartners] = useState([])
-  const [previousBalance, setPreviousBalance] = useState(0)
-  const [cuadreCaja, setCuadreCaja] = useState(0)
-  const [cashboxId, setCashboxId] = useState(null)
-  const [closed, setClosed] = useState(false)
   const [showCierre, setShowCierre] = useState(false)
   const [cierreInput, setCierreInput] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [cierreDate, setCierreDate] = useState(new Date().toISOString().split('T')[0])
 
-  useEffect(() => { fetchCashbox() }, [truckId, period.start, period.end])
   useEffect(() => { fetchPartners() }, [truckId])
 
   async function fetchPartners() {
@@ -20,85 +16,27 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
     setPartners(data || [])
   }
 
-  async function fetchCashbox() {
-    setLoading(true)
-    setShowCierre(false)
-
-    const { data } = await supabase.from('cashbox').select('*')
-      .eq('truck_id', truckId)
-      .eq('period_start', period.start)
-      .eq('period_end', period.end)
-      .maybeSingle()
-
-    if (data) {
-      setPreviousBalance(Number(data.previous_balance) || 0)
-      setCuadreCaja(Number(data.cuadre_caja) || 0)
-      setCashboxId(data.id)
-      setClosed(!!data.closed)
-    } else {
-      const prevBalance = await fetchPreviousBalance()
-      setPreviousBalance(prevBalance)
-      setCuadreCaja(0)
-      setCashboxId(null)
-      setClosed(false)
-    }
-    setLoading(false)
-  }
-
-  async function fetchPreviousBalance() {
-    const startDate = new Date(period.start + 'T00:00:00')
-    const prevMonth = new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1)
-    const prevEnd = new Date(startDate.getFullYear(), startDate.getMonth(), 0)
-    const prevStart = prevMonth.toISOString().split('T')[0]
-    const prevEndStr = prevEnd.toISOString().split('T')[0]
-
-    const { data } = await supabase.from('cashbox').select('cuadre_caja, closed')
-      .eq('truck_id', truckId)
-      .eq('period_start', prevStart)
-      .eq('period_end', prevEndStr)
-      .maybeSingle()
-
-    return data?.closed ? (Number(data.cuadre_caja) || 0) : 0
-  }
-
-  async function handleCerrarMes() {
+  async function handleCerrarCiclo() {
+    if (!cycle) return
     const numCuadre = Number(cierreInput) || 0
-
-    const record = {
-      truck_id: truckId,
-      period_start: period.start,
-      period_end: period.end,
-      previous_balance: previousBalance,
-      cuadre_caja: numCuadre,
-      closed: true,
-    }
-
-    if (cashboxId) {
-      await supabase.from('cashbox').update(record).eq('id', cashboxId)
-    } else {
-      const { data } = await supabase.from('cashbox').insert(record).select().single()
-      if (data) setCashboxId(data.id)
-    }
-
-    setCuadreCaja(numCuadre)
-    setClosed(true)
+    await closeCycle(cycle.id, numCuadre, cierreDate)
     setShowCierre(false)
-
-    if (onMonthClosed) onMonthClosed()
+    if (onCycleClosed) onCycleClosed()
   }
 
   async function handleReopen() {
-    if (!cashboxId) return
-    await supabase.from('cashbox').update({ closed: false }).eq('id', cashboxId)
-    setClosed(false)
+    if (!cycle) return
+    await reopenCycle(cycle.id)
+    if (onCycleClosed) onCycleClosed()
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  const previousBalance = Number(cycle?.previous_balance) || 0
+  const cuadreCaja = Number(cycle?.cuadre_caja) || 0
+  const closed = cycle?.closed || false
   const balance = debito - credito
   const ganancia = previousBalance + balance
   const inputCuadre = Number(cierreInput) || 0
-
-  if (loading) return <div className="text-gray-500 text-center py-4">Cargando caja...</div>
 
   return (
     <div className="space-y-6">
@@ -106,7 +44,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
       <div className="bg-gradient-to-r from-gray-800/80 to-gray-800/40 rounded-xl p-4 sm:p-5 border border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-400 mb-1">Saldo Anterior (del mes anterior)</p>
+            <p className="text-xs text-gray-400 mb-1">Saldo Anterior (del ciclo anterior)</p>
             <p className="text-2xl sm:text-3xl font-bold text-white">{fmt(previousBalance)}</p>
           </div>
           <div className="text-right hidden sm:block">
@@ -155,7 +93,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
         </div>
       </div>
 
-      {/* CERRAR MES / CLOSED STATE */}
+      {/* CERRAR CICLO / CLOSED STATE */}
       {closed ? (
         <div className="bg-gradient-to-r from-emerald-900/20 to-gray-900 rounded-xl p-4 sm:p-5 border border-emerald-800/50">
           <div className="flex items-center justify-between mb-4">
@@ -163,7 +101,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
               <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
-              <h4 className="text-sm font-semibold text-emerald-400">Mes Cerrado</h4>
+              <h4 className="text-sm font-semibold text-emerald-400">Ciclo Cerrado</h4>
             </div>
             <button onClick={handleReopen} className="text-xs text-gray-500 hover:text-yellow-400 transition-colors">
               Reabrir
@@ -202,8 +140,18 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
         </div>
       ) : showCierre ? (
         <div className="bg-gradient-to-r from-yellow-900/20 to-gray-900 rounded-xl p-4 sm:p-5 border border-yellow-800/50">
-          <h4 className="text-sm font-semibold text-yellow-400 mb-1">Cerrar Mes</h4>
-          <p className="text-[10px] sm:text-xs text-gray-500 mb-4">Cuanto desea dejar en la caja para el siguiente mes?</p>
+          <h4 className="text-sm font-semibold text-yellow-400 mb-1">Cerrar Ciclo</h4>
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-4">Cuanto desea dejar en la caja para el siguiente ciclo?</p>
+
+          <div className="mb-4">
+            <label className="block text-xs text-gray-400 mb-1">Fecha de cierre</label>
+            <input
+              type="date"
+              value={cierreDate}
+              onChange={(e) => setCierreDate(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500"
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div className="bg-gray-800/60 rounded-lg p-4">
@@ -213,7 +161,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
                 step="0.01"
                 value={cierreInput}
                 onChange={(e) => setCierreInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCerrarMes() }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCerrarCiclo() }}
                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-lg font-bold focus:outline-none focus:border-yellow-500"
                 placeholder="0.00"
                 autoFocus
@@ -250,7 +198,7 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
 
           <div className="flex gap-3">
             <button
-              onClick={handleCerrarMes}
+              onClick={handleCerrarCiclo}
               className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-500 transition-colors"
             >
               Confirmar Cierre
@@ -266,12 +214,12 @@ export default function CashBox({ truckId, period, debito, credito, grossIncome,
       ) : (
         <div className="text-center py-4">
           <button
-            onClick={() => { setCierreInput(''); setShowCierre(true) }}
+            onClick={() => { setCierreInput(''); setCierreDate(new Date().toISOString().split('T')[0]); setShowCierre(true) }}
             className="px-6 py-3 bg-yellow-600 text-white rounded-xl text-sm font-semibold hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20"
           >
-            Cerrar Mes
+            Cerrar Ciclo
           </button>
-          <p className="text-[10px] text-gray-600 mt-2">Finalizar el mes y repartir dividendos</p>
+          <p className="text-[10px] text-gray-600 mt-2">Finalizar el ciclo y repartir dividendos</p>
         </div>
       )}
     </div>

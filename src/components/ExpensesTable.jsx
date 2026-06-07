@@ -16,7 +16,7 @@ const fields = [
   { name: 'date', label: 'Fecha', type: 'date', required: true },
 ]
 
-export default function ExpensesTable({ truckId, period, onDataChange }) {
+export default function ExpensesTable({ truckId, period, onDataChange, readOnly }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -61,14 +61,16 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
         <div className="text-xs sm:text-sm text-gray-400">
           {rows.length} gastos | Total: <span className="text-red-400 font-semibold">{fmt(total)}</span>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setEditRow(null); setShowModal(true) }}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
-          >
-            + Agregar Gasto
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setEditRow(null); setShowModal(true) }}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
+            >
+              + Agregar Gasto
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -93,20 +95,22 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
                 <td className="py-2.5 pr-4 text-white">{row.description}</td>
                 <td className="py-2.5 pr-4">{row.date}</td>
                 <td className="py-2.5 pr-4 text-right text-red-400">{fmt(row.amount)}</td>
-                <td className="py-2.5">
-                  <div className="flex gap-1 justify-end">
-                    <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-blue-400">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                      </svg>
-                    </button>
-                    <button onClick={() => handleDelete(row.id)} className="p-1 text-gray-500 hover:text-red-400">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
+                {!readOnly && (
+                  <td className="py-2.5">
+                    <div className="flex gap-1 justify-end">
+                      <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-blue-400">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleDelete(row.id)} className="p-1 text-gray-500 hover:text-red-400">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
             {rows.length === 0 && (

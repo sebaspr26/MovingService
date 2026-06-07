@@ -24,6 +24,7 @@ src/
     AddModal.jsx        - Modal reutilizable para agregar/editar registros
   lib/
     supabase.js         - Cliente Supabase (usa VITE_ env vars)
+    cycles.js           - Funciones utilitarias para ciclos (computeWeeks, open/close/reopen)
   App.jsx               - Router: / = Dashboard, /truck/:id = TruckView
   main.jsx              - Entry point
   index.css             - Tailwind import
@@ -32,11 +33,14 @@ supabase/
 ```
 
 ## Database Tables (Supabase)
-- `trucks` (id, name, number)
+- `trucks` (id, name, number, discount_percent)
 - `orders` (id, truck_id, order_number, pu_date, pu_city, do_date, do_city, miles, rate, period_start, period_end)
 - `diesel` (id, truck_id, invoice_number, date, city, gallons, value, period_start, period_end)
 - `expenses` (id, truck_id, category, invoice_number, description, amount, date, period_start, period_end)
-- `accounting` (id, truck_id, description, reference, debit, credit, period_start, period_end)
+- `accounting` (id, truck_id, description, reference, date, debit, credit, period_start, period_end)
+- `cycles` (id, truck_id, start_date, end_date, previous_balance, cuadre_caja, closed, closed_at)
+- `partners` (id, truck_id, name, percentage, invested)
+- `cashbox` (legacy — migrated to cycles)
 
 All tables have RLS enabled with open policies (no auth yet).
 
@@ -49,7 +53,7 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
 ## Conventions
 - UI in Spanish (labels, buttons, messages)
 - Dark theme (gray-950 bg, gray-900 cards)
-- Period filtering: weekly (Monday-Sunday)
+- Period filtering: flexible cycles with dynamic weeks (Sunday-Saturday)
 - Currency: USD formatted with Intl.NumberFormat
 - All CRUD tables follow same pattern: fetch on mount + period change, save with period_start/period_end, edit/delete inline
 
