@@ -620,15 +620,15 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-2">
                   {truckPartners.map((p, i) => (
-                    <div key={i} className="flex gap-2 items-center">
+                    <div key={i} className="flex flex-wrap gap-2 items-center bg-gray-800/30 rounded-lg p-2 sm:p-0 sm:bg-transparent sm:rounded-none">
                       <input
                         type="text"
                         value={p.name}
                         onChange={(e) => updatePartner(i, 'name', e.target.value)}
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                        className="flex-1 min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
                         placeholder="Nombre"
                       />
-                      <div className="relative w-24">
+                      <div className="relative w-20 sm:w-24">
                         <input
                           type="number"
                           step="0.01"
