@@ -69,10 +69,10 @@ export default function Dashboard() {
   async function fetchTrucks() {
     const { data } = await supabase.from('trucks').select('*').order('number')
     setTrucks(data || [])
-    setLoading(false)
     if (data && data.length > 0) {
       await fetchCyclesAndSummaries(data)
     }
+    setLoading(false)
   }
 
   async function fetchCyclesAndSummaries(truckList) {
@@ -411,6 +411,11 @@ export default function Dashboard() {
                           <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
                         </div>
                       </div>
+                      {displayCycle.closed && Number(displayCycle.cuadre_caja) > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-800/50">
+                          <p className="text-[10px] text-gray-500">Caja para siguiente ciclo: <span className="text-yellow-400 font-semibold">{fmt(displayCycle.cuadre_caja)}</span></p>
+                        </div>
+                      )}
                     </Link>
                     {!isActive && (
                       <div className="mt-3 pt-3 border-t border-gray-800">

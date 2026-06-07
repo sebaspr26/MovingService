@@ -145,7 +145,7 @@ export default function TruckView() {
       {cycles.length === 0 ? (
         /* No cycles — prompt to open one */
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
-          <p className="text-gray-400 mb-4">No hay ciclos activos para este camion.</p>
+          <p className="text-gray-400 mb-4">No hay ciclos para este camion. Abre uno para comenzar.</p>
           {openingCycle ? (
             <div className="inline-flex flex-col items-center gap-3">
               <label className="text-sm text-gray-400">Fecha de inicio del ciclo:</label>
