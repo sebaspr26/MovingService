@@ -333,7 +333,27 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="text-gray-500 text-center py-12">Cargando...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="h-5 w-28 bg-gray-800 rounded mb-2"></div>
+                  <div className="h-3 w-16 bg-gray-800 rounded"></div>
+                </div>
+              </div>
+              <div className="h-3 w-36 bg-gray-800 rounded mb-3"></div>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3].map(j => (
+                  <div key={j}>
+                    <div className="h-3 w-14 bg-gray-800 rounded mb-2"></div>
+                    <div className="h-4 w-20 bg-gray-800 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : trucks.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           <p className="text-lg mb-2">No hay camiones registrados</p>

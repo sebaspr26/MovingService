@@ -102,7 +102,29 @@ export default function TruckView() {
   const totalDebito = netIncome + summary.debito
   const totalCredito = summary.diesel + summary.expenses + summary.credito
 
-  if (!truck) return <div className="text-gray-500 text-center py-12">Cargando...</div>
+  if (!truck || loading) return (
+    <div className="animate-pulse">
+      <div className="h-4 w-32 bg-gray-800 rounded mb-4"></div>
+      <div className="mb-6">
+        <div className="h-7 w-48 bg-gray-800 rounded mb-2"></div>
+        <div className="h-3 w-20 bg-gray-800 rounded"></div>
+      </div>
+      <div className="h-10 w-64 bg-gray-800 rounded-lg mb-4"></div>
+      <div className="flex gap-2 mb-6">
+        {[1, 2, 3, 4].map(i => <div key={i} className="h-8 w-16 bg-gray-800 rounded-lg"></div>)}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+            <div className="h-3 w-16 bg-gray-800 rounded mb-2"></div>
+            <div className="h-5 w-20 bg-gray-800 rounded"></div>
+          </div>
+        ))}
+      </div>
+      <div className="h-10 w-72 bg-gray-800 rounded-lg mb-4"></div>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 h-48"></div>
+    </div>
+  )
 
   return (
     <div>
@@ -120,9 +142,7 @@ export default function TruckView() {
       </div>
 
       {/* Cycle navigator */}
-      {loading ? (
-        <div className="text-gray-500 text-center py-12">Cargando ciclos...</div>
-      ) : cycles.length === 0 ? (
+      {cycles.length === 0 ? (
         /* No cycles — prompt to open one */
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
           <p className="text-gray-400 mb-4">No hay ciclos activos para este camion.</p>
