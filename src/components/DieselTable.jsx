@@ -10,7 +10,7 @@ const fields = [
   { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
 ]
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 export default function DieselTable({ truckId, period, onDataChange, readOnly }) {
   const [rows, setRows] = useState([])

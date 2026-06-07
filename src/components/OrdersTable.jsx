@@ -12,7 +12,7 @@ const fields = [
   { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
 ]
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 export default function OrdersTable({ truckId, period, onDataChange, readOnly }) {
   const [rows, setRows] = useState([])

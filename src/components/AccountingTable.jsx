@@ -10,7 +10,7 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses, discountPct, readOnly }) {
   const [rows, setRows] = useState([])

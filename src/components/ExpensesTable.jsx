@@ -16,7 +16,7 @@ const fields = [
   { name: 'date', label: 'Fecha', type: 'date', required: true },
 ]
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 export default function ExpensesTable({ truckId, period, onDataChange, readOnly }) {
   const [rows, setRows] = useState([])
