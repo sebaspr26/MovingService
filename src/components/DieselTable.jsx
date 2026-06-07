@@ -10,12 +10,18 @@ const fields = [
   { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
 ]
 
+const PAGE_SIZE = 8
+
 export default function DieselTable({ truckId, period, onDataChange, readOnly }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [search, setSearch] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => { fetchRows() }, [truckId, period])
+  useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
     const { data } = await supabase.from('diesel').select('*')
@@ -46,6 +52,20 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
     if (onDataChange) onDataChange()
   }
 
+  const q = search.toLowerCase()
+  const filtered = q
+    ? rows.filter(r =>
+        String(r.invoice_number).toLowerCase().includes(q) ||
+        (r.date || '').includes(q) ||
+        (r.city || '').toLowerCase().includes(q) ||
+        String(r.value).includes(q) ||
+        String(r.gallons).includes(q)
+      )
+    : rows
+
+  const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
+  const hasMore = !q && filtered.length > PAGE_SIZE
+
   const totalGallons = rows.reduce((s, r) => s + (Number(r.gallons) || 0), 0)
   const totalValue = rows.reduce((s, r) => s + (Number(r.value) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -56,16 +76,34 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
         <div className="text-xs sm:text-sm text-gray-400">
           {rows.length} registros | {totalGallons.toFixed(1)} gal | Total: <span className="text-red-400 font-semibold">{fmt(totalValue)}</span>
         </div>
-        {!readOnly && (
-          <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {showSearch && (
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar invoice, ciudad, fecha..."
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 w-48 sm:w-56"
+              autoFocus
+            />
+          )}
+          <button
+            onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearch('') }}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+          </button>
+          {!readOnly && (
             <button
               onClick={() => { setEditRow(null); setShowModal(true) }}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
             >
               + Agregar Diesel
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -77,11 +115,11 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
               <th className="pb-2 pr-4">Ciudad</th>
               <th className="pb-2 pr-4 text-right">Galones</th>
               <th className="pb-2 pr-4 text-right">Valor</th>
-              <th className="pb-2 w-16"></th>
+              {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
           <tbody>
-            {rows.map(row => (
+            {visible.map(row => (
               <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="py-2.5 pr-4 text-white font-medium">{row.invoice_number}</td>
                 <td className="py-2.5 pr-4">{row.date}</td>
@@ -106,12 +144,21 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
                 )}
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-600">Sin registros de diesel en este periodo</td></tr>
+            {visible.length === 0 && (
+              <tr><td colSpan={readOnly ? 5 : 6} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin registros de diesel en este periodo'}</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 w-full py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors border border-gray-800 rounded-lg hover:bg-gray-800/50"
+        >
+          {expanded ? 'Ver menos' : `Ver todos (${filtered.length})`}
+        </button>
+      )}
 
       <AddModal
         isOpen={showModal}

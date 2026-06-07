@@ -10,12 +10,18 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
+const PAGE_SIZE = 8
+
 export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses, discountPct, readOnly }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [search, setSearch] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => { fetchRows() }, [truckId, period])
+  useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
     const { data } = await supabase.from('accounting').select('*')
@@ -46,12 +52,25 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
     if (onDataChange) onDataChange()
   }
 
-  // Auto-generated rows from other tables
   const autoRows = [
     { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: netIncome || 0, credit: 0 },
     { description: 'Total Diesel', reference: 'Auto', debit: 0, credit: totalDiesel || 0 },
     { description: 'Total Gastos', reference: 'Auto', debit: 0, credit: totalExpenses || 0 },
   ]
+
+  const q = search.toLowerCase()
+  const filtered = q
+    ? rows.filter(r =>
+        (r.description || '').toLowerCase().includes(q) ||
+        (r.reference || '').toLowerCase().includes(q) ||
+        (r.date || '').includes(q) ||
+        String(r.debit).includes(q) ||
+        String(r.credit).includes(q)
+      )
+    : rows
+
+  const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
+  const hasMore = !q && filtered.length > PAGE_SIZE
 
   const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
   const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
@@ -70,14 +89,34 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
           <span>Credito: <span className="text-red-400 font-semibold">{fmt(totalCredit)}</span></span>
           <span>Balance: <span className={`font-semibold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</span></span>
         </div>
-        {!readOnly && (
+        <div className="flex gap-2 items-center">
+          {showSearch && (
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar descripcion, referencia..."
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 w-48 sm:w-56"
+              autoFocus
+            />
+          )}
           <button
-            onClick={() => { setEditRow(null); setShowModal(true) }}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
+            onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearch('') }}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            + Agregar Registro
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
           </button>
-        )}
+          {!readOnly && (
+            <button
+              onClick={() => { setEditRow(null); setShowModal(true) }}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
+            >
+              + Agregar Registro
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -112,7 +151,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
             ))}
 
             {/* Separator */}
-            {rows.length > 0 && (
+            {visible.length > 0 && (
               <tr>
                 <td colSpan={readOnly ? 5 : 6} className="py-1">
                   <div className="border-t border-dashed border-gray-700"></div>
@@ -121,7 +160,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
             )}
 
             {/* Manual rows */}
-            {rows.map(row => (
+            {visible.map(row => (
               <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="py-2.5 pr-4 text-white">{row.description}</td>
                 <td className="py-2.5 pr-4 text-gray-400">{row.reference || '-'}</td>
@@ -161,6 +200,15 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
           </tbody>
         </table>
       </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 w-full py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors border border-gray-800 rounded-lg hover:bg-gray-800/50"
+        >
+          {expanded ? 'Ver menos' : `Ver todos (${filtered.length})`}
+        </button>
+      )}
 
       <AddModal
         isOpen={showModal}
