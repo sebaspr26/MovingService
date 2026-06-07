@@ -65,11 +65,11 @@ export default function TruckView() {
   async function fetchSummary() {
     const [orders, diesel, expenses, accounting] = await Promise.all([
       supabase.from('orders').select('rate').eq('truck_id', id)
-        .gte('period_start', period.start).lte('period_end', period.end),
+        .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('diesel').select('value').eq('truck_id', id)
-        .gte('period_start', period.start).lte('period_end', period.end),
+        .gte('date', period.start).lte('date', period.end),
       supabase.from('expenses').select('amount').eq('truck_id', id)
-        .gte('period_start', period.start).lte('period_end', period.end),
+        .gte('date', period.start).lte('date', period.end),
       supabase.from('accounting').select('debit, credit').eq('truck_id', id)
         .gte('period_start', period.start).lte('period_end', period.end),
     ])

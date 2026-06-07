@@ -22,8 +22,8 @@ export default function OrdersTable({ truckId, period, onDataChange }) {
   async function fetchRows() {
     const { data } = await supabase.from('orders').select('*')
       .eq('truck_id', truckId)
-      .gte('period_start', period.start)
-      .lte('period_end', period.end)
+      .gte('pu_date', period.start)
+      .lte('pu_date', period.end)
       .order('pu_date')
     setRows(data || [])
   }

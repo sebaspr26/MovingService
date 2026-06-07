@@ -26,8 +26,8 @@ export default function ExpensesTable({ truckId, period, onDataChange }) {
   async function fetchRows() {
     const { data } = await supabase.from('expenses').select('*')
       .eq('truck_id', truckId)
-      .gte('period_start', period.start)
-      .lte('period_end', period.end)
+      .gte('date', period.start)
+      .lte('date', period.end)
       .order('date')
     setRows(data || [])
   }
