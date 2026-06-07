@@ -152,7 +152,7 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
       </div>
 
       {hasMore && (
-        <div className="flex justify-center -mt-1">
+        <div className="flex justify-center mt-2">
           <button
             onClick={() => setExpanded(!expanded)}
             className="px-4 py-1 bg-gray-800 border border-gray-700 border-t-0 rounded-b-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
