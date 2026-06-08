@@ -1,6 +1,6 @@
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const MODEL = 'google/gemini-2.5-flash'
 
 const PROMPT = `Analyze this receipt/invoice image and extract the data.
 Determine the type of document and return ONE of these formats:
@@ -51,27 +51,43 @@ Rules:
 - For amounts, extract the total amount paid
 - If it's clearly a fuel/diesel receipt, type is "diesel"
 - If it's a load confirmation or bill of lading, type is "order"
-- Otherwise, type is "expense"`
+- Otherwise, type is "expense"
+- Return ONLY valid JSON, no markdown, no explanation`
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
 let isProcessing = false
 
-async function callGemini(body) {
-  const response = await fetch(GEMINI_URL, {
+async function callOpenRouter(messages) {
+  const body = {
+    model: MODEL,
+    messages,
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+  }
+
+  const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_KEY}`,
+      'HTTP-Referer': window.location.origin,
+    },
+    body: JSON.stringify(body),
   })
 
   if (response.ok) return response
 
-  // Silent retry only for 503 (Google momentary blip)
+  // Silent retry only for 503 (momentary blip)
   if (response.status === 503) {
     await new Promise(r => setTimeout(r, 1000))
-    const retry = await fetch(GEMINI_URL, {
+    const retry = await fetch(OPENROUTER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'HTTP-Referer': window.location.origin,
+      },
+      body: JSON.stringify(body),
     })
     if (retry.ok) return retry
     throw new Error('Servicio no disponible. Intenta de nuevo en unos momentos.')
@@ -83,7 +99,7 @@ async function callGemini(body) {
 }
 
 export async function analyzeReceipt(imageFile) {
-  if (!GEMINI_KEY) throw new Error('API key de Gemini no configurada')
+  if (!OPENROUTER_KEY) throw new Error('API key de OpenRouter no configurada')
   if (isProcessing) throw new Error('Ya se esta procesando una imagen. Espera un momento.')
 
   isProcessing = true
@@ -91,25 +107,23 @@ export async function analyzeReceipt(imageFile) {
     const base64 = await fileToBase64(imageFile)
     const mimeType = imageFile.type || 'image/jpeg'
 
-    const body = {
-      contents: [{
-        parts: [
-          { text: PROMPT },
-          { inline_data: { mime_type: mimeType, data: base64 } }
-        ]
-      }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-      }
-    }
+    const messages = [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          {
+            type: 'image_url',
+            image_url: { url: `data:${mimeType};base64,${base64}` },
+          },
+        ],
+      },
+    ]
 
-    const response = await callGemini(body)
+    const response = await callOpenRouter(messages)
     const result = await response.json()
-    const parts = result.candidates?.[0]?.content?.parts || []
-    // Gemini 2.5 Flash is a thinking model — skip thought parts, get the actual response
-    const outputPart = parts.filter(p => !p.thought).pop()
-    const text = outputPart?.text
+    const text = result.choices?.[0]?.message?.content
+
     if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
 
     return JSON.parse(text)
