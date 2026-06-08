@@ -34,6 +34,23 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
     setRows(data || [])
   }
 
+  async function handleTogglePaid(row) {
+    if (readOnly) return
+    // Actualizar localmente primero — evita reorganización visual mientras espera el servidor
+    setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: !r.paid } : r))
+    const { error } = await supabase
+      .from('orders')
+      .update({ paid: !row.paid })
+      .eq('id', row.id)
+    if (error) {
+      // Revertir si falla
+      setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: row.paid } : r))
+      alert('Error al actualizar: ' + error.message)
+      return
+    }
+    if (onDataChange) onDataChange()
+  }
+
   async function handleSave(data) {
     try {
       const record = {
@@ -87,15 +104,24 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
   const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
   const hasMore = !q && filtered.length > PAGE_SIZE
 
-  const total = rows.reduce((s, r) => s + (Number(r.rate) || 0), 0)
-  const totalMiles = rows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
+  const paidRows = rows.filter(r => r.paid)
+  const total = paidRows.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+  const totalMiles = paidRows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
+  const pendingCount = rows.filter(r => !r.paid).length
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="text-xs sm:text-sm text-gray-400">
-          {rows.length} ordenes | {totalMiles.toLocaleString()} mi | Total: <span className="text-green-400 font-semibold">{fmt(total)}</span>
+        <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap gap-2 sm:gap-4">
+          <span>{rows.length} ordenes</span>
+          {pendingCount > 0 && (
+            <span className="text-yellow-500">
+              {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+            </span>
+          )}
+          <span>{totalMiles.toLocaleString()} mi</span>
+          <span>Total: <span className="text-green-400 font-semibold">{fmt(total)}</span></span>
         </div>
         <div className="flex gap-2 items-center">
           {showSearch && (
@@ -131,6 +157,9 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+              <th className="pb-2 pr-2 w-8">
+                <span className="sr-only">Pagado</span>
+              </th>
               <th className="pb-2 pr-4">Orden #</th>
               <th className="pb-2 pr-4">PU Date</th>
               <th className="pb-2 pr-4">PU City</th>
@@ -143,14 +172,48 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
           </thead>
           <tbody>
             {visible.map(row => (
-              <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="py-2.5 pr-4 text-white font-medium">{row.order_number}</td>
+              <tr
+                key={row.id}
+                className={`border-b border-gray-800/50 transition-colors ${
+                  row.paid
+                    ? 'hover:bg-gray-800/30'
+                    : 'opacity-50 hover:opacity-70 hover:bg-gray-800/20'
+                }`}
+              >
+                <td className="py-2.5 pr-2">
+                  <button
+                    onClick={() => handleTogglePaid(row)}
+                    disabled={readOnly}
+                    title={row.paid ? 'Marcar como pendiente' : 'Marcar como pagado'}
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      row.paid
+                        ? 'bg-green-600 border-green-600 text-white'
+                        : 'border-gray-600 hover:border-yellow-500 bg-transparent'
+                    } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                  >
+                    {row.paid && (
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                    )}
+                  </button>
+                </td>
+                <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
+                  {row.order_number}
+                  {!row.paid && (
+                    <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
+                      Pendiente
+                    </span>
+                  )}
+                </td>
                 <td className="py-2.5 pr-4">{row.pu_date}</td>
                 <td className="py-2.5 pr-4">{row.pu_city}</td>
                 <td className="py-2.5 pr-4">{row.do_date}</td>
                 <td className="py-2.5 pr-4">{row.do_city}</td>
                 <td className="py-2.5 pr-4 text-right">{Number(row.miles || 0).toLocaleString()}</td>
-                <td className="py-2.5 pr-4 text-right text-green-400">{fmt(row.rate)}</td>
+                <td className={`py-2.5 pr-4 text-right ${row.paid ? 'text-green-400' : 'text-gray-500'}`}>
+                  {fmt(row.rate)}
+                </td>
                 {!readOnly && (
                   <td className="py-2.5">
                     <div className="flex gap-1 justify-end">
@@ -170,7 +233,11 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={readOnly ? 7 : 8} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin ordenes en este periodo'}</td></tr>
+              <tr>
+                <td colSpan={readOnly ? 8 : 9} className="py-8 text-center text-gray-600">
+                  {q ? 'Sin resultados' : 'Sin ordenes en este periodo'}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

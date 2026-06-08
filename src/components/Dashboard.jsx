@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getActiveCycle, getLatestClosedCycle, openCycle } from '../lib/cycles'
+import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
 import AddModal from './AddModal'
 
 const EXPENSE_CATEGORIES = [
@@ -38,7 +38,7 @@ const expenseFields = [
 
 export default function Dashboard() {
   const [trucks, setTrucks] = useState([])
-  const [truckCycles, setTruckCycles] = useState({}) // truckId -> active cycle or null
+  const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
   const [showTruckModal, setShowTruckModal] = useState(false)
   const [editingTruck, setEditingTruck] = useState(null)
@@ -46,10 +46,8 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
 
-  // Quick add state
   const [quickAdd, setQuickAdd] = useState(null)
 
-  // Truck form state
   const [truckName, setTruckName] = useState('')
   const [truckNumber, setTruckNumber] = useState('')
   const [truckPartners, setTruckPartners] = useState([{ name: '', percentage: '' }])
@@ -58,7 +56,6 @@ export default function Dashboard() {
   const [truckDiscountCustom, setTruckDiscountCustom] = useState('')
   const [truckError, setTruckError] = useState('')
 
-  // Open cycle state
   const [openCycleTarget, setOpenCycleTarget] = useState(null)
   const [openCycleDate, setOpenCycleDate] = useState(new Date().toISOString().split('T')[0])
 
@@ -81,28 +78,50 @@ export default function Dashboard() {
 
     for (const truck of truckList) {
       const activeCycle = await getActiveCycle(truck.id)
-      // If no active cycle, get the latest closed one for display
       const displayCycle = activeCycle || await getLatestClosedCycle(truck.id)
       cyclesMap[truck.id] = displayCycle
 
       if (displayCycle) {
         const periodStart = displayCycle.start_date
-        const periodEnd = displayCycle.end_date || today
+        // Mismo cálculo que TruckView — usa el último día de la última semana calculada
+        const weeks = computeWeeks(displayCycle.start_date, displayCycle.end_date, displayCycle.closed)
+        const periodEnd = displayCycle.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
 
         const [orders, diesel, expenses] = await Promise.all([
-          supabase.from('orders').select('rate').eq('truck_id', truck.id)
+          // Traemos todas las órdenes con paid para separar pagadas vs pendientes
+          supabase.from('orders').select('rate, paid').eq('truck_id', truck.id)
             .gte('pu_date', periodStart).lte('pu_date', periodEnd),
           supabase.from('diesel').select('value').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
           supabase.from('expenses').select('amount').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
         ])
-        const income = (orders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0)
+
+        const allOrders = orders.data || []
+
+        // Solo órdenes pagadas cuentan como ingreso (igual que TruckView)
+        const income = allOrders
+          .filter(r => r.paid)
+          .reduce((s, r) => s + (Number(r.rate) || 0), 0)
+
+        // Órdenes pendientes de cobro
+        const pendingOrders = allOrders.filter(r => !r.paid)
+        const pendingCount = pendingOrders.length
+        const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+
         const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
         const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
-        sums[truck.id] = { income, expenses: dieselTotal + expenseTotal, balance: income - dieselTotal - expenseTotal }
+        const totalExpenses = dieselTotal + expenseTotal
+
+        sums[truck.id] = {
+          income,
+          expenses: totalExpenses,
+          balance: income - totalExpenses,
+          pendingCount,
+          pendingAmount,
+        }
       } else {
-        sums[truck.id] = { income: 0, expenses: 0, balance: 0 }
+        sums[truck.id] = { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 }
       }
     }
 
@@ -121,7 +140,6 @@ export default function Dashboard() {
         setTruckDiscount('custom')
         setTruckDiscountCustom(String(truck.discount_percent || ''))
       }
-      // Load partners
       supabase.from('partners').select('*').eq('truck_id', truck.id).order('created_at')
         .then(({ data }) => {
           setTruckPartners(data && data.length > 0 ? data.map(p => ({ name: p.name, percentage: String(p.percentage) })) : [{ name: '', percentage: '' }])
@@ -167,13 +185,11 @@ export default function Dashboard() {
     const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
 
     if (editingTruck) {
-      // Update existing truck
       const { error } = await supabase.from('trucks')
         .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); return }
 
-      // Update partners: delete old, insert new
       await supabase.from('partners').delete().eq('truck_id', editingTruck.id)
       if (validPartners.length > 0) {
         await supabase.from('partners').insert(
@@ -186,7 +202,6 @@ export default function Dashboard() {
         )
       }
     } else {
-      // Create new truck
       const { data: truck, error } = await supabase.from('trucks')
         .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
         .select().single()
@@ -204,7 +219,6 @@ export default function Dashboard() {
         )
       }
 
-      // Create initial cycle if caja inicial provided
       const cajaInicial = Number(truckCajaInicial) || 0
       if (cajaInicial > 0) {
         await openCycle(truck.id, today, cajaInicial)
@@ -242,7 +256,6 @@ export default function Dashboard() {
     await fetchTrucks()
   }
 
-  // Quick add handlers
   function openQuickAdd(type) {
     setQuickAdd(type)
   }
@@ -267,7 +280,6 @@ export default function Dashboard() {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0)
 
-  // Only allow quick add for trucks with active (non-closed) cycles
   const trucksWithCycles = trucks.filter(t => truckCycles[t.id] && !truckCycles[t.id].closed)
 
   function getQuickFields(baseFields) {
@@ -397,7 +409,7 @@ export default function Dashboard() {
                           <span className="text-[9px] bg-emerald-900/40 text-emerald-400 px-1 py-0.5 rounded">Cerrado</span>
                         )}
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-3 mb-3">
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Ingresos</p>
                           <p className="text-sm font-semibold text-green-400">{fmt(s.income)}</p>
@@ -411,12 +423,16 @@ export default function Dashboard() {
                           <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
                         </div>
                       </div>
+
+                      
+
                       {displayCycle.closed && Number(displayCycle.cuadre_caja) > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-800/50">
                           <p className="text-[10px] text-gray-500">Caja para siguiente ciclo: <span className="text-yellow-400 font-semibold">{fmt(displayCycle.cuadre_caja)}</span></p>
                         </div>
                       )}
                     </Link>
+
                     {!isActive && (
                       <div className="mt-3 pt-3 border-t border-gray-800">
                         {openCycleTarget?.id === truck.id ? (
@@ -537,7 +553,6 @@ export default function Dashboard() {
             </div>
 
             <form onSubmit={handleSaveTruck} className="p-4 space-y-4">
-              {/* Truck info */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Nombre</label>
@@ -563,7 +578,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Discount percentage */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Descuento sobre Orders (%)</label>
                 <div className="flex gap-2">
@@ -610,7 +624,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Partners section */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-gray-400">Socios</label>
@@ -658,7 +671,6 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Caja inicial - only for new trucks */}
               {!editingTruck && (
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Caja Inicial ($)</label>
@@ -712,4 +724,4 @@ export default function Dashboard() {
       )}
     </div>
   )
-}
+} 

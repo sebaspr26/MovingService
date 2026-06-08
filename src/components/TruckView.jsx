@@ -22,9 +22,9 @@ export default function TruckView() {
   const [truck, setTruck] = useState(null)
   const [tab, setTab] = useState('orders')
   const [cycles, setCycles] = useState([])
-  const [cycleIndex, setCycleIndex] = useState(0) // 0 = most recent
+  const [cycleIndex, setCycleIndex] = useState(0)
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState({ income: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
+  const [summary, setSummary] = useState({ income: 0, pending: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
@@ -59,8 +59,13 @@ export default function TruckView() {
 
   async function fetchSummary() {
     if (!cycle) return
-    const [orders, diesel, expenses, accounting] = await Promise.all([
+    const [paidOrders, allOrders, diesel, expenses, accounting] = await Promise.all([
+      // Solo pagadas para ingresos
       supabase.from('orders').select('rate').eq('truck_id', id)
+        .eq('paid', true)
+        .gte('pu_date', period.start).lte('pu_date', period.end),
+      // Todas para contar pendientes
+      supabase.from('orders').select('paid').eq('truck_id', id)
         .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('diesel').select('value').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
@@ -70,7 +75,8 @@ export default function TruckView() {
         .gte('date', period.start).lte('date', period.end),
     ])
     setSummary({
-      income: (orders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0),
+      income: (paidOrders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0),
+      pending: (allOrders.data || []).filter(r => !r.paid).length,
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       expenses: (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0),
@@ -141,9 +147,7 @@ export default function TruckView() {
         <p className="text-sm text-gray-500">#{truck.number}</p>
       </div>
 
-      {/* Cycle navigator */}
       {cycles.length === 0 ? (
-        /* No cycles — prompt to open one */
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
           <p className="text-gray-400 mb-4">No hay ciclos para este camion. Abre uno para comenzar.</p>
           {openingCycle ? (
@@ -203,7 +207,6 @@ export default function TruckView() {
             </button>
           </div>
 
-          {/* Open new cycle button when all cycles are closed */}
           {!hasActiveCycle && (
             <div className="mb-4">
               {openingCycle ? (
@@ -233,7 +236,6 @@ export default function TruckView() {
             </div>
           )}
 
-          {/* Closed cycle banner */}
           {readOnly && (
             <div className="bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -276,10 +278,11 @@ export default function TruckView() {
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-6">
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Gross Orders</p>
               <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.income)}</p>
+              <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Neto (-{discountPct}%)</p>
@@ -301,6 +304,14 @@ export default function TruckView() {
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
               <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(totalCredito)}</p>
+            </div>
+            {/* Pendientes */}
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Pendientes</p>
+              <p className={`text-sm sm:text-lg font-bold ${summary.pending > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
+                {summary.pending}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">ordenes</p>
             </div>
           </div>
 
