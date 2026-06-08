@@ -4,8 +4,8 @@ function fmt(d) { return d.toISOString().split('T')[0] }
 
 /**
  * Compute dynamic weeks from startDate to endDate.
- * Week 1 = startDate to first Saturday.
- * Week 2+ = Sunday to Saturday.
+ * Week 1 = startDate to first Sunday.
+ * Week 2+ = Monday to Sunday.
  * Only includes weeks that have started (up to today).
  */
 export function computeWeeks(startDate, endDate, isClosed = false) {
@@ -21,16 +21,16 @@ export function computeWeeks(startDate, endDate, isClosed = false) {
 
   while (current <= limit) {
     const weekStart = new Date(current)
-    // Find next Saturday (day 6)
+    // Find next Sunday (day 0)
     let weekEnd = new Date(current)
-    const daysToSat = (6 - weekEnd.getDay() + 7) % 7
-    if (daysToSat === 0 && weeks.length > 0) {
-      // Already Saturday and not first week — move to next Saturday
+    const daysToSun = (7 - weekEnd.getDay()) % 7
+    if (daysToSun === 0 && weeks.length > 0) {
+      // Already Sunday and not first week — move to next Sunday
       weekEnd.setDate(weekEnd.getDate() + 7)
-    } else if (daysToSat === 0 && weekEnd.getDay() === 6) {
-      // Start is Saturday — end of first week is this Saturday
+    } else if (daysToSun === 0 && weekEnd.getDay() === 0) {
+      // Start is Sunday — end of first week is this Sunday
     } else {
-      weekEnd.setDate(weekEnd.getDate() + daysToSat)
+      weekEnd.setDate(weekEnd.getDate() + daysToSun)
     }
 
     // Clamp to cycle end
@@ -44,7 +44,7 @@ export function computeWeeks(startDate, endDate, isClosed = false) {
       end: fmt(weekEnd),
     })
 
-    // Next week starts on Sunday after this Saturday
+    // Next week starts on Monday after this Sunday
     current = new Date(weekEnd)
     current.setDate(current.getDate() + 1)
   }
