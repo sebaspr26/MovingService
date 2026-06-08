@@ -85,8 +85,8 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap gap-2 sm:gap-4">
-          <span>Debito: <span className="text-green-400 font-semibold">{fmt(totalDebit)}</span></span>
-          <span>Credito: <span className="text-red-400 font-semibold">{fmt(totalCredit)}</span></span>
+          <span>Debito: <span className="text-red-400 font-semibold">{fmt(totalDebit)}</span></span>
+          <span>Credito: <span className="text-green-400 font-semibold">{fmt(totalCredit)}</span></span>
           <span>Balance: <span className={`font-semibold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</span></span>
         </div>
         <div className="flex gap-2 items-center">
@@ -140,10 +140,10 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
                   <span className="text-[10px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded">Auto</span>
                 </td>
                 <td className="py-2.5 pr-4 text-gray-500">-</td>
-                <td className="py-2.5 pr-4 text-right text-green-400/70">
+                <td className="py-2.5 pr-4 text-right text-red-400/70">
                   {row.debit ? fmt(row.debit) : '-'}
                 </td>
-                <td className="py-2.5 pr-4 text-right text-red-400/70">
+                <td className="py-2.5 pr-4 text-right text-green-400/70">
                   {row.credit ? fmt(row.credit) : '-'}
                 </td>
                 {!readOnly && <td className="py-2.5"></td>}
@@ -165,10 +165,10 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
                 <td className="py-2.5 pr-4 text-white">{row.description}</td>
                 <td className="py-2.5 pr-4 text-gray-400">{row.reference || '-'}</td>
                 <td className="py-2.5 pr-4 text-gray-400">{row.date || '-'}</td>
-                <td className="py-2.5 pr-4 text-right text-green-400">
+                <td className="py-2.5 pr-4 text-right text-red-400">
                   {row.debit ? fmt(row.debit) : '-'}
                 </td>
-                <td className="py-2.5 pr-4 text-right text-red-400">
+                <td className="py-2.5 pr-4 text-right text-green-400">
                   {row.credit ? fmt(row.credit) : '-'}
                 </td>
                 {!readOnly && (
@@ -193,8 +193,8 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
             {/* Totals */}
             <tr className="border-t-2 border-gray-700">
               <td className="py-3 pr-4 text-white font-semibold" colSpan={3}>TOTAL</td>
-              <td className="py-3 pr-4 text-right text-green-400 font-bold">{fmt(totalDebit)}</td>
-              <td className="py-3 pr-4 text-right text-red-400 font-bold">{fmt(totalCredit)}</td>
+              <td className="py-3 pr-4 text-right text-red-400 font-bold">{fmt(totalDebit)}</td>
+              <td className="py-3 pr-4 text-right text-green-400 font-bold">{fmt(totalCredit)}</td>
               {!readOnly && <td></td>}
             </tr>
           </tbody>

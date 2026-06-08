@@ -69,13 +69,13 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
       <div>
         <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Contabilidad del Periodo</h4>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">
-            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Debito</p>
-            <p className="text-lg sm:text-xl font-bold text-green-400">{fmt(debito)}</p>
-          </div>
           <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-red-500">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Debito</p>
+            <p className="text-lg sm:text-xl font-bold text-red-400">{fmt(debito)}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">
             <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Credito</p>
-            <p className="text-lg sm:text-xl font-bold text-red-400">{fmt(credito)}</p>
+            <p className="text-lg sm:text-xl font-bold text-green-400">{fmt(credito)}</p>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-blue-500">
             <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Balance (C - D)</p>

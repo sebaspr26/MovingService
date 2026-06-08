@@ -296,11 +296,11 @@ export default function TruckView() {
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Debito</p>
-              <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(totalDebito)}</p>
+              <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(totalDebito)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
-              <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(totalCredito)}</p>
+              <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(totalCredito)}</p>
             </div>
           </div>
 
