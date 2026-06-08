@@ -39,21 +39,37 @@ export default function ExpensesTable({ truckId, period, onDataChange, readOnly 
   }
 
   async function handleSave(data) {
-    const record = { ...data, truck_id: truckId, period_start: period.start, period_end: period.end }
-    if (editRow) {
-      await supabase.from('expenses').update(record).eq('id', editRow.id)
-    } else {
-      await supabase.from('expenses').insert(record)
+    try {
+      const record = {
+        category: data.category,
+        invoice_number: data.invoice_number || null,
+        description: data.description,
+        amount: data.amount !== '' && data.amount !== null ? Number(data.amount) : null,
+        date: data.date,
+        truck_id: truckId,
+        period_start: period.start,
+        period_end: period.end,
+      }
+      let result
+      if (editRow) {
+        result = await supabase.from('expenses').update(record).eq('id', editRow.id)
+      } else {
+        result = await supabase.from('expenses').insert(record)
+      }
+      if (result.error) throw result.error
+      setShowModal(false)
+      setEditRow(null)
+      fetchRows()
+      if (onDataChange) onDataChange()
+    } catch (err) {
+      alert('Error al guardar: ' + (err.message || err))
     }
-    setShowModal(false)
-    setEditRow(null)
-    fetchRows()
-    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar este registro?')) return
-    await supabase.from('expenses').delete().eq('id', id)
+    if (!confirm('Eliminar este gasto?')) return
+    const { error } = await supabase.from('expenses').delete().eq('id', id)
+    if (error) { alert('Error al eliminar: ' + error.message); return }
     fetchRows()
     if (onDataChange) onDataChange()
   }

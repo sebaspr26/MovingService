@@ -35,21 +35,39 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
   }
 
   async function handleSave(data) {
-    const record = { ...data, truck_id: truckId, period_start: period.start, period_end: period.end }
-    if (editRow) {
-      await supabase.from('orders').update(record).eq('id', editRow.id)
-    } else {
-      await supabase.from('orders').insert(record)
+    try {
+      const record = {
+        order_number: data.order_number,
+        pu_date: data.pu_date,
+        pu_city: data.pu_city,
+        do_date: data.do_date,
+        do_city: data.do_city,
+        miles: data.miles !== '' && data.miles !== null ? Number(data.miles) : null,
+        rate: data.rate !== '' && data.rate !== null ? Number(data.rate) : null,
+        truck_id: truckId,
+        period_start: period.start,
+        period_end: period.end,
+      }
+      let result
+      if (editRow) {
+        result = await supabase.from('orders').update(record).eq('id', editRow.id)
+      } else {
+        result = await supabase.from('orders').insert(record)
+      }
+      if (result.error) throw result.error
+      setShowModal(false)
+      setEditRow(null)
+      fetchRows()
+      if (onDataChange) onDataChange()
+    } catch (err) {
+      alert('Error al guardar: ' + (err.message || err))
     }
-    setShowModal(false)
-    setEditRow(null)
-    fetchRows()
-    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar este registro?')) return
-    await supabase.from('orders').delete().eq('id', id)
+    if (!confirm('Eliminar esta orden?')) return
+    const { error } = await supabase.from('orders').delete().eq('id', id)
+    if (error) { alert('Error al eliminar: ' + error.message); return }
     fetchRows()
     if (onDataChange) onDataChange()
   }

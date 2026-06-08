@@ -46,7 +46,8 @@ If it's a GENERAL EXPENSE (maintenance, tolls, repairs, tires, etc):
 Rules:
 - Use 0 for numbers you can't read
 - Use "" for text you can't read
-- Dates must be YYYY-MM-DD format
+- Source documents use US date format: mm/dd/yyyy (MONTH first, then DAY, then YEAR). Example: "6/1/2026" means June 1st → output "2026-06-01", NOT "2026-01-06"
+- Output dates must be YYYY-MM-DD format
 - For amounts, extract the total amount paid
 - If it's clearly a fuel/diesel receipt, type is "diesel"
 - If it's a load confirmation or bill of lading, type is "order"

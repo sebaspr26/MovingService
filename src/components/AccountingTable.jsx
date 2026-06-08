@@ -33,21 +33,37 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   }
 
   async function handleSave(data) {
-    const record = { ...data, truck_id: truckId, period_start: period.start, period_end: period.end }
-    if (editRow) {
-      await supabase.from('accounting').update(record).eq('id', editRow.id)
-    } else {
-      await supabase.from('accounting').insert(record)
+    try {
+      const record = {
+        description: data.description,
+        reference: data.reference || null,
+        date: data.date,
+        debit: data.debit !== '' && data.debit !== null && data.debit !== undefined ? Number(data.debit) : null,
+        credit: data.credit !== '' && data.credit !== null && data.credit !== undefined ? Number(data.credit) : null,
+        truck_id: truckId,
+        period_start: period.start,
+        period_end: period.end,
+      }
+      let result
+      if (editRow) {
+        result = await supabase.from('accounting').update(record).eq('id', editRow.id)
+      } else {
+        result = await supabase.from('accounting').insert(record)
+      }
+      if (result.error) throw result.error
+      setShowModal(false)
+      setEditRow(null)
+      fetchRows()
+      if (onDataChange) onDataChange()
+    } catch (err) {
+      alert('Error al guardar: ' + (err.message || err))
     }
-    setShowModal(false)
-    setEditRow(null)
-    fetchRows()
-    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
-    await supabase.from('accounting').delete().eq('id', id)
+    const { error } = await supabase.from('accounting').delete().eq('id', id)
+    if (error) { alert('Error al eliminar: ' + error.message); return }
     fetchRows()
     if (onDataChange) onDataChange()
   }

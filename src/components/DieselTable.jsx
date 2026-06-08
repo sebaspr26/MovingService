@@ -33,21 +33,37 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
   }
 
   async function handleSave(data) {
-    const record = { ...data, truck_id: truckId, period_start: period.start, period_end: period.end }
-    if (editRow) {
-      await supabase.from('diesel').update(record).eq('id', editRow.id)
-    } else {
-      await supabase.from('diesel').insert(record)
+    try {
+      const record = {
+        invoice_number: data.invoice_number,
+        date: data.date,
+        city: data.city,
+        gallons: data.gallons !== '' && data.gallons !== null ? Number(data.gallons) : null,
+        value: data.value !== '' && data.value !== null ? Number(data.value) : null,
+        truck_id: truckId,
+        period_start: period.start,
+        period_end: period.end,
+      }
+      let result
+      if (editRow) {
+        result = await supabase.from('diesel').update(record).eq('id', editRow.id)
+      } else {
+        result = await supabase.from('diesel').insert(record)
+      }
+      if (result.error) throw result.error
+      setShowModal(false)
+      setEditRow(null)
+      fetchRows()
+      if (onDataChange) onDataChange()
+    } catch (err) {
+      alert('Error al guardar: ' + (err.message || err))
     }
-    setShowModal(false)
-    setEditRow(null)
-    fetchRows()
-    if (onDataChange) onDataChange()
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar este registro?')) return
-    await supabase.from('diesel').delete().eq('id', id)
+    const { error } = await supabase.from('diesel').delete().eq('id', id)
+    if (error) { alert('Error al eliminar: ' + error.message); return }
     fetchRows()
     if (onDataChange) onDataChange()
   }

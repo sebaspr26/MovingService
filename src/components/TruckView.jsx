@@ -32,9 +32,9 @@ export default function TruckView() {
   const cycle = cycles[cycleIndex] || null
   const readOnly = cycle?.closed || false
   const today = fmt_d(new Date())
-  const cycleEnd = cycle?.end_date || today
-  const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
   const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date, cycle.closed) : []
+  const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
+  const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
   const hasActiveCycle = cycles.some(c => !c.closed)
 
   useEffect(() => {
