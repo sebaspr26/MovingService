@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 
 const CATEGORIES = [
@@ -19,6 +20,7 @@ const fields = [
 const PAGE_SIZE = 5
 
 export default function ExpensesTable({ truckId, period, onDataChange, readOnly }) {
+  const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -61,17 +63,20 @@ export default function ExpensesTable({ truckId, period, onDataChange, readOnly 
       setEditRow(null)
       fetchRows()
       if (onDataChange) onDataChange()
+      toast.success(editRow ? 'Gasto actualizado' : 'Gasto agregado')
     } catch (err) {
-      alert('Error al guardar: ' + (err.message || err))
+      toast.error(friendlyError(err.message || err))
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar este gasto?')) return
+    const ok = await toast.confirm('Eliminar este gasto?')
+    if (!ok) return
     const { error } = await supabase.from('expenses').delete().eq('id', id)
-    if (error) { alert('Error al eliminar: ' + error.message); return }
+    if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()
+    toast.success('Gasto eliminado')
   }
 
   const q = search.toLowerCase()

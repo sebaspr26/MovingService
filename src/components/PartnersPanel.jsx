@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 
 const fields = [
@@ -9,6 +10,7 @@ const fields = [
 ]
 
 export default function PartnersPanel({ truckId, aRepartir }) {
+  const toast = useToast()
   const [partners, setPartners] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -24,9 +26,13 @@ export default function PartnersPanel({ truckId, aRepartir }) {
   async function handleSave(data) {
     const record = { ...data, truck_id: truckId }
     if (editRow) {
-      await supabase.from('partners').update(record).eq('id', editRow.id)
+      const { error } = await supabase.from('partners').update(record).eq('id', editRow.id)
+      if (error) { toast.error(friendlyError(error.message)); return }
+      toast.success('Socio actualizado')
     } else {
-      await supabase.from('partners').insert(record)
+      const { error } = await supabase.from('partners').insert(record)
+      if (error) { toast.error(friendlyError(error.message)); return }
+      toast.success('Socio agregado')
     }
     setShowModal(false)
     setEditRow(null)
@@ -34,9 +40,12 @@ export default function PartnersPanel({ truckId, aRepartir }) {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar este socio?')) return
-    await supabase.from('partners').delete().eq('id', id)
+    const ok = await toast.confirm('Eliminar este socio?')
+    if (!ok) return
+    const { error } = await supabase.from('partners').delete().eq('id', id)
+    if (error) { toast.error(friendlyError(error.message)); return }
     fetchPartners()
+    toast.success('Socio eliminado')
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)

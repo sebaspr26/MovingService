@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { closeCycle, reopenCycle } from '../lib/cycles'
+import { useToast } from './Toast'
 
 export default function CashBox({ truckId, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
+  const toast = useToast()
   const [partners, setPartners] = useState([])
   const [showCierre, setShowCierre] = useState(false)
   const [cierreInput, setCierreInput] = useState('')
@@ -21,12 +23,14 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
     const numCuadre = Number(cierreInput) || 0
     await closeCycle(cycle.id, numCuadre, cierreDate)
     setShowCierre(false)
+    toast.success('Ciclo cerrado exitosamente')
     if (onCycleClosed) onCycleClosed()
   }
 
   async function handleReopen() {
     if (!cycle) return
     await reopenCycle(cycle.id)
+    toast.warning('Ciclo reabierto')
     if (onCycleClosed) onCycleClosed()
   }
 

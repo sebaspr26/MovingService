@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
+import { useToast } from './Toast'
 
 export default function AddModal({ isOpen, onClose, onSave, fields, initialData, title, onScan }) {
+  const toast = useToast()
   const [formData, setFormData] = useState({})
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState(null)
@@ -26,7 +28,27 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSave(formData)
+
+    // Validar campos requeridos
+    for (const field of fields) {
+      if (field.type === 'toggle') continue
+      const val = formData[field.name]
+      if (field.required && (val === '' || val === null || val === undefined)) {
+        toast.warning(`Completa el campo "${field.label}"`)
+        return
+      }
+    }
+
+    // Sanitizar: convertir campos numericos vacios a null, strings a Number
+    const clean = { ...formData }
+    for (const field of fields) {
+      if (field.type === 'number') {
+        const val = clean[field.name]
+        clean[field.name] = val !== '' && val !== null && val !== undefined ? Number(val) : null
+      }
+    }
+
+    onSave(clean)
   }
 
   async function handleScanFile(file) {

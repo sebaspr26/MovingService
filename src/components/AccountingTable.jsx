@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 
 const fields = [
@@ -13,6 +14,7 @@ const fields = [
 const PAGE_SIZE = 5
 
 export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalExpenses, discountPct, readOnly }) {
+  const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -55,17 +57,20 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
       setEditRow(null)
       fetchRows()
       if (onDataChange) onDataChange()
+      toast.success(editRow ? 'Registro actualizado' : 'Registro agregado')
     } catch (err) {
-      alert('Error al guardar: ' + (err.message || err))
+      toast.error(friendlyError(err.message || err))
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar este registro?')) return
+    const ok = await toast.confirm('Eliminar este registro contable?')
+    if (!ok) return
     const { error } = await supabase.from('accounting').delete().eq('id', id)
-    if (error) { alert('Error al eliminar: ' + error.message); return }
+    if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()
+    toast.success('Registro eliminado')
   }
 
   const autoRows = [

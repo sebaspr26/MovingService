@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
+import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 
 const EXPENSE_CATEGORIES = [
@@ -38,6 +39,7 @@ const expenseFields = [
 ]
 
 export default function Dashboard() {
+  const toast = useToast()
   const [trucks, setTrucks] = useState([])
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -196,7 +198,7 @@ export default function Dashboard() {
       const { error } = await supabase.from('trucks')
         .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
         .eq('id', editingTruck.id)
-      if (error) { setTruckError('Error actualizando camion'); return }
+      if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
       await supabase.from('partners').delete().eq('truck_id', editingTruck.id)
       if (validPartners.length > 0) {
@@ -214,7 +216,7 @@ export default function Dashboard() {
         .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
         .select().single()
 
-      if (error || !truck) { setTruckError('Error creando camion'); return }
+      if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
 
       if (validPartners.length > 0) {
         await supabase.from('partners').insert(
@@ -234,6 +236,7 @@ export default function Dashboard() {
     }
 
     setShowTruckModal(false)
+    toast.success(editingTruck ? 'Camion actualizado' : 'Camion creado')
     setEditingTruck(null)
     await fetchTrucks()
   }
@@ -252,6 +255,7 @@ export default function Dashboard() {
     await supabase.from('trucks').delete().eq('id', tid)
     setDeleteTarget(null)
     setDeleteInput('')
+    toast.success('Camion eliminado permanentemente')
     await fetchTrucks()
   }
 
@@ -261,6 +265,7 @@ export default function Dashboard() {
     const prevBalance = lastClosed ? Number(lastClosed.cuadre_caja) || 0 : 0
     await openCycle(openCycleTarget.id, openCycleDate, prevBalance)
     setOpenCycleTarget(null)
+    toast.success('Nuevo ciclo abierto')
     await fetchTrucks()
   }
 
@@ -286,8 +291,11 @@ export default function Dashboard() {
     }
 
     supabase.from(table).insert(record).then(({ error }) => {
-      if (!error) {
+      if (error) {
+        toast.error(friendlyError(error.message))
+      } else {
         setQuickAdd(null)
+        toast.success('Registro agregado')
         fetchCyclesAndSummaries(trucks)
       }
     })

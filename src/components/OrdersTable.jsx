@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
+import { useToast, friendlyError } from './Toast'
 
 const PAGE_SIZE = 5
 
 export default function OrdersTable({ truckId, period, onDataChange, readOnly, discountPct }) {
+  const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -20,6 +23,9 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
   const [fMiles, setFMiles] = useState('')
   const [fRate, setFRate] = useState('')
   const [fApplyDiscount, setFApplyDiscount] = useState(true)
+  const [scanning, setScanning] = useState(false)
+  const [scanned, setScanned] = useState(false)
+  const scanFileRef = useRef()
 
   useEffect(() => { fetchRows() }, [truckId, period])
   useEffect(() => { setExpanded(false) }, [period])
@@ -43,7 +49,32 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
     setFMiles(row?.miles ?? '')
     setFRate(row?.rate ?? '')
     setFApplyDiscount(row ? (row.apply_discount !== false) : true)
+    setScanned(false)
     setShowModal(true)
+  }
+
+  async function handleScanFile(file) {
+    if (!file || (!file.type.startsWith('image/') && file.type !== 'application/pdf')) return
+    if (isScannerBusy()) return
+    setScanning(true)
+    try {
+      const res = await analyzeReceipt(file)
+      if (res.data) {
+        if (res.data.order_number) setFOrderNumber(res.data.order_number)
+        if (res.data.pu_date) setFPuDate(res.data.pu_date)
+        if (res.data.pu_city) setFPuCity(res.data.pu_city)
+        if (res.data.do_date) setFDoDate(res.data.do_date)
+        if (res.data.do_city) setFDoCity(res.data.do_city)
+        if (res.data.miles) setFMiles(String(res.data.miles))
+        if (res.data.rate) setFRate(String(res.data.rate))
+      }
+      setScanned(true)
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setScanning(false)
+      if (scanFileRef.current) scanFileRef.current.value = ''
+    }
   }
 
   function closeModal() {
@@ -57,7 +88,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
     const { error } = await supabase.from('orders').update({ paid: !row.paid }).eq('id', row.id)
     if (error) {
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: row.paid } : r))
-      alert('Error al actualizar: ' + error.message)
+      toast.error(friendlyError(error.message))
       return
     }
     if (onDataChange) onDataChange()
@@ -65,13 +96,19 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
 
   async function handleSave(e) {
     e.preventDefault()
+    if (!fOrderNumber.trim()) { toast.warning('Completa el campo "Orden #"'); return }
+    if (!fPuDate) { toast.warning('Completa el campo "Fecha Pickup"'); return }
+    if (!fPuCity.trim()) { toast.warning('Completa el campo "Ciudad Pickup"'); return }
+    if (!fDoDate) { toast.warning('Completa el campo "Fecha Delivery"'); return }
+    if (!fDoCity.trim()) { toast.warning('Completa el campo "Ciudad Delivery"'); return }
+    if (!fRate && fRate !== 0) { toast.warning('Completa el campo "Rate"'); return }
     try {
       const record = {
-        order_number: fOrderNumber,
+        order_number: fOrderNumber.trim(),
         pu_date: fPuDate,
-        pu_city: fPuCity,
+        pu_city: fPuCity.trim(),
         do_date: fDoDate,
-        do_city: fDoCity,
+        do_city: fDoCity.trim(),
         miles: fMiles !== '' ? Number(fMiles) : null,
         rate: fRate !== '' ? Number(fRate) : null,
         apply_discount: fApplyDiscount,
@@ -89,17 +126,20 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
       closeModal()
       fetchRows()
       if (onDataChange) onDataChange()
+      toast.success(editRow ? 'Orden actualizada' : 'Orden agregada')
     } catch (err) {
-      alert('Error al guardar: ' + (err.message || err))
+      toast.error(friendlyError(err.message || err))
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar esta orden?')) return
+    const ok = await toast.confirm('Eliminar esta orden?')
+    if (!ok) return
     const { error } = await supabase.from('orders').delete().eq('id', id)
-    if (error) { alert('Error al eliminar: ' + error.message); return }
+    if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()
+    toast.success('Orden eliminada')
   }
 
   const q = search.toLowerCase()
@@ -296,6 +336,50 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
               </button>
             </div>
             <form onSubmit={handleSave} className="p-4 space-y-4">
+              {/* Scan button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => scanFileRef.current?.click()}
+                  disabled={scanning}
+                  className="w-full px-4 py-3 bg-purple-600/20 border border-purple-600/50 text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-600/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {scanning ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Analizando imagen...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                      </svg>
+                      Escanear recibo / PDF
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={scanFileRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => handleScanFile(e.target.files[0])}
+                />
+              </div>
+
+              {scanned && (
+                <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <p className="text-xs text-emerald-400">Datos escaneados. Revisa que todo este correcto antes de guardar.</p>
+                </div>
+              )}
+
               {[
                 { label: 'Orden #', value: fOrderNumber, set: setFOrderNumber, required: true },
                 { label: 'Fecha Pickup', value: fPuDate, set: setFPuDate, type: 'date', required: true },
@@ -350,9 +434,11 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
                   className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors">
                   Cancelar
                 </button>
-                <button type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                  Guardar
+                <button type="submit" disabled={scanning}
+                  className={`flex-1 px-4 py-2 text-white rounded-lg text-sm transition-colors disabled:opacity-50 ${
+                    scanned ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'
+                  }`}>
+                  {scanned ? 'Confirmar Datos' : 'Guardar'}
                 </button>
               </div>
             </form>

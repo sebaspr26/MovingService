@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt } from '../lib/gemini'
+import { useToast, friendlyError } from './Toast'
 
 const TYPE_LABELS = { order: 'Orden / Carga', diesel: 'Diesel', expense: 'Gasto' }
 const TYPE_COLORS = { order: 'text-green-400', diesel: 'text-orange-400', expense: 'text-red-400' }
@@ -16,6 +17,7 @@ function getMonthRange(date = new Date()) {
 }
 
 export default function Scanner() {
+  const toast = useToast()
   const [trucks, setTrucks] = useState([])
   const [selectedTruck, setSelectedTruck] = useState('')
   const [file, setFile] = useState(null)
@@ -59,6 +61,7 @@ export default function Scanner() {
       setFormData(res.data || {})
     } catch (err) {
       setError(err.message)
+      toast.error(friendlyError(err.message))
     }
     setAnalyzing(false)
   }
@@ -80,8 +83,10 @@ export default function Scanner() {
     setSaving(false)
     if (err) {
       setError(err.message)
+      toast.error(friendlyError(err.message))
     } else {
       setSaved(true)
+      toast.success('Registro guardado exitosamente')
     }
   }
 
