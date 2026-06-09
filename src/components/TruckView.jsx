@@ -127,7 +127,7 @@ export default function TruckView() {
       <div className="flex gap-2 mb-6">
         {[1, 2, 3, 4].map(i => <div key={i} className="h-8 w-16 bg-gray-800 rounded-lg"></div>)}
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
             <div className="h-3 w-16 bg-gray-800 rounded mb-3"></div>
@@ -294,7 +294,7 @@ export default function TruckView() {
           </div>
 
           {/* Cards grandes — Total Débito, Total Crédito, Balance */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-red-500">
               <p className="text-xs text-gray-500 mb-2">Total Débito</p>
               <p className="text-xl sm:text-2xl font-bold text-red-400">{fmt(totalDebito)}</p>
