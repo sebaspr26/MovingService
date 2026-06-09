@@ -1,26 +1,25 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import AddModal from './AddModal'
-
-const fields = [
-  { name: 'order_number', label: 'Orden #', required: true },
-  { name: 'pu_date', label: 'Fecha Pickup', type: 'date', required: true },
-  { name: 'pu_city', label: 'Ciudad Pickup', required: true },
-  { name: 'do_date', label: 'Fecha Delivery', type: 'date', required: true },
-  { name: 'do_city', label: 'Ciudad Delivery', required: true },
-  { name: 'miles', label: 'Millas', type: 'number', step: '0.01' },
-  { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
-]
 
 const PAGE_SIZE = 5
 
-export default function OrdersTable({ truckId, period, onDataChange, readOnly }) {
+export default function OrdersTable({ truckId, period, onDataChange, readOnly, discountPct }) {
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [expanded, setExpanded] = useState(false)
+
+  // Form state
+  const [fOrderNumber, setFOrderNumber] = useState('')
+  const [fPuDate, setFPuDate] = useState('')
+  const [fPuCity, setFPuCity] = useState('')
+  const [fDoDate, setFDoDate] = useState('')
+  const [fDoCity, setFDoCity] = useState('')
+  const [fMiles, setFMiles] = useState('')
+  const [fRate, setFRate] = useState('')
+  const [fApplyDiscount, setFApplyDiscount] = useState(true)
 
   useEffect(() => { fetchRows() }, [truckId, period])
   useEffect(() => { setExpanded(false) }, [period])
@@ -34,16 +33,29 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
     setRows(data || [])
   }
 
+  function openModal(row = null) {
+    setEditRow(row)
+    setFOrderNumber(row?.order_number || '')
+    setFPuDate(row?.pu_date || '')
+    setFPuCity(row?.pu_city || '')
+    setFDoDate(row?.do_date || '')
+    setFDoCity(row?.do_city || '')
+    setFMiles(row?.miles ?? '')
+    setFRate(row?.rate ?? '')
+    setFApplyDiscount(row ? (row.apply_discount !== false) : true)
+    setShowModal(true)
+  }
+
+  function closeModal() {
+    setShowModal(false)
+    setEditRow(null)
+  }
+
   async function handleTogglePaid(row) {
     if (readOnly) return
-    // Actualizar localmente primero — evita reorganización visual mientras espera el servidor
     setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: !r.paid } : r))
-    const { error } = await supabase
-      .from('orders')
-      .update({ paid: !row.paid })
-      .eq('id', row.id)
+    const { error } = await supabase.from('orders').update({ paid: !row.paid }).eq('id', row.id)
     if (error) {
-      // Revertir si falla
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: row.paid } : r))
       alert('Error al actualizar: ' + error.message)
       return
@@ -51,16 +63,18 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
     if (onDataChange) onDataChange()
   }
 
-  async function handleSave(data) {
+  async function handleSave(e) {
+    e.preventDefault()
     try {
       const record = {
-        order_number: data.order_number,
-        pu_date: data.pu_date,
-        pu_city: data.pu_city,
-        do_date: data.do_date,
-        do_city: data.do_city,
-        miles: data.miles !== '' && data.miles !== null ? Number(data.miles) : null,
-        rate: data.rate !== '' && data.rate !== null ? Number(data.rate) : null,
+        order_number: fOrderNumber,
+        pu_date: fPuDate,
+        pu_city: fPuCity,
+        do_date: fDoDate,
+        do_city: fDoCity,
+        miles: fMiles !== '' ? Number(fMiles) : null,
+        rate: fRate !== '' ? Number(fRate) : null,
+        apply_discount: fApplyDiscount,
         truck_id: truckId,
         period_start: period.start,
         period_end: period.end,
@@ -72,8 +86,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
         result = await supabase.from('orders').insert(record)
       }
       if (result.error) throw result.error
-      setShowModal(false)
-      setEditRow(null)
+      closeModal()
       fetchRows()
       if (onDataChange) onDataChange()
     } catch (err) {
@@ -108,7 +121,11 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
   const total = paidRows.reduce((s, r) => s + (Number(r.rate) || 0), 0)
   const totalMiles = paidRows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
   const pendingCount = rows.filter(r => !r.paid).length
+  const pct = discountPct || 13
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+
+  const rateNum = Number(fRate) || 0
+  const netoPreview = fApplyDiscount ? rateNum * (1 - pct / 100) : rateNum
 
   return (
     <div>
@@ -144,7 +161,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
           </button>
           {!readOnly && (
             <button
-              onClick={() => { setEditRow(null); setShowModal(true) }}
+              onClick={() => openModal()}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
             >
               + Agregar Orden
@@ -157,9 +174,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
-              <th className="pb-2 pr-2 w-8">
-                <span className="sr-only">Pagado</span>
-              </th>
+              <th className="pb-2 pr-2 w-8"><span className="sr-only">Pagado</span></th>
               <th className="pb-2 pr-4">Orden #</th>
               <th className="pb-2 pr-4">PU Date</th>
               <th className="pb-2 pr-4">PU City</th>
@@ -167,74 +182,86 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
               <th className="pb-2 pr-4">DO City</th>
               <th className="pb-2 pr-4 text-right">Miles</th>
               <th className="pb-2 pr-4 text-right">Rate</th>
+              <th className="pb-2 pr-4 text-center">Desc.</th>
               {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
           <tbody>
-            {visible.map(row => (
-              <tr
-                key={row.id}
-                className={`border-b border-gray-800/50 transition-colors ${
-                  row.paid
-                    ? 'hover:bg-gray-800/30'
-                    : 'opacity-50 hover:opacity-70 hover:bg-gray-800/20'
-                }`}
-              >
-                <td className="py-2.5 pr-2">
-                  <button
-                    onClick={() => handleTogglePaid(row)}
-                    disabled={readOnly}
-                    title={row.paid ? 'Marcar como pendiente' : 'Marcar como pagado'}
-                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                      row.paid
-                        ? 'bg-green-600 border-green-600 text-white'
-                        : 'border-gray-600 hover:border-yellow-500 bg-transparent'
-                    } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-                  >
-                    {row.paid && (
-                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                    )}
-                  </button>
-                </td>
-                <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
-                  {row.order_number}
-                  {!row.paid && (
-                    <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
-                      Pendiente
-                    </span>
-                  )}
-                </td>
-                <td className="py-2.5 pr-4">{row.pu_date}</td>
-                <td className="py-2.5 pr-4">{row.pu_city}</td>
-                <td className="py-2.5 pr-4">{row.do_date}</td>
-                <td className="py-2.5 pr-4">{row.do_city}</td>
-                <td className="py-2.5 pr-4 text-right">{Number(row.miles || 0).toLocaleString()}</td>
-                <td className={`py-2.5 pr-4 text-right ${row.paid ? 'text-green-400' : 'text-gray-500'}`}>
-                  {fmt(row.rate)}
-                </td>
-                {!readOnly && (
-                  <td className="py-2.5">
-                    <div className="flex gap-1 justify-end">
-                      <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-blue-400">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+            {visible.map(row => {
+              const hasDiscount = row.apply_discount !== false
+              return (
+                <tr
+                  key={row.id}
+                  className={`border-b border-gray-800/50 transition-colors ${
+                    row.paid ? 'hover:bg-gray-800/30' : 'opacity-50 hover:opacity-70 hover:bg-gray-800/20'
+                  }`}
+                >
+                  <td className="py-2.5 pr-2">
+                    <button
+                      onClick={() => handleTogglePaid(row)}
+                      disabled={readOnly}
+                      title={row.paid ? 'Marcar como pendiente' : 'Marcar como pagado'}
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                        row.paid
+                          ? 'bg-green-600 border-green-600 text-white'
+                          : 'border-gray-600 hover:border-yellow-500 bg-transparent'
+                      } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                    >
+                      {row.paid && (
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
-                      </button>
-                      <button onClick={() => handleDelete(row.id)} className="p-1 text-gray-500 hover:text-red-400">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                      )}
+                    </button>
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
+                    {row.order_number}
+                    {!row.paid && (
+                      <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
+                        Pendiente
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2.5 pr-4">{row.pu_date}</td>
+                  <td className="py-2.5 pr-4">{row.pu_city}</td>
+                  <td className="py-2.5 pr-4">{row.do_date}</td>
+                  <td className="py-2.5 pr-4">{row.do_city}</td>
+                  <td className="py-2.5 pr-4 text-right">{Number(row.miles || 0).toLocaleString()}</td>
+                  <td className="py-2.5 pr-4 text-right">
+                    <div className={row.paid ? 'text-green-400' : 'text-gray-500'}>{fmt(row.rate)}</div>
+                    {hasDiscount && row.paid && (
+                      <div className="text-[9px] text-gray-500">neto {fmt(Number(row.rate) * (1 - pct / 100))}</div>
+                    )}
+                  </td>
+                  <td className="py-2.5 pr-4 text-center">
+                    {hasDiscount ? (
+                      <span className="text-[9px] bg-orange-900/40 text-orange-400 px-1.5 py-0.5 rounded">-{pct}%</span>
+                    ) : (
+                      <span className="text-[9px] bg-gray-800 text-gray-600 px-1.5 py-0.5 rounded">sin desc.</span>
+                    )}
+                  </td>
+                  {!readOnly && (
+                    <td className="py-2.5">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => openModal(row)} className="p-1 text-gray-500 hover:text-blue-400">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => handleDelete(row.id)} className="p-1 text-gray-500 hover:text-red-400">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={readOnly ? 8 : 9} className="py-8 text-center text-gray-600">
+                <td colSpan={readOnly ? 9 : 10} className="py-8 text-center text-gray-600">
                   {q ? 'Sin resultados' : 'Sin ordenes en este periodo'}
                 </td>
               </tr>
@@ -256,15 +283,82 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly })
         </div>
       )}
 
-      <AddModal
-        isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditRow(null) }}
-        onSave={handleSave}
-        fields={fields}
-        initialData={editRow}
-        title={editRow ? 'Editar Orden' : 'Agregar Orden'}
-        onScan={() => {}}
-      />
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+              <h3 className="text-lg font-semibold text-white">{editRow ? 'Editar Orden' : 'Agregar Orden'}</h3>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-300">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleSave} className="p-4 space-y-4">
+              {[
+                { label: 'Orden #', value: fOrderNumber, set: setFOrderNumber, required: true },
+                { label: 'Fecha Pickup', value: fPuDate, set: setFPuDate, type: 'date', required: true },
+                { label: 'Ciudad Pickup', value: fPuCity, set: setFPuCity, required: true },
+                { label: 'Fecha Delivery', value: fDoDate, set: setFDoDate, type: 'date', required: true },
+                { label: 'Ciudad Delivery', value: fDoCity, set: setFDoCity, required: true },
+                { label: 'Millas', value: fMiles, set: setFMiles, type: 'number', step: '0.01' },
+                { label: 'Rate ($)', value: fRate, set: setFRate, type: 'number', step: '0.01', required: true },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">{f.label}</label>
+                  <input
+                    type={f.type || 'text'}
+                    step={f.step}
+                    value={f.value}
+                    onChange={(e) => f.set(e.target.value)}
+                    required={f.required}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              ))}
+
+              {/* Toggle descuento */}
+              <div className={`rounded-lg p-3 border transition-colors ${
+                fApplyDiscount ? 'bg-orange-900/20 border-orange-800/40' : 'bg-gray-800/40 border-gray-700'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-300">Aplicar descuento ({pct}%)</p>
+                    {rateNum > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {fmt(rateNum)} → neto {fmt(netoPreview)}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFApplyDiscount(v => !v)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      fApplyDiscount ? 'bg-orange-500' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      fApplyDiscount ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={closeModal}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors">
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

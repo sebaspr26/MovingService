@@ -124,7 +124,41 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 {field.label}
               </label>
-              {field.type === 'select' ? (
+              {field.type === 'toggle' ? (
+                <div className={`rounded-lg p-3 border transition-colors ${
+                  formData[field.name] !== false
+                    ? 'bg-orange-900/20 border-orange-800/40'
+                    : 'bg-gray-800/40 border-gray-700'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-300">{field.label}</p>
+                      {field.discountPct && Number(formData[field.rateField] || 0) > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(formData[field.rateField]))}
+                          {' → neto '}
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                            formData[field.name] !== false
+                              ? Number(formData[field.rateField]) * (1 - field.discountPct / 100)
+                              : Number(formData[field.rateField])
+                          )}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, [field.name]: prev[field.name] === false ? true : false }))}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        formData[field.name] !== false ? 'bg-orange-500' : 'bg-gray-600'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        formData[field.name] !== false ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+              ) : field.type === 'select' ? (
                 <select
                   value={formData[field.name] || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}

@@ -60,11 +60,9 @@ export default function TruckView() {
   async function fetchSummary() {
     if (!cycle) return
     const [paidOrders, allOrders, diesel, expenses, accounting] = await Promise.all([
-      // Solo pagadas para ingresos
-      supabase.from('orders').select('rate').eq('truck_id', id)
+      supabase.from('orders').select('rate, apply_discount').eq('truck_id', id)
         .eq('paid', true)
         .gte('pu_date', period.start).lte('pu_date', period.end),
-      // Todas para contar pendientes
       supabase.from('orders').select('paid').eq('truck_id', id)
         .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('diesel').select('value').eq('truck_id', id)
@@ -74,8 +72,16 @@ export default function TruckView() {
       supabase.from('accounting').select('debit, credit').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
     ])
+    // Calcular ingreso neto respetando apply_discount por orden
+    const pct = discountPct
+    const grossIncome = (paidOrders.data || []).reduce((s, r) => {
+      const rate = Number(r.rate) || 0
+      const applyDisc = r.apply_discount !== false
+      return s + (applyDisc ? rate * (1 - pct / 100) : rate)
+    }, 0)
+
     setSummary({
-      income: (paidOrders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0),
+      income: grossIncome,
       pending: (allOrders.data || []).filter(r => !r.paid).length,
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       expenses: (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0),
@@ -102,11 +108,13 @@ export default function TruckView() {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const discountPct = Number(truck?.discount_percent) || 13
-  const discountAmount = summary.income * (discountPct / 100)
-  const netIncome = summary.income - discountAmount
-  const discount13 = discountAmount
+  // netIncome ya viene calculado en fetchSummary respetando apply_discount por orden
+  const netIncome = summary.income
+  const discountAmount = 0
+  const discount13 = 0
   const totalDebito = summary.diesel + summary.expenses + summary.debito
   const totalCredito = netIncome + summary.credito
+  const balance = totalCredito - totalDebito
 
   if (!truck || loading) return (
     <div className="animate-pulse">
@@ -119,11 +127,19 @@ export default function TruckView() {
       <div className="flex gap-2 mb-6">
         {[1, 2, 3, 4].map(i => <div key={i} className="h-8 w-16 bg-gray-800 rounded-lg"></div>)}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div className="h-3 w-16 bg-gray-800 rounded mb-3"></div>
+            <div className="h-7 w-24 bg-gray-800 rounded"></div>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3">
             <div className="h-3 w-16 bg-gray-800 rounded mb-2"></div>
-            <div className="h-5 w-20 bg-gray-800 rounded"></div>
+            <div className="h-4 w-20 bg-gray-800 rounded"></div>
           </div>
         ))}
       </div>
@@ -277,41 +293,52 @@ export default function TruckView() {
             <span className="text-gray-300">{period.end}</span>
           </div>
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-6">
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Gross Orders</p>
-              <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(summary.income)}</p>
-              <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">solo pagadas</p>
+          {/* Cards grandes — Total Débito, Total Crédito, Balance */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-red-500">
+              <p className="text-xs text-gray-500 mb-2">Total Débito</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-400">{fmt(totalDebito)}</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Neto (-{discountPct}%)</p>
-              <p className="text-sm sm:text-lg font-bold text-emerald-400">{fmt(netIncome)}</p>
-              <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">-{fmt(discountAmount)}</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-green-500">
+              <p className="text-xs text-gray-500 mb-2">Total Crédito</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-400">{fmt(totalCredito)}</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Diesel</p>
-              <p className="text-sm sm:text-lg font-bold text-orange-400">{fmt(summary.diesel)}</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-blue-500">
+              <p className="text-xs text-gray-500 mb-2">Balance</p>
+              <p className={`text-xl sm:text-2xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Otros Gastos</p>
-              <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(summary.expenses)}</p>
+          </div>
+
+          {/* Cards pequeñas — secundarias */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Gross Orders</p>
+              <p className="text-sm font-bold text-green-400">{fmt(summary.income)}</p>
+              <p className="text-[9px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Debito</p>
-              <p className="text-sm sm:text-lg font-bold text-red-400">{fmt(totalDebito)}</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Neto (-{discountPct}%)</p>
+              <p className="text-sm font-bold text-emerald-400">{fmt(netIncome)}</p>
+              <p className="text-[9px] text-gray-600 mt-0.5">-{fmt(discountAmount)}</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Credito</p>
-              <p className="text-sm sm:text-lg font-bold text-green-400">{fmt(totalCredito)}</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Diesel</p>
+              <p className="text-sm font-bold text-orange-400">{fmt(summary.diesel)}</p>
             </div>
-            {/* Pendientes */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Pendientes</p>
-              <p className={`text-sm sm:text-lg font-bold ${summary.pending > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Otros Gastos</p>
+              <p className="text-sm font-bold text-red-400">{fmt(summary.expenses)}</p>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Saldo Anterior</p>
+              <p className="text-sm font-bold text-gray-300">{fmt(Number(cycle?.previous_balance) || 0)}</p>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">Pendientes</p>
+              <p className={`text-sm font-bold ${summary.pending > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
                 {summary.pending}
               </p>
-              <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">ordenes</p>
+              <p className="text-[9px] text-gray-600 mt-0.5">ordenes</p>
             </div>
           </div>
 
@@ -332,7 +359,7 @@ export default function TruckView() {
 
           {/* Tab content */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
-            {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
+            {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
             {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
             {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} />}
@@ -340,7 +367,7 @@ export default function TruckView() {
 
           {/* Cash Box & Dividends */}
           <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-white mb-5">Caja</h3>
+            
             <CashBox
               truckId={id}
               cycle={cycle}

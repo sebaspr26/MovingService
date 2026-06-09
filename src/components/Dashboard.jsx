@@ -17,6 +17,7 @@ const orderFields = [
   { name: 'do_city', label: 'Ciudad Delivery', required: true },
   { name: 'miles', label: 'Millas', type: 'number', step: '0.01' },
   { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
+  { name: 'apply_discount', label: 'Aplicar descuento', type: 'toggle', default: true, rateField: 'rate' },
 ]
 
 const dieselFields = [
@@ -83,40 +84,47 @@ export default function Dashboard() {
 
       if (displayCycle) {
         const periodStart = displayCycle.start_date
-        // Mismo cálculo que TruckView — usa el último día de la última semana calculada
         const weeks = computeWeeks(displayCycle.start_date, displayCycle.end_date, displayCycle.closed)
         const periodEnd = displayCycle.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
 
-        const [orders, diesel, expenses] = await Promise.all([
-          // Traemos todas las órdenes con paid para separar pagadas vs pendientes
-          supabase.from('orders').select('rate, paid').eq('truck_id', truck.id)
+        const [orders, diesel, expenses, accounting] = await Promise.all([
+          supabase.from('orders').select('rate, paid, apply_discount').eq('truck_id', truck.id)
             .gte('pu_date', periodStart).lte('pu_date', periodEnd),
           supabase.from('diesel').select('value').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
           supabase.from('expenses').select('amount').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
+          supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
+            .gte('date', periodStart).lte('date', periodEnd),
         ])
 
         const allOrders = orders.data || []
-
-        // Solo órdenes pagadas cuentan como ingreso (igual que TruckView)
-        const income = allOrders
+        const discountPct = Number(truck.discount_percent) || 13
+        const netIncome = allOrders
           .filter(r => r.paid)
-          .reduce((s, r) => s + (Number(r.rate) || 0), 0)
+          .reduce((s, r) => {
+            const rate = Number(r.rate) || 0
+            const applyDisc = r.apply_discount !== false
+            return s + (applyDisc ? rate * (1 - discountPct / 100) : rate)
+          }, 0)
 
-        // Órdenes pendientes de cobro
         const pendingOrders = allOrders.filter(r => !r.paid)
         const pendingCount = pendingOrders.length
         const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
 
         const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
         const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
-        const totalExpenses = dieselTotal + expenseTotal
+        const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
+        const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
+
+        const totalDebito = dieselTotal + expenseTotal + acctDebit
+        const totalCredito = netIncome + acctCredit
+        const balance = totalCredito - totalDebito
 
         sums[truck.id] = {
-          income,
-          expenses: totalExpenses,
-          balance: income - totalExpenses,
+          income: totalCredito,
+          expenses: totalDebito,
+          balance,
           pendingCount,
           pendingAmount,
         }
@@ -269,7 +277,14 @@ export default function Dashboard() {
     const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : 'expenses'
     const periodStart = cycle.start_date
     const periodEnd = cycle.end_date || today
+
     const record = { ...rest, truck_id: _truck_select, period_start: periodStart, period_end: periodEnd }
+
+    // Normalizar apply_discount a boolean real para orders
+    if (quickAdd === 'order') {
+      record.apply_discount = rest.apply_discount === false || rest.apply_discount === 'false' ? false : true
+    }
+
     supabase.from(table).insert(record).then(({ error }) => {
       if (!error) {
         setQuickAdd(null)
@@ -291,6 +306,15 @@ export default function Dashboard() {
       options: trucksWithCycles.map(t => ({ value: t.id, label: `${t.name} (#${t.number})` })),
     }
     return [truckField, ...baseFields]
+  }
+
+  // Para orders, enriquecer el campo toggle con el discountPct del camion seleccionado
+  function getOrderFields(selectedTruckId) {
+    const truck = trucks.find(t => t.id === selectedTruckId)
+    const discountPct = Number(truck?.discount_percent) || 13
+    return getQuickFields(orderFields.map(f =>
+      f.name === 'apply_discount' ? { ...f, discountPct } : f
+    ))
   }
 
   const quickConfig = {
@@ -411,11 +435,11 @@ export default function Dashboard() {
                       </div>
                       <div className="grid grid-cols-3 gap-3 mb-3">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Ingresos</p>
+                          <p className="text-xs text-gray-500 mb-1">Credito</p>
                           <p className="text-sm font-semibold text-green-400">{fmt(s.income)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Gastos</p>
+                          <p className="text-xs text-gray-500 mb-1">Debito</p>
                           <p className="text-sm font-semibold text-red-400">{fmt(s.expenses)}</p>
                         </div>
                         <div>
@@ -423,8 +447,6 @@ export default function Dashboard() {
                           <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
                         </div>
                       </div>
-
-                      
 
                       {displayCycle.closed && Number(displayCycle.cuadre_caja) > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-800/50">
@@ -724,4 +746,4 @@ export default function Dashboard() {
       )}
     </div>
   )
-} 
+}

@@ -40,58 +40,7 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
 
   return (
     <div className="space-y-6">
-      {/* SALDO ANTERIOR */}
-      <div className="bg-gradient-to-r from-gray-800/80 to-gray-800/40 rounded-xl p-4 sm:p-5 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">Saldo Anterior (del ciclo anterior)</p>
-            <p className="text-2xl sm:text-3xl font-bold text-white">{fmt(previousBalance)}</p>
-          </div>
-          <div className="text-right hidden sm:block">
-            <p className="text-[10px] text-gray-600">Se toma automaticamente del cierre anterior</p>
-          </div>
-        </div>
-      </div>
-
-      {/* DESCUENTO */}
-      {grossIncome > 0 && (
-        <div className="bg-gray-800/30 rounded-lg p-3 sm:p-4 border border-gray-800">
-          <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Descuento {discountPct || 13}% sobre Orders</p>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-            <span className="text-gray-400">Gross: <span className="text-white font-semibold">{fmt(grossIncome)}</span></span>
-            <span className="text-red-400">- {discountPct || 13}%: <span className="font-semibold">{fmt(discount13)}</span></span>
-            <span className="text-emerald-400">= Neto: <span className="font-semibold">{fmt(netIncome)}</span></span>
-          </div>
-        </div>
-      )}
-
-      {/* DEBITO / CREDITO / BALANCE */}
-      <div>
-        <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Contabilidad del Periodo</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-red-500">
-            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Debito</p>
-            <p className="text-lg sm:text-xl font-bold text-red-400">{fmt(debito)}</p>
-          </div>
-          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">
-            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Credito</p>
-            <p className="text-lg sm:text-xl font-bold text-green-400">{fmt(credito)}</p>
-          </div>
-          <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border-l-4 border-blue-500">
-            <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Balance (C - D)</p>
-            <p className={`text-lg sm:text-xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* GANANCIA TOTAL */}
-      <div className="bg-gray-800/50 rounded-lg p-4 sm:p-5 border-l-4 border-purple-500">
-        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Ganancia Total (Saldo Anterior + Balance)</p>
-        <div className="flex items-baseline gap-2">
-          <p className={`text-xl sm:text-2xl font-bold ${ganancia >= 0 ? 'text-purple-400' : 'text-red-400'}`}>{fmt(ganancia)}</p>
-          <span className="text-xs text-gray-600">({fmt(previousBalance)} + {fmt(balance)})</span>
-        </div>
-      </div>
+      
 
       {/* CERRAR CICLO / CLOSED STATE */}
       {closed ? (
