@@ -5,7 +5,7 @@ import AddModal from './AddModal'
 
 const CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
-  'Lavado', 'Parqueo', 'Multas', 'Comida', 'DEF', 'Otros'
+  'Lavado', 'Parqueo', 'Multas', 'Comida', 'Otros'
 ]
 
 const fields = [

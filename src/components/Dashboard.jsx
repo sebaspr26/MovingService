@@ -7,7 +7,7 @@ import AddModal from './AddModal'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
-  'Lavado', 'Parqueo', 'Multas', 'Comida', 'DEF', 'Otros'
+  'Lavado', 'Parqueo', 'Multas', 'Comida', 'Otros'
 ]
 
 const orderFields = [
@@ -22,6 +22,14 @@ const orderFields = [
 ]
 
 const dieselFields = [
+  { name: 'invoice_number', label: 'Invoice #', required: true },
+  { name: 'date', label: 'Fecha', type: 'date', required: true },
+  { name: 'city', label: 'Ciudad', required: true },
+  { name: 'gallons', label: 'Galones', type: 'number', step: '0.01', required: true },
+  { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
+]
+
+const defFields = [
   { name: 'invoice_number', label: 'Invoice #', required: true },
   { name: 'date', label: 'Fecha', type: 'date', required: true },
   { name: 'city', label: 'Ciudad', required: true },
@@ -89,10 +97,12 @@ export default function Dashboard() {
         const weeks = computeWeeks(displayCycle.start_date, displayCycle.end_date, displayCycle.closed)
         const periodEnd = displayCycle.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
 
-        const [orders, diesel, expenses, accounting] = await Promise.all([
+        const [orders, diesel, def, expenses, accounting] = await Promise.all([
           supabase.from('orders').select('rate, paid, apply_discount').eq('truck_id', truck.id)
             .gte('pu_date', periodStart).lte('pu_date', periodEnd),
           supabase.from('diesel').select('value').eq('truck_id', truck.id)
+            .gte('date', periodStart).lte('date', periodEnd),
+          supabase.from('def').select('value').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
           supabase.from('expenses').select('amount').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
@@ -115,11 +125,12 @@ export default function Dashboard() {
         const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
 
         const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
+        const defTotal = (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
         const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
         const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
         const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
 
-        const totalDebito = dieselTotal + expenseTotal + acctDebit
+        const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
         const totalCredito = netIncome + acctCredit
         const balance = totalCredito - totalDebito
 
@@ -247,6 +258,7 @@ export default function Dashboard() {
     await Promise.all([
       supabase.from('orders').delete().eq('truck_id', tid),
       supabase.from('diesel').delete().eq('truck_id', tid),
+      supabase.from('def').delete().eq('truck_id', tid),
       supabase.from('expenses').delete().eq('truck_id', tid),
       supabase.from('accounting').delete().eq('truck_id', tid),
       supabase.from('cycles').delete().eq('truck_id', tid),
@@ -279,7 +291,7 @@ export default function Dashboard() {
     const cycle = truckCycles[_truck_select]
     if (!cycle) return
 
-    const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : 'expenses'
+    const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : quickAdd === 'def' ? 'def' : 'expenses'
     const periodStart = cycle.start_date
     const periodEnd = cycle.end_date || today
 
@@ -328,6 +340,7 @@ export default function Dashboard() {
   const quickConfig = {
     order: { fields: getQuickFields(orderFields), title: 'Agregar Orden' },
     diesel: { fields: getQuickFields(dieselFields), title: 'Agregar Diesel' },
+    def: { fields: getQuickFields(defFields), title: 'Agregar DEF' },
     expense: { fields: getQuickFields(expenseFields), title: 'Agregar Gasto' },
   }
 
@@ -356,6 +369,13 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 Diesel
+              </button>
+              <button onClick={() => openQuickAdd('def')}
+                className="px-3 py-2 bg-cyan-600/20 border border-cyan-600/40 text-cyan-400 rounded-lg text-xs font-medium hover:bg-cyan-600/30 transition-colors flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                DEF
               </button>
               <button onClick={() => openQuickAdd('expense')}
                 className="px-3 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors flex items-center gap-1.5">

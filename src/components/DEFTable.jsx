@@ -4,16 +4,16 @@ import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 
 const fields = [
-  { name: 'description', label: 'Descripcion', required: true },
-  { name: 'reference', label: 'Referencia' },
+  { name: 'invoice_number', label: 'Invoice #', required: true },
   { name: 'date', label: 'Fecha', type: 'date', required: true },
-  { name: 'debit', label: 'Debito ($)', type: 'number', step: '0.01' },
-  { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
+  { name: 'city', label: 'Ciudad', required: true },
+  { name: 'gallons', label: 'Galones', type: 'number', step: '0.01', required: true },
+  { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
 ]
 
 const PAGE_SIZE = 5
 
-export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalDef, totalExpenses, discountPct, readOnly }) {
+export default function DEFTable({ truckId, period, onDataChange, readOnly }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -26,7 +26,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
-    const { data } = await supabase.from('accounting').select('*')
+    const { data } = await supabase.from('def').select('*')
       .eq('truck_id', truckId)
       .gte('date', period.start)
       .lte('date', period.end)
@@ -37,79 +37,65 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   async function handleSave(data) {
     try {
       const record = {
-        description: data.description,
-        reference: data.reference || null,
+        invoice_number: data.invoice_number,
         date: data.date,
-        debit: data.debit !== '' && data.debit !== null && data.debit !== undefined ? Number(data.debit) : null,
-        credit: data.credit !== '' && data.credit !== null && data.credit !== undefined ? Number(data.credit) : null,
+        city: data.city,
+        gallons: data.gallons !== '' && data.gallons !== null ? Number(data.gallons) : null,
+        value: data.value !== '' && data.value !== null ? Number(data.value) : null,
         truck_id: truckId,
         period_start: period.start,
         period_end: period.end,
       }
       let result
       if (editRow) {
-        result = await supabase.from('accounting').update(record).eq('id', editRow.id)
+        result = await supabase.from('def').update(record).eq('id', editRow.id)
       } else {
-        result = await supabase.from('accounting').insert(record)
+        result = await supabase.from('def').insert(record)
       }
       if (result.error) throw result.error
       setShowModal(false)
       setEditRow(null)
       fetchRows()
       if (onDataChange) onDataChange()
-      toast.success(editRow ? 'Registro actualizado' : 'Registro agregado')
+      toast.success(editRow ? 'DEF actualizado' : 'DEF agregado')
     } catch (err) {
       toast.error(friendlyError(err.message || err))
     }
   }
 
   async function handleDelete(id) {
-    const ok = await toast.confirm('Eliminar este registro contable?')
+    const ok = await toast.confirm('Eliminar este registro de DEF?')
     if (!ok) return
-    const { error } = await supabase.from('accounting').delete().eq('id', id)
+    const { error } = await supabase.from('def').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()
-    toast.success('Registro eliminado')
+    toast.success('Registro de DEF eliminado')
   }
-
-  const autoRows = [
-    { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: 0, credit: netIncome || 0 },
-    { description: 'Total Diesel', reference: 'Auto', debit: totalDiesel || 0, credit: 0 },
-    { description: 'Total DEF', reference: 'Auto', debit: totalDef || 0, credit: 0 },
-    { description: 'Total Gastos', reference: 'Auto', debit: totalExpenses || 0, credit: 0 },
-  ]
 
   const q = search.toLowerCase()
   const filtered = q
     ? rows.filter(r =>
-        (r.description || '').toLowerCase().includes(q) ||
-        (r.reference || '').toLowerCase().includes(q) ||
+        String(r.invoice_number).toLowerCase().includes(q) ||
         (r.date || '').includes(q) ||
-        String(r.debit).includes(q) ||
-        String(r.credit).includes(q)
+        (r.city || '').toLowerCase().includes(q) ||
+        String(r.value).includes(q) ||
+        String(r.gallons).includes(q)
       )
     : rows
 
   const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
   const hasMore = !q && filtered.length > PAGE_SIZE
 
-  const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
-  const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
-  const autoDebit = (totalDiesel || 0) + (totalDef || 0) + (totalExpenses || 0)
-  const autoCredit = (netIncome || 0)
-  const totalDebit = autoDebit + manualDebit
-  const totalCredit = autoCredit + manualCredit
-  const balance = totalCredit - totalDebit
+  const totalGallons = rows.reduce((s, r) => s + (Number(r.gallons) || 0), 0)
+  const totalValue = rows.reduce((s, r) => s + (Number(r.value) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap gap-2 sm:gap-4">
-          <span>Debito: <span className="text-red-400 font-semibold">{fmt(totalDebit)}</span></span>
-          <span>Credito: <span className="text-green-400 font-semibold">{fmt(totalCredit)}</span></span>
-          <span>Balance: <span className={`font-semibold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</span></span>
+        <div className="text-xs sm:text-sm text-gray-400">
+          {rows.length} registros | {totalGallons.toFixed(1)} gal | Total: <span className="text-red-400 font-semibold">{fmt(totalValue)}</span>
         </div>
         <div className="flex gap-2 items-center">
           {showSearch && (
@@ -117,7 +103,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar descripcion, referencia..."
+              placeholder="Buscar invoice, ciudad, fecha..."
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 w-48 sm:w-56"
               autoFocus
             />
@@ -135,7 +121,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
               onClick={() => { setEditRow(null); setShowModal(true) }}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors"
             >
-              + Agregar Registro
+              + Agregar DEF
             </button>
           )}
         </div>
@@ -145,54 +131,22 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
-              <th className="pb-2 pr-4">Descripcion</th>
-              <th className="pb-2 pr-4">Referencia</th>
+              <th className="pb-2 pr-4">Invoice #</th>
               <th className="pb-2 pr-4">Fecha</th>
-              <th className="pb-2 pr-4 text-right">Debito</th>
-              <th className="pb-2 pr-4 text-right">Credito</th>
+              <th className="pb-2 pr-4">Ciudad</th>
+              <th className="pb-2 pr-4 text-right">Galones</th>
+              <th className="pb-2 pr-4 text-right">Valor</th>
               {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
           <tbody>
-            {/* Auto-generated rows */}
-            {autoRows.map((row, i) => (
-              <tr key={`auto-${i}`} className="border-b border-gray-800/50 bg-gray-800/20">
-                <td className="py-2.5 pr-4 text-gray-300 italic">{row.description}</td>
-                <td className="py-2.5 pr-4">
-                  <span className="text-[10px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded">Auto</span>
-                </td>
-                <td className="py-2.5 pr-4 text-gray-500">-</td>
-                <td className="py-2.5 pr-4 text-right text-red-400/70">
-                  {row.debit ? fmt(row.debit) : '-'}
-                </td>
-                <td className="py-2.5 pr-4 text-right text-green-400/70">
-                  {row.credit ? fmt(row.credit) : '-'}
-                </td>
-                {!readOnly && <td className="py-2.5"></td>}
-              </tr>
-            ))}
-
-            {/* Separator */}
-            {visible.length > 0 && (
-              <tr>
-                <td colSpan={readOnly ? 5 : 6} className="py-1">
-                  <div className="border-t border-dashed border-gray-700"></div>
-                </td>
-              </tr>
-            )}
-
-            {/* Manual rows */}
             {visible.map(row => (
               <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="py-2.5 pr-4 text-white">{row.description}</td>
-                <td className="py-2.5 pr-4 text-gray-400">{row.reference || '-'}</td>
-                <td className="py-2.5 pr-4 text-gray-400">{row.date || '-'}</td>
-                <td className="py-2.5 pr-4 text-right text-red-400">
-                  {row.debit ? fmt(row.debit) : '-'}
-                </td>
-                <td className="py-2.5 pr-4 text-right text-green-400">
-                  {row.credit ? fmt(row.credit) : '-'}
-                </td>
+                <td className="py-2.5 pr-4 text-white font-medium">{row.invoice_number}</td>
+                <td className="py-2.5 pr-4">{row.date}</td>
+                <td className="py-2.5 pr-4">{row.city}</td>
+                <td className="py-2.5 pr-4 text-right">{Number(row.gallons).toFixed(1)}</td>
+                <td className="py-2.5 pr-4 text-right text-red-400">{fmt(row.value)}</td>
                 {!readOnly && (
                   <td className="py-2.5">
                     <div className="flex gap-1 justify-end">
@@ -211,14 +165,9 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
                 )}
               </tr>
             ))}
-
-            {/* Totals */}
-            <tr className="border-t-2 border-gray-700">
-              <td className="py-3 pr-4 text-white font-semibold" colSpan={3}>TOTAL</td>
-              <td className="py-3 pr-4 text-right text-red-400 font-bold">{fmt(totalDebit)}</td>
-              <td className="py-3 pr-4 text-right text-green-400 font-bold">{fmt(totalCredit)}</td>
-              {!readOnly && <td></td>}
-            </tr>
+            {visible.length === 0 && (
+              <tr><td colSpan={readOnly ? 5 : 6} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin registros de DEF en este periodo'}</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -242,7 +191,8 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
         onSave={handleSave}
         fields={fields}
         initialData={editRow}
-        title={editRow ? 'Editar Registro' : 'Agregar Registro'}
+        title={editRow ? 'Editar DEF' : 'Agregar DEF'}
+        onScan={() => {}}
       />
     </div>
   )

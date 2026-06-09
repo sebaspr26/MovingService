@@ -31,11 +31,23 @@ If it's a DIESEL/FUEL receipt:
   }
 }
 
+If it's a DEF (Diesel Exhaust Fluid) receipt:
+{
+  "type": "def",
+  "data": {
+    "invoice_number": "string",
+    "date": "YYYY-MM-DD",
+    "city": "string",
+    "gallons": number,
+    "value": number
+  }
+}
+
 If it's a GENERAL EXPENSE (maintenance, tolls, repairs, tires, etc):
 {
   "type": "expense",
   "data": {
-    "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|DEF|Otros",
+    "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|Otros",
     "invoice_number": "string",
     "description": "brief description",
     "amount": number,
@@ -50,6 +62,7 @@ Rules:
 - Output dates must be YYYY-MM-DD format
 - For amounts, extract the total amount paid
 - If it's clearly a fuel/diesel receipt, type is "diesel"
+- If it's a DEF (Diesel Exhaust Fluid) receipt, type is "def"
 - If it's a load confirmation or bill of lading, type is "order"
 - Otherwise, type is "expense"
 - Return ONLY valid JSON, no markdown, no explanation`

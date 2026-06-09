@@ -84,14 +84,24 @@ All tables have RLS enabled with open policies (no auth yet).
 - `ganancia = previous_balance + (credito - debito)`. `repartido = ganancia - cuadre_caja`.
 - Dividendos: `repartido * (partner.percentage / 100)` por socio.
 
+### Toast System (Toast.jsx)
+- ToastProvider wrappea la app en main.jsx. Hook: `useToast()`.
+- Tipos: `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()` — top-right, auto-dismiss 3.5s, slide-in animation.
+- `toast.confirm(msg)` — dialogo modal personalizado (reemplaza `confirm()` nativo). Retorna Promise<boolean>.
+- `friendlyError(msg)` — traduce errores de Supabase/PostgreSQL a mensajes claros en espanol.
+- Validacion frontend en AddModal: campos requeridos + sanitizacion de numericos antes de enviar a DB.
+- CERO `alert()` o `confirm()` nativos en toda la app. Todo usa el toast system.
+
 ## Conventions
 - UI en espanol (labels, buttons, messages)
 - Dark theme: gray-950 bg, gray-900 cards, gray-800 inputs/rows
-- Colores semanticos: green=credito/income, red=debito/expense, blue=balance, orange=diesel/discount, yellow=pending/caja
+- Colores semanticos: green=credito/income, red=debito/expense, blue=balance, orange=diesel/discount, yellow=pending/caja, purple=scanner
 - Currency: USD con `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`
 - Todas las tablas: PAGE_SIZE=5, expandible, search toggle, readOnly en ciclos cerrados
 - Fetch pattern: `useEffect([truckId, period])` -> fetch, `onDataChange` callback al padre
 - Skeleton loading con pulse animation
+- Todos los formularios: validacion frontend + toast warning antes de DB, toast success/error despues
+- Scanner inline disponible en TODOS los modales de agregar (OrdersTable, DieselTable, ExpensesTable, Dashboard quick-add)
 - Version actual: v1.1 - Fase 2 (sidebar footer)
 
 ## Expense Categories

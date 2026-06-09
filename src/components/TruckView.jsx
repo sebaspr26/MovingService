@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
 import OrdersTable from './OrdersTable'
 import DieselTable from './DieselTable'
+import DEFTable from './DEFTable'
 import ExpensesTable from './ExpensesTable'
 import AccountingTable from './AccountingTable'
 import CashBox from './CashBox'
@@ -13,6 +14,7 @@ function fmt_d(d) { return d.toISOString().split('T')[0] }
 const TABS = [
   { key: 'orders', label: 'Orders' },
   { key: 'diesel', label: 'Diesel' },
+  { key: 'def', label: 'DEF' },
   { key: 'expenses', label: 'Gastos' },
   { key: 'accounting', label: 'Contabilidad' },
 ]
@@ -24,7 +26,7 @@ export default function TruckView() {
   const [cycles, setCycles] = useState([])
   const [cycleIndex, setCycleIndex] = useState(0)
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState({ income: 0, pending: 0, diesel: 0, expenses: 0, debito: 0, credito: 0 })
+  const [summary, setSummary] = useState({ income: 0, pending: 0, diesel: 0, def: 0, expenses: 0, debito: 0, credito: 0 })
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
@@ -59,13 +61,15 @@ export default function TruckView() {
 
   async function fetchSummary() {
     if (!cycle) return
-    const [paidOrders, allOrders, diesel, expenses, accounting] = await Promise.all([
+    const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
       supabase.from('orders').select('rate, apply_discount').eq('truck_id', id)
         .eq('paid', true)
         .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('orders').select('paid').eq('truck_id', id)
         .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('diesel').select('value').eq('truck_id', id)
+        .gte('date', period.start).lte('date', period.end),
+      supabase.from('def').select('value').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
       supabase.from('expenses').select('amount').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
@@ -84,6 +88,7 @@ export default function TruckView() {
       income: grossIncome,
       pending: (allOrders.data || []).filter(r => !r.paid).length,
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
+      def: (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       expenses: (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0),
@@ -112,7 +117,7 @@ export default function TruckView() {
   const netIncome = summary.income
   const discountAmount = 0
   const discount13 = 0
-  const totalDebito = summary.diesel + summary.expenses + summary.debito
+  const totalDebito = summary.diesel + summary.def + summary.expenses + summary.debito
   const totalCredito = netIncome + summary.credito
   const balance = totalCredito - totalDebito
 
@@ -310,7 +315,7 @@ export default function TruckView() {
           </div>
 
           {/* Cards pequeñas — secundarias */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mb-6">
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Gross Orders</p>
               <p className="text-sm font-bold text-green-400">{fmt(summary.income)}</p>
@@ -324,6 +329,10 @@ export default function TruckView() {
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Diesel</p>
               <p className="text-sm font-bold text-orange-400">{fmt(summary.diesel)}</p>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 mb-1">DEF</p>
+              <p className="text-sm font-bold text-cyan-400">{fmt(summary.def)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Otros Gastos</p>
@@ -361,8 +370,9 @@ export default function TruckView() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
             {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
+            {tab === 'def' && <DEFTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
             {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} />}
+            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} />}
           </div>
 
           {/* Cash Box & Dividends */}

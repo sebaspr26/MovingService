@@ -157,11 +157,14 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
   const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
   const hasMore = !q && filtered.length > PAGE_SIZE
 
+  const pct = discountPct || 13
   const paidRows = rows.filter(r => r.paid)
-  const total = paidRows.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+  const total = paidRows.reduce((s, r) => {
+    const rate = Number(r.rate) || 0
+    return s + (r.apply_discount !== false ? rate * (1 - pct / 100) : rate)
+  }, 0)
   const totalMiles = paidRows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
   const pendingCount = rows.filter(r => !r.paid).length
-  const pct = discountPct || 13
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   const rateNum = Number(fRate) || 0
