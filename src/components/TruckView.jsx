@@ -3,9 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
 import OrdersTable from './OrdersTable'
-import DieselTable from './DieselTable'
-import DEFTable from './DEFTable'
-import ExpensesTable from './ExpensesTable'
+import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
 import CashBox from './CashBox'
 
@@ -13,8 +11,6 @@ function fmt_d(d) { return d.toISOString().split('T')[0] }
 
 const TABS = [
   { key: 'orders', label: 'Orders' },
-  { key: 'diesel', label: 'Diesel' },
-  { key: 'def', label: 'DEF' },
   { key: 'expenses', label: 'Gastos' },
   { key: 'accounting', label: 'Contabilidad' },
 ]
@@ -360,9 +356,7 @@ export default function TruckView() {
           {/* Tab content */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
-            {tab === 'diesel' && <DieselTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'def' && <DEFTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'expenses' && <ExpensesTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
+            {tab === 'expenses' && <ExpensesTab truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} />}
           </div>
 

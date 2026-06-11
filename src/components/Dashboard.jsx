@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
 import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
+import AddReceiptModal from './AddReceiptModal'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const [deleteInput, setDeleteInput] = useState('')
 
   const [quickAdd, setQuickAdd] = useState(null)
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
 
   const [truckName, setTruckName] = useState('')
   const [truckNumber, setTruckNumber] = useState('')
@@ -363,6 +365,13 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 Orden
+              </button>
+              <button onClick={() => setShowExpenseModal(true)}
+                className="px-3 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Gasto
               </button>
             </>
           )}
@@ -740,7 +749,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Quick Add Modals */}
+      {/* Quick Add Order Modal */}
       {quickAdd && (
         <AddModal
           isOpen={true}
@@ -751,6 +760,18 @@ export default function Dashboard() {
           onScan={() => {}}
         />
       )}
+
+      {/* Quick Add Expense Modal (unified receipt) */}
+      <AddReceiptModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        onSaved={() => { setShowExpenseModal(false); fetchCyclesAndSummaries(trucks) }}
+        truckId={null}
+        period={null}
+        editRow={null}
+        truckOptions={trucksWithCycles.map(t => ({ value: t.id, label: `${t.name} (#${t.number})` }))}
+        truckCycles={truckCycles}
+      />
     </div>
   )
 }

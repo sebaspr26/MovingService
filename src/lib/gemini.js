@@ -3,7 +3,11 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MODEL = 'google/gemini-2.5-flash'
 
 const PROMPT = `Analyze this receipt/invoice image and extract the data.
-Determine the type of document and return ONE of these formats:
+Determine the type of document and return the appropriate format.
+
+IMPORTANT: A single receipt may contain MULTIPLE items (e.g. diesel AND DEF on one fuel receipt, or multiple repairs on one invoice). Extract ALL items found.
+
+For cities, ALWAYS include the US state abbreviation in format "CITY, ST" (e.g. "MIAMI, FL", "DALLAS, TX", "LUDLOW, VT").
 
 If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
 {
@@ -11,60 +15,36 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
   "data": {
     "order_number": "string",
     "pu_date": "YYYY-MM-DD",
-    "pu_city": "string",
+    "pu_city": "CITY, ST",
     "do_date": "YYYY-MM-DD",
-    "do_city": "string",
+    "do_city": "CITY, ST",
     "miles": number,
     "rate": number
   }
 }
 
-If it's a DIESEL/FUEL receipt:
+For ANY other receipt (fuel, DEF, maintenance, tolls, repairs, etc), return this multi-item format:
 {
-  "type": "diesel",
-  "data": {
-    "invoice_number": "string",
-    "date": "YYYY-MM-DD",
-    "city": "string",
-    "gallons": number,
-    "value": number
-  }
-}
-
-If it's a DEF (Diesel Exhaust Fluid) receipt:
-{
-  "type": "def",
-  "data": {
-    "invoice_number": "string",
-    "date": "YYYY-MM-DD",
-    "city": "string",
-    "gallons": number,
-    "value": number
-  }
-}
-
-If it's a GENERAL EXPENSE (maintenance, tolls, repairs, tires, etc):
-{
-  "type": "expense",
-  "data": {
-    "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|Otros",
-    "invoice_number": "string",
-    "description": "brief description",
-    "amount": number,
-    "date": "YYYY-MM-DD"
-  }
+  "invoice_number": "string",
+  "date": "YYYY-MM-DD",
+  "city": "CITY, ST",
+  "items": [
+    { "type": "diesel", "gallons": number, "value": number },
+    { "type": "def", "gallons": number, "value": number },
+    { "type": "expense", "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|DEF|Otros", "description": "brief description", "amount": number }
+  ]
 }
 
 Rules:
 - Use 0 for numbers you can't read
 - Use "" for text you can't read
+- Cities MUST include US state abbreviation: "CITY, ST" format
 - Source documents use US date format: mm/dd/yyyy (MONTH first, then DAY, then YEAR). Example: "6/1/2026" means June 1st → output "2026-06-01", NOT "2026-01-06"
 - Output dates must be YYYY-MM-DD format
-- For amounts, extract the total amount paid
-- If it's clearly a fuel/diesel receipt, type is "diesel"
-- If it's a DEF (Diesel Exhaust Fluid) receipt, type is "def"
-- If it's a load confirmation or bill of lading, type is "order"
-- Otherwise, type is "expense"
+- For amounts, extract the total amount paid per item
+- If a fuel receipt has BOTH diesel AND DEF, include BOTH as separate items in the array
+- If a receipt has multiple services/repairs, include each as a separate expense item
+- Only use "type": "order" format for load confirmations or bills of lading
 - Return ONLY valid JSON, no markdown, no explanation`
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
