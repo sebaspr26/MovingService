@@ -26,7 +26,7 @@ export default function TruckView() {
   const [cycles, setCycles] = useState([])
   const [cycleIndex, setCycleIndex] = useState(0)
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState({ income: 0, pending: 0, diesel: 0, def: 0, expenses: 0, debito: 0, credito: 0 })
+  const [summary, setSummary] = useState({ grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, expenses: 0, debito: 0, credito: 0 })
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
@@ -76,16 +76,18 @@ export default function TruckView() {
       supabase.from('accounting').select('debit, credit').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
     ])
-    // Calcular ingreso neto respetando apply_discount por orden
+    // Calcular ingreso bruto y neto respetando apply_discount por orden
     const pct = discountPct
-    const grossIncome = (paidOrders.data || []).reduce((s, r) => {
+    const grossOrders = (paidOrders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0)
+    const netIncomeCalc = (paidOrders.data || []).reduce((s, r) => {
       const rate = Number(r.rate) || 0
       const applyDisc = r.apply_discount !== false
       return s + (applyDisc ? rate * (1 - pct / 100) : rate)
     }, 0)
 
     setSummary({
-      income: grossIncome,
+      grossOrders,
+      income: netIncomeCalc,
       pending: (allOrders.data || []).filter(r => !r.paid).length,
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       def: (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
@@ -115,11 +117,12 @@ export default function TruckView() {
   const discountPct = Number(truck?.discount_percent) || 13
   // netIncome ya viene calculado en fetchSummary respetando apply_discount por orden
   const netIncome = summary.income
-  const discountAmount = 0
+  const discountAmount = summary.grossOrders - netIncome
   const discount13 = 0
+  const previousBalance = Number(cycle?.previous_balance) || 0
   const totalDebito = summary.diesel + summary.def + summary.expenses + summary.debito
   const totalCredito = netIncome + summary.credito
-  const balance = totalCredito - totalDebito
+  const balance = previousBalance + totalCredito - totalDebito
 
   if (!truck || loading) return (
     <div className="animate-pulse">
@@ -315,28 +318,16 @@ export default function TruckView() {
           </div>
 
           {/* Cards pequeñas — secundarias */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Gross Orders</p>
-              <p className="text-sm font-bold text-green-400">{fmt(summary.income)}</p>
+              <p className="text-sm font-bold text-green-400">{fmt(summary.grossOrders)}</p>
               <p className="text-[9px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Neto (-{discountPct}%)</p>
               <p className="text-sm font-bold text-emerald-400">{fmt(netIncome)}</p>
-              <p className="text-[9px] text-gray-600 mt-0.5">-{fmt(discountAmount)}</p>
-            </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-              <p className="text-[10px] text-gray-500 mb-1">Diesel</p>
-              <p className="text-sm font-bold text-orange-400">{fmt(summary.diesel)}</p>
-            </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-              <p className="text-[10px] text-gray-500 mb-1">DEF</p>
-              <p className="text-sm font-bold text-cyan-400">{fmt(summary.def)}</p>
-            </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-              <p className="text-[10px] text-gray-500 mb-1">Otros Gastos</p>
-              <p className="text-sm font-bold text-red-400">{fmt(summary.expenses)}</p>
+              <p className="text-[9px] text-gray-600 mt-0.5">desc: -{fmt(discountAmount)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Saldo Anterior</p>
@@ -384,7 +375,7 @@ export default function TruckView() {
               period={period}
               debito={totalDebito}
               credito={totalCredito}
-              grossIncome={summary.income}
+              grossIncome={summary.grossOrders}
               netIncome={netIncome}
               discount13={discount13}
               discountPct={discountPct}

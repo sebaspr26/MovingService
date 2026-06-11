@@ -130,9 +130,10 @@ export default function Dashboard() {
         const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
         const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
 
+        const previousBalance = Number(displayCycle.previous_balance) || 0
         const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
         const totalCredito = netIncome + acctCredit
-        const balance = totalCredito - totalDebito
+        const balance = previousBalance + totalCredito - totalDebito
 
         sums[truck.id] = {
           income: totalCredito,
@@ -363,35 +364,13 @@ export default function Dashboard() {
                 </svg>
                 Orden
               </button>
-              <button onClick={() => openQuickAdd('diesel')}
-                className="px-3 py-2 bg-orange-600/20 border border-orange-600/40 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Diesel
-              </button>
-              <button onClick={() => openQuickAdd('def')}
-                className="px-3 py-2 bg-cyan-600/20 border border-cyan-600/40 text-cyan-400 rounded-lg text-xs font-medium hover:bg-cyan-600/30 transition-colors flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                DEF
-              </button>
-              <button onClick={() => openQuickAdd('expense')}
-                className="px-3 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Gasto
-              </button>
             </>
           )}
           <button onClick={() => openTruckModal()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-2">
+            className="p-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors" title="Agregar Camion">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
             </svg>
-            Agregar Camion
           </button>
         </div>
       </div>
