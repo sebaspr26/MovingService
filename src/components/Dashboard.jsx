@@ -134,8 +134,8 @@ export default function Dashboard() {
 
         const previousBalance = Number(displayCycle.previous_balance) || 0
         const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
-        const totalCredito = netIncome + acctCredit
-        const balance = previousBalance + totalCredito - totalDebito
+        const totalCredito = previousBalance + netIncome + acctCredit
+        const balance = totalCredito - totalDebito
 
         sums[truck.id] = {
           income: totalCredito,

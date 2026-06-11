@@ -117,8 +117,8 @@ export default function TruckView() {
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
   const totalDebito = summary.diesel + summary.def + summary.expenses + summary.debito
-  const totalCredito = netIncome + summary.credito
-  const balance = previousBalance + totalCredito - totalDebito
+  const totalCredito = previousBalance + netIncome + summary.credito
+  const balance = totalCredito - totalDebito
 
   if (!truck || loading) return (
     <div className="animate-pulse">
@@ -357,7 +357,7 @@ export default function TruckView() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} />}
+            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
           </div>
 
           {/* Cash Box & Dividends */}
