@@ -9,6 +9,7 @@ const FILTERS = [
   { key: 'all', label: 'Todos' },
   { key: 'diesel', label: 'Diesel' },
   { key: 'def', label: 'DEF' },
+  { key: 'chofer', label: 'Pago Chofer' },
   { key: 'expense', label: 'Otros Gastos' },
 ]
 
@@ -45,7 +46,8 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
   const allRows = [
     ...dieselRows.map(r => ({ ...r, _type: 'diesel', _amount: Number(r.value) || 0, _desc: `${Number(r.gallons).toFixed(1)} gal` })),
     ...defRows.map(r => ({ ...r, _type: 'def', _amount: Number(r.value) || 0, _desc: `${Number(r.gallons).toFixed(1)} gal` })),
-    ...expenseRows.map(r => ({ ...r, _type: 'expense', _amount: Number(r.amount) || 0, _desc: r.description })),
+    ...expenseRows.filter(r => r.category === 'Pago Chofer').map(r => ({ ...r, _type: 'chofer', _amount: Number(r.amount) || 0, _desc: r.description })),
+    ...expenseRows.filter(r => r.category !== 'Pago Chofer').map(r => ({ ...r, _type: 'expense', _amount: Number(r.amount) || 0, _desc: r.description })),
   ].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
 
   const filteredByType = filter === 'all' ? allRows : allRows.filter(r => r._type === filter)
@@ -69,17 +71,20 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
 
   const dieselTotal = dieselRows.reduce((s, r) => s + (Number(r.value) || 0), 0)
   const defTotal = defRows.reduce((s, r) => s + (Number(r.value) || 0), 0)
-  const expenseTotal = expenseRows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
-  const grandTotal = dieselTotal + defTotal + expenseTotal
+  const choferRows = expenseRows.filter(r => r.category === 'Pago Chofer')
+  const otherExpenseRows = expenseRows.filter(r => r.category !== 'Pago Chofer')
+  const choferTotal = choferRows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+  const expenseTotal = otherExpenseRows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+  const grandTotal = dieselTotal + defTotal + choferTotal + expenseTotal
 
   // Counts per type for filter badges
-  const counts = { all: allRows.length, diesel: dieselRows.length, def: defRows.length, expense: expenseRows.length }
+  const counts = { all: allRows.length, diesel: dieselRows.length, def: defRows.length, chofer: choferRows.length, expense: otherExpenseRows.length }
 
   async function handleDelete(row) {
-    const typeLabel = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'DEF' : 'gasto'
+    const typeLabel = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'DEF' : row._type === 'chofer' ? 'pago chofer' : 'gasto'
     const ok = await toast.confirm(`Eliminar este registro de ${typeLabel}?`)
     if (!ok) return
-    const table = row._type === 'expense' ? 'expenses' : row._type
+    const table = (row._type === 'expense' || row._type === 'chofer') ? 'expenses' : row._type
     const { error } = await supabase.from(table).delete().eq('id', row.id)
     if (error) { toast.error(friendlyError(error.message)); return }
     fetchAll()
@@ -98,9 +103,10 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
     const styles = {
       diesel: 'bg-orange-900/40 text-orange-400',
       def: 'bg-cyan-900/40 text-cyan-400',
+      chofer: 'bg-violet-900/40 text-violet-400',
       expense: 'bg-red-900/40 text-red-400',
     }
-    const labels = { diesel: 'Diesel', def: 'DEF', expense: 'Gasto' }
+    const labels = { diesel: 'Diesel', def: 'DEF', chofer: 'Chofer', expense: 'Gasto' }
     return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[type]}`}>{labels[type]}</span>
   }
 
@@ -116,6 +122,7 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
               filter === f.key
                 ? f.key === 'diesel' ? 'bg-orange-600/20 text-orange-400 border border-orange-600/40'
                   : f.key === 'def' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-600/40'
+                  : f.key === 'chofer' ? 'bg-violet-600/20 text-violet-400 border border-violet-600/40'
                   : f.key === 'expense' ? 'bg-red-600/20 text-red-400 border border-red-600/40'
                   : 'bg-gray-700 text-white border border-gray-600'
                 : 'bg-gray-800/50 text-gray-500 border border-transparent hover:text-gray-300'
@@ -135,6 +142,8 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
           <span className="text-orange-400">Diesel: {fmt(dieselTotal)}</span>
           <span className="text-gray-600">|</span>
           <span className="text-cyan-400">DEF: {fmt(defTotal)}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-violet-400">Chofer: {fmt(choferTotal)}</span>
           <span className="text-gray-600">|</span>
           <span className="text-red-400">Gastos: {fmt(expenseTotal)}</span>
           <span className="text-gray-600">|</span>

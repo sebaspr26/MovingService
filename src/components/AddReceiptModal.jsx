@@ -44,8 +44,8 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
         setInvoice(editRow.invoice_number || '')
         setDate(editRow.date || '')
         setCity(editRow.city || '')
-        if (editRow._type === 'expense') {
-          setLines([{ type: 'expense', category: editRow.category || '', description: editRow.description || '', amount: editRow.amount || '', gallons: '', value: '' }])
+        if (editRow._type === 'chofer' || editRow._type === 'expense') {
+          setLines([{ type: editRow._type, category: editRow.category || '', description: editRow.description || '', amount: editRow.amount || '', gallons: '', value: '' }])
         } else {
           setLines([{ type: editRow._type, gallons: editRow.gallons || '', value: editRow.value || '', category: '', description: '', amount: '' }])
         }
@@ -140,9 +140,9 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
     try {
       if (editRow) {
         const line = lines[0]
-        const table = editRow._type === 'expense' ? 'expenses' : editRow._type
+        const table = (editRow._type === 'expense' || editRow._type === 'chofer') ? 'expenses' : editRow._type
         let record
-        if (editRow._type === 'expense') {
+        if (editRow._type === 'expense' || editRow._type === 'chofer') {
           record = {
             invoice_number: invoice || null,
             date,
@@ -184,7 +184,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
             if (error) throw error
           } else {
             const { error } = await supabase.from('expenses').insert({
-              category: line.category || 'Otros',
+              category: line.type === 'chofer' ? 'Pago Chofer' : (line.category || 'Otros'),
               invoice_number: invoice || null,
               description: line.description,
               amount: Number(line.amount) || 0,
@@ -334,11 +334,12 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                 <div key={i} className={`rounded-lg p-3 border ${
                   line.type === 'diesel' ? 'bg-orange-900/10 border-orange-800/30'
                   : line.type === 'def' ? 'bg-cyan-900/10 border-cyan-800/30'
+                  : line.type === 'chofer' ? 'bg-violet-900/10 border-violet-800/30'
                   : 'bg-red-900/10 border-red-800/30'
                 }`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-1">
-                      {['diesel', 'def', 'expense'].map(t => (
+                      {['diesel', 'def', 'chofer', 'expense'].map(t => (
                         <button
                           key={t}
                           type="button"
@@ -348,11 +349,12 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                             line.type === t
                               ? t === 'diesel' ? 'bg-orange-600/30 text-orange-400 border border-orange-600/50'
                                 : t === 'def' ? 'bg-cyan-600/30 text-cyan-400 border border-cyan-600/50'
+                                : t === 'chofer' ? 'bg-violet-600/30 text-violet-400 border border-violet-600/50'
                                 : 'bg-red-600/30 text-red-400 border border-red-600/50'
                               : 'bg-gray-800 text-gray-500 border border-gray-700 hover:text-gray-300'
                           } disabled:opacity-60`}
                         >
-                          {t === 'expense' ? 'Gasto' : t.toUpperCase()}
+                          {t === 'expense' ? 'Gasto' : t === 'chofer' ? 'Chofer' : t.toUpperCase()}
                         </button>
                       ))}
                     </div>
@@ -384,6 +386,31 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           step="0.01"
                           value={line.value}
                           onChange={(e) => updateLine(i, 'value', e.target.value)}
+                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  ) : line.type === 'chofer' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">Descripcion *</label>
+                        <input
+                          type="text"
+                          value={line.description}
+                          onChange={(e) => updateLine(i, 'description', e.target.value)}
+                          placeholder="Ej: Sem 11-17 May"
+                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">Monto ($) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={line.amount}
+                          onChange={(e) => updateLine(i, 'amount', e.target.value)}
                           className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
                           required
                         />
