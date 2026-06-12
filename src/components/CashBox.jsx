@@ -39,7 +39,7 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
   const cuadreCaja = Number(cycle?.cuadre_caja) || 0
   const closed = cycle?.closed || false
   const balance = credito - debito
-  const ganancia = previousBalance + balance
+  const ganancia = balance
   const inputCuadre = Number(cierreInput) || 0
 
   return (
