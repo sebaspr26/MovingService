@@ -13,7 +13,7 @@ const fields = [
 
 const PAGE_SIZE = 5
 
-export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalDef, totalExpenses, discountPct, readOnly, previousBalance }) {
+export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -79,6 +79,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
     { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: 0, credit: netIncome || 0 },
     { description: 'Total Diesel', reference: 'Auto', debit: totalDiesel || 0, credit: 0 },
     { description: 'Total DEF', reference: 'Auto', debit: totalDef || 0, credit: 0 },
+    { description: 'Pago Chofer', reference: 'Auto', debit: totalChofer || 0, credit: 0 },
     { description: 'Total Gastos', reference: 'Auto', debit: totalExpenses || 0, credit: 0 },
   ]
 
@@ -98,7 +99,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
 
   const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
   const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
-  const autoDebit = (totalDiesel || 0) + (totalDef || 0) + (totalExpenses || 0)
+  const autoDebit = (totalDiesel || 0) + (totalDef || 0) + (totalChofer || 0) + (totalExpenses || 0)
   const autoCredit = prevBal + (netIncome || 0)
   const totalDebit = autoDebit + manualDebit
   const totalCredit = autoCredit + manualCredit

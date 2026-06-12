@@ -22,7 +22,7 @@ export default function TruckView() {
   const [cycles, setCycles] = useState([])
   const [cycleIndex, setCycleIndex] = useState(0)
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState({ grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, expenses: 0, debito: 0, credito: 0 })
+  const [summary, setSummary] = useState({ grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, chofer: 0, expenses: 0, debito: 0, credito: 0 })
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
@@ -67,7 +67,7 @@ export default function TruckView() {
         .gte('date', period.start).lte('date', period.end),
       supabase.from('def').select('value').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
-      supabase.from('expenses').select('amount').eq('truck_id', id)
+      supabase.from('expenses').select('amount, category').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
       supabase.from('accounting').select('debit, credit').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
@@ -87,7 +87,8 @@ export default function TruckView() {
       pending: (allOrders.data || []).filter(r => !r.paid).length,
       diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
       def: (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
-      expenses: (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      chofer: (expenses.data || []).filter(r => r.category === 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      expenses: (expenses.data || []).filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0),
     })
@@ -116,7 +117,7 @@ export default function TruckView() {
   const discountAmount = summary.grossOrders - netIncome
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
-  const totalDebito = summary.diesel + summary.def + summary.expenses + summary.debito
+  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
 
@@ -357,7 +358,7 @@ export default function TruckView() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
+            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
           </div>
 
           {/* Cash Box & Dividends */}
