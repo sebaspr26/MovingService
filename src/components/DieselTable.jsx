@@ -50,6 +50,14 @@ export default function DieselTable({ truckId, period, onDataChange, readOnly })
       if (editRow) {
         result = await supabase.from('diesel').update(record).eq('id', editRow.id)
       } else {
+        if (record.invoice_number) {
+          const { data: existing } = await supabase.from('diesel').select('id')
+            .eq('truck_id', truckId).eq('invoice_number', record.invoice_number).limit(1)
+          if (existing && existing.length > 0) {
+            const ok = await toast.confirm(`Ya existe un registro de diesel con invoice "${record.invoice_number}". ¿Agregar de todas formas?`)
+            if (!ok) return
+          }
+        }
         result = await supabase.from('diesel').insert(record)
       }
       if (result.error) throw result.error

@@ -30,7 +30,7 @@ src/
     supabase.js         - Cliente Supabase singleton (VITE_ env vars)
     cycles.js           - Utilidades de ciclos (computeWeeks, open/close/reopen, getActive, getAll)
     gemini.js           - API OpenRouter -> Gemini 2.5 Flash, extrae order/diesel/expense de imagen
-  App.jsx               - Router: / = Dashboard, /truck/:id = TruckView
+  App.jsx               - Router: / = Dashboard, /truck/:id = TruckView, /orders = OrdersView
   main.jsx              - Entry point
   index.css             - Tailwind import
 supabase/
@@ -39,11 +39,12 @@ supabase/
   003_truck_discount.sql   - discount_percent en trucks
   004_cycles.sql           - Tabla cycles + date en accounting
   005_fix_cycles.sql       - Reset cycles con data correcta
+  006_order_discount.sql   - discount_percent en orders (por orden individual)
 ```
 
 ## Database Tables (Supabase)
 - `trucks` (id, name, number, discount_percent [default 13])
-- `orders` (id, truck_id, order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, paid, period_start, period_end)
+- `orders` (id, truck_id, order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end)
 - `diesel` (id, truck_id, invoice_number, date, city, gallons, value, period_start, period_end)
 - `expenses` (id, truck_id, category, invoice_number, description, amount, date, period_start, period_end)
 - `accounting` (id, truck_id, description, reference, date, debit, credit, period_start, period_end)
@@ -63,9 +64,15 @@ All tables have RLS enabled with open policies (no auth yet).
 - Reabrir: limpia `end_date`, `closed_at`, pone `closed = false`.
 
 ### Descuentos (por orden)
-- Cada camion tiene `discount_percent` (default 13%).
-- Cada orden tiene `apply_discount` (boolean). El neto se calcula: `rate * (1 - discount/100)`.
-- Dashboard y TruckView calculan el income sumando solo ordenes pagadas, respetando `apply_discount` por orden.
+- Cada camion tiene `discount_percent` (default 13%) como valor base para nuevas ordenes.
+- Cada orden tiene `apply_discount` (boolean) y `discount_percent` (numeric, se guarda al crear la orden).
+- El neto se calcula: `rate * (1 - order.discount_percent/100)`. Cambiar el % del truck NO afecta ordenes existentes.
+- Dashboard y TruckView calculan el income sumando solo ordenes pagadas, usando el `discount_percent` de cada orden individual.
+
+### Deteccion de duplicados
+- Al crear registros nuevos se verifica si ya existe uno similar (mismo order_number o invoice_number para el mismo truck).
+- Si existe duplicado, se muestra `toast.confirm` preguntando si desea continuar. El usuario decide.
+- Aplica en: OrdersTable, DieselTable, DEFTable, ExpensesTable, AddReceiptModal, Dashboard quick-add.
 
 ### Contabilidad (AccountingTable)
 - 3 filas auto-generadas (no persistidas): Ingreso Neto, Total Diesel, Total Gastos. Marcadas con badge "Auto".
@@ -113,10 +120,17 @@ VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
 ```
 
+## Modules
+- **Dashboard** (`/`) — Grid de camiones, resumen por ciclo, quick-add, CRUD trucks, abrir ciclos
+- **TruckView** (`/truck/:id`) — Vista individual de camion: ciclo nav, semanas, tabs (orders, gastos, contabilidad), CashBox
+- **Orders/Loads** (`/orders`) — Modulo especializado en ordenes/cargas. Vista centralizada de todas las ordenes de todos los camiones. Permite buscar, filtrar, y gestionar ordenes sin necesidad de entrar a cada camion individual. (EN DESARROLLO)
+
 ## Phases
 - **Fase 1 (done):** Setup + Dashboard + CRUD tables + Vercel deploy
 - **Fase 2 (done):** Scanner AI integrado en AddModal + pagina Scanner standalone + ciclos flexibles + search/pagination + CashBox con dividendos
-- **Fase 3 (next):** Reports, Excel/PDF export, auth/usuarios
+- **Fase 2.5 (done):** Descuento por orden (discount_percent persistido en cada orden) + deteccion de duplicados
+- **Fase 3 (in progress):** Modulo Orders/Loads — vista centralizada de ordenes
+- **Fase 4 (next):** Reports, Excel/PDF export, auth/usuarios
 
 ## Commands
 ```bash

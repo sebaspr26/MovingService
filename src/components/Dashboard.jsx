@@ -100,7 +100,7 @@ export default function Dashboard() {
         const periodEnd = displayCycle.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
 
         const [orders, diesel, def, expenses, accounting] = await Promise.all([
-          supabase.from('orders').select('rate, paid, apply_discount').eq('truck_id', truck.id)
+          supabase.from('orders').select('rate, paid, apply_discount, discount_percent').eq('truck_id', truck.id)
             .gte('pu_date', periodStart).lte('pu_date', periodEnd),
           supabase.from('diesel').select('value').eq('truck_id', truck.id)
             .gte('date', periodStart).lte('date', periodEnd),
@@ -113,13 +113,14 @@ export default function Dashboard() {
         ])
 
         const allOrders = orders.data || []
-        const discountPct = Number(truck.discount_percent) || 13
+        const truckDiscountPct = Number(truck.discount_percent) || 13
         const netIncome = allOrders
           .filter(r => r.paid)
           .reduce((s, r) => {
             const rate = Number(r.rate) || 0
             const applyDisc = r.apply_discount !== false
-            return s + (applyDisc ? rate * (1 - discountPct / 100) : rate)
+            const pct = Number(r.discount_percent) || truckDiscountPct
+            return s + (applyDisc ? rate * (1 - pct / 100) : rate)
           }, 0)
 
         const pendingOrders = allOrders.filter(r => !r.paid)
@@ -288,7 +289,7 @@ export default function Dashboard() {
     setQuickAdd(type)
   }
 
-  function handleQuickSaveWrapped(data) {
+  async function handleQuickSaveWrapped(data) {
     const { _truck_select, ...rest } = data
     if (!_truck_select) return
     const cycle = truckCycles[_truck_select]
@@ -300,9 +301,24 @@ export default function Dashboard() {
 
     const record = { ...rest, truck_id: _truck_select, period_start: periodStart, period_end: periodEnd }
 
-    // Normalizar apply_discount a boolean real para orders
+    // Normalizar apply_discount a boolean real para orders y guardar discount_percent
     if (quickAdd === 'order') {
       record.apply_discount = rest.apply_discount === false || rest.apply_discount === 'false' ? false : true
+      const truck = trucks.find(t => t.id === _truck_select)
+      record.discount_percent = Number(truck?.discount_percent) || 13
+    }
+
+    // Duplicate check
+    const dupField = quickAdd === 'order' ? 'order_number' : 'invoice_number'
+    const dupValue = record[dupField]
+    if (dupValue) {
+      const { data: existing } = await supabase.from(table).select('id')
+        .eq('truck_id', _truck_select).eq(dupField, dupValue).limit(1)
+      if (existing && existing.length > 0) {
+        const label = quickAdd === 'order' ? 'orden' : quickAdd
+        const ok = await toast.confirm(`Ya existe un registro de ${label} con ${dupField === 'order_number' ? 'numero' : 'invoice'} "${dupValue}". ¿Agregar de todas formas?`)
+        if (!ok) return
+      }
     }
 
     supabase.from(table).insert(record).then(({ error }) => {

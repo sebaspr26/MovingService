@@ -169,6 +169,20 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
         if (error) throw error
         toast.success('Registro actualizado')
       } else {
+        // Duplicate check by invoice_number
+        if (invoice) {
+          const tables = [...new Set(lines.map(l => (l.type === 'expense' || l.type === 'chofer') ? 'expenses' : l.type))]
+          for (const table of tables) {
+            const { data: existing } = await supabase.from(table).select('id')
+              .eq('truck_id', tid).eq('invoice_number', invoice).limit(1)
+            if (existing && existing.length > 0) {
+              const label = table === 'expenses' ? 'gasto' : table
+              const ok = await toast.confirm(`Ya existe un registro de ${label} con invoice "${invoice}". ¿Agregar de todas formas?`)
+              if (!ok) return
+              break
+            }
+          }
+        }
         for (const line of lines) {
           if (line.type === 'diesel' || line.type === 'def') {
             const { error } = await supabase.from(line.type).insert({

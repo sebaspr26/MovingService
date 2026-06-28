@@ -76,7 +76,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   const prevBal = previousBalance || 0
   const autoRows = [
     ...(prevBal > 0 ? [{ description: 'Saldo Anterior', reference: 'Auto', debit: 0, credit: prevBal }] : []),
-    { description: `Ingreso Neto (Orders -${discountPct || 13}%)`, reference: 'Auto', debit: 0, credit: netIncome || 0 },
+    { description: 'Ingreso Neto (Orders desc.)', reference: 'Auto', debit: 0, credit: netIncome || 0 },
     { description: 'Total Diesel', reference: 'Auto', debit: totalDiesel || 0, credit: 0 },
     { description: 'Total DEF', reference: 'Auto', debit: totalDef || 0, credit: 0 },
     { description: 'Pago Chofer', reference: 'Auto', debit: totalChofer || 0, credit: 0 },

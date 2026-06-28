@@ -58,7 +58,7 @@ export default function TruckView() {
   async function fetchSummary() {
     if (!cycle) return
     const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
-      supabase.from('orders').select('rate, apply_discount').eq('truck_id', id)
+      supabase.from('orders').select('rate, apply_discount, discount_percent').eq('truck_id', id)
         .eq('paid', true)
         .gte('pu_date', period.start).lte('pu_date', period.end),
       supabase.from('orders').select('paid').eq('truck_id', id)
@@ -72,12 +72,12 @@ export default function TruckView() {
       supabase.from('accounting').select('debit, credit').eq('truck_id', id)
         .gte('date', period.start).lte('date', period.end),
     ])
-    // Calcular ingreso bruto y neto respetando apply_discount por orden
-    const pct = discountPct
+    // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
     const grossOrders = (paidOrders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0)
     const netIncomeCalc = (paidOrders.data || []).reduce((s, r) => {
       const rate = Number(r.rate) || 0
       const applyDisc = r.apply_discount !== false
+      const pct = Number(r.discount_percent) || discountPct
       return s + (applyDisc ? rate * (1 - pct / 100) : rate)
     }, 0)
 
@@ -322,7 +322,7 @@ export default function TruckView() {
               <p className="text-[9px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-              <p className="text-[10px] text-gray-500 mb-1">Neto (-{discountPct}%)</p>
+              <p className="text-[10px] text-gray-500 mb-1">Neto (desc.)</p>
               <p className="text-sm font-bold text-emerald-400">{fmt(netIncome)}</p>
               <p className="text-[9px] text-gray-600 mt-0.5">desc: -{fmt(discountAmount)}</p>
             </div>

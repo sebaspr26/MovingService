@@ -120,6 +120,14 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
       if (editRow) {
         result = await supabase.from('orders').update(record).eq('id', editRow.id)
       } else {
+        // Duplicate check by order_number
+        const { data: existing } = await supabase.from('orders').select('id')
+          .eq('truck_id', truckId).eq('order_number', record.order_number).limit(1)
+        if (existing && existing.length > 0) {
+          const ok = await toast.confirm(`Ya existe una orden con el numero "${record.order_number}". ¿Agregar de todas formas?`)
+          if (!ok) return
+        }
+        record.discount_percent = discountPct || 13
         result = await supabase.from('orders').insert(record)
       }
       if (result.error) throw result.error
@@ -157,16 +165,17 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
   const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
   const hasMore = !q && filtered.length > PAGE_SIZE
 
-  const pct = discountPct || 13
   const paidRows = rows.filter(r => r.paid)
   const total = paidRows.reduce((s, r) => {
     const rate = Number(r.rate) || 0
-    return s + (r.apply_discount !== false ? rate * (1 - pct / 100) : rate)
+    const rowPct = Number(r.discount_percent) || discountPct || 13
+    return s + (r.apply_discount !== false ? rate * (1 - rowPct / 100) : rate)
   }, 0)
   const totalMiles = paidRows.reduce((s, r) => s + (Number(r.miles) || 0), 0)
   const pendingCount = rows.filter(r => !r.paid).length
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
+  const pct = editRow ? (Number(editRow.discount_percent) || discountPct || 13) : (discountPct || 13)
   const rateNum = Number(fRate) || 0
   const netoPreview = fApplyDiscount ? rateNum * (1 - pct / 100) : rateNum
 
@@ -273,12 +282,12 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
                   <td className="py-2.5 pr-4 text-right">
                     <div className={row.paid ? 'text-green-400' : 'text-gray-500'}>{fmt(row.rate)}</div>
                     {hasDiscount && row.paid && (
-                      <div className="text-[9px] text-gray-500">neto {fmt(Number(row.rate) * (1 - pct / 100))}</div>
+                      <div className="text-[9px] text-gray-500">neto {fmt(Number(row.rate) * (1 - (Number(row.discount_percent) || discountPct || 13) / 100))}</div>
                     )}
                   </td>
                   <td className="py-2.5 pr-4 text-center">
                     {hasDiscount ? (
-                      <span className="text-[9px] bg-orange-900/40 text-orange-400 px-1.5 py-0.5 rounded">-{pct}%</span>
+                      <span className="text-[9px] bg-orange-900/40 text-orange-400 px-1.5 py-0.5 rounded">-{Number(row.discount_percent) || discountPct || 13}%</span>
                     ) : (
                       <span className="text-[9px] bg-gray-800 text-gray-600 px-1.5 py-0.5 rounded">sin desc.</span>
                     )}

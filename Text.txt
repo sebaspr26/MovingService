@@ -1,0 +1,11 @@
+ola claude, necesito hacer una serie de cambios para 
+ este programa. 1. Necesito que el Gross Orders sea el  
+total total, osea sin aplicarle el descuento de las     
+ordenes, si me hago enteder_, 2. necesito quitar estos  
+cuadritos, Diesel, Otros gastos y Def. 3. Estan         
+habiendo unos errores en el cierre de caja se supone    
+que el cierre de caja tiene que ser igual al balance    
+pero por ejemplo yo tengo este Truck 109 - OMAR         
+en el balance aparece 2412.48 y en el cierre de caja    
+esta apareciendo $4,612.48 eso no tiene sentido, no_ me 
+ gustaria que revisaras eso porfa   
