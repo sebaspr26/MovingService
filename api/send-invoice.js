@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'ETG Moving Services <onboarding@resend.dev>',
+      from: 'ETG Moving Services <invoices@etg-tms.com>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
