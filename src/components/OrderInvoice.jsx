@@ -3,6 +3,61 @@ import { supabase } from '../lib/supabase'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
+// Load pdf.js from CDN (avoids bundler compatibility issues)
+let pdfjsPromise = null
+function loadPdfJs() {
+  if (pdfjsPromise) return pdfjsPromise
+  pdfjsPromise = new Promise((resolve, reject) => {
+    if (window.pdfjsLib) { resolve(window.pdfjsLib); return }
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+      resolve(window.pdfjsLib)
+    }
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return pdfjsPromise
+}
+
+async function pdfToImages(url) {
+  try {
+    const pdfjsLib = await loadPdfJs()
+    const pdf = await pdfjsLib.getDocument(url).promise
+    const images = []
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const scale = 2
+      const viewport = page.getViewport({ scale })
+      const canvas = document.createElement('canvas')
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
+      images.push(canvas.toDataURL('image/png'))
+    }
+    return images
+  } catch (err) {
+    console.error('PDF render error:', err)
+    return []
+  }
+}
+
+async function imageToDataUrl(url) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = () => resolve(url)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return url
+  }
+}
+
 export default function OrderInvoice({ orderId, onClose }) {
   const [order, setOrder] = useState(null)
   const [truck, setTruck] = useState(null)
@@ -10,13 +65,15 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [stops, setStops] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [docImages, setDocImages] = useState({ rc: [], pod: [] })
   const printRef = useRef()
 
   useEffect(() => {
     async function load() {
-      const [orderRes, stopsRes] = await Promise.all([
+      const [orderRes, stopsRes, docsRes] = await Promise.all([
         supabase.from('orders').select('*').eq('id', orderId).single(),
         supabase.from('order_stops').select('*').eq('order_id', orderId).order('sequence'),
+        supabase.from('order_documents').select('*').eq('order_id', orderId),
       ])
       const o = orderRes.data
       setOrder(o)
@@ -30,10 +87,40 @@ export default function OrderInvoice({ orderId, onClose }) {
         const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
         setBroker(data)
       }
+
+      // Render documents as images
+      const docs = docsRes.data || []
+      const rcDocs = docs.filter(d => d.doc_type === 'RC')
+      const podDocs = docs.filter(d => d.doc_type === 'POD')
+
+      const processDoc = async (doc) => {
+        const url = getPublicUrl(doc.file_path)
+        if ((doc.mime_type || '').startsWith('image/')) {
+          return [await imageToDataUrl(url)]
+        } else {
+          return await pdfToImages(url)
+        }
+      }
+
+      const rcImages = []
+      for (const doc of rcDocs) {
+        rcImages.push(...(await processDoc(doc)))
+      }
+      const podImages = []
+      for (const doc of podDocs) {
+        podImages.push(...(await processDoc(doc)))
+      }
+
+      setDocImages({ rc: rcImages, pod: podImages })
       setLoading(false)
     }
     load()
   }, [orderId])
+
+  function getPublicUrl(filePath) {
+    const { data } = supabase.storage.from('order-docs').getPublicUrl(filePath)
+    return data?.publicUrl
+  }
 
   function handlePrint() {
     const content = printRef.current
@@ -45,22 +132,31 @@ export default function OrderInvoice({ orderId, onClose }) {
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #fff; }
-            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+            img { max-width: 100%; }
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .doc-page { page-break-before: always; }
+            }
           </style>
         </head>
         <body>${content.innerHTML}</body>
       </html>
     `)
     win.document.close()
-    setTimeout(() => { win.print() }, 300)
+    const imgs = win.document.querySelectorAll('img')
+    if (imgs.length === 0) { setTimeout(() => win.print(), 300); return }
+    let loaded = 0
+    const onLoad = () => { if (++loaded >= imgs.length) setTimeout(() => win.print(), 200) }
+    imgs.forEach(img => { if (img.complete) onLoad(); else { img.onload = onLoad; img.onerror = onLoad } })
   }
 
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-        <div className="bg-gray-900 rounded-xl p-8">
+        <div className="bg-gray-900 rounded-xl p-8 text-center">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 text-sm mt-3">Generando invoice...</p>
+          <p className="text-gray-600 text-xs mt-1">Renderizando documentos adjuntos</p>
         </div>
       </div>
     )
@@ -95,8 +191,9 @@ export default function OrderInvoice({ orderId, onClose }) {
           </div>
         </div>
 
-        {/* Invoice content */}
+        {/* All printable content */}
         <div ref={printRef}>
+          {/* Page 1: Invoice */}
           <div style={{ padding: '40px', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', color: '#1a1a2e', fontSize: '13px', lineHeight: '1.5', maxWidth: '800px', margin: '0 auto' }}>
 
             {/* Header */}
@@ -114,7 +211,7 @@ export default function OrderInvoice({ orderId, onClose }) {
                   <tr><td style={{ color: '#dc2626', fontWeight: '600', paddingRight: '20px', paddingBottom: '2px' }}>Invoice Date</td><td>{invoiceDate}</td></tr>
                   <tr><td style={{ color: '#dc2626', fontWeight: '600', paddingRight: '20px', paddingBottom: '2px' }}>Terms</td><td>Due on receipt</td></tr>
                   <tr><td style={{ color: '#dc2626', fontWeight: '600', paddingRight: '20px', paddingBottom: '2px' }}>Truck #</td><td>{truck?.number || '-'}</td></tr>
-                  <tr><td style={{ color: '#dc2626', fontWeight: '600', paddingRight: '20px', paddingBottom: '2px' }}>Driver</td><td>{order.driver_name || '-'}</td></tr>
+                  <tr><td style={{ color: '#dc2626', fontWeight: '600', paddingRight: '20px', paddingBottom: '2px' }}>Driver</td><td>{order.driver_name || truck?.name || '-'}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -228,6 +325,32 @@ export default function OrderInvoice({ orderId, onClose }) {
               <p>ETG Moving Services — Driving Is Work LLC</p>
             </div>
           </div>
+
+          {/* RC pages */}
+          {docImages.rc.map((src, i) => (
+            <div key={`rc-${i}`} className="doc-page" style={{ pageBreakBefore: 'always', padding: '30px' }}>
+              {i === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                  <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>RC</span>
+                  <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e' }}>Rate Confirmation</h2>
+                </div>
+              )}
+              <img src={src} alt={`RC page ${i + 1}`} style={{ width: '100%' }} />
+            </div>
+          ))}
+
+          {/* POD pages */}
+          {docImages.pod.map((src, i) => (
+            <div key={`pod-${i}`} className="doc-page" style={{ pageBreakBefore: 'always', padding: '30px' }}>
+              {i === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                  <span style={{ background: '#ffedd5', color: '#c2410c', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>POD</span>
+                  <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e' }}>Proof of Delivery</h2>
+                </div>
+              )}
+              <img src={src} alt={`POD page ${i + 1}`} style={{ width: '100%' }} />
+            </div>
+          ))}
         </div>
       </div>
     </div>

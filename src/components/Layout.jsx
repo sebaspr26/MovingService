@@ -6,6 +6,13 @@ export default function Layout() {
   const navigate = useNavigate()
   const isSubPage = location.pathname !== '/' && location.pathname !== '/orders'
   const [menuOpen, setMenuOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
+
+  function toggleCollapsed() {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('sidebar-collapsed', String(next))
+  }
 
   const navItems = [
     {
@@ -26,42 +33,52 @@ export default function Layout() {
       isActive
         ? 'bg-blue-600/20 text-blue-400'
         : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-    }`
+    } ${collapsed ? 'justify-center' : ''}`
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex">
       {/* Sidebar — desktop */}
-      <aside className="hidden lg:flex fixed lg:static inset-y-0 left-0 z-30 w-64 bg-gray-900 border-r border-gray-800 flex-col">
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-xl font-bold text-white tracking-tight">ETG Moving Services</h1>
-          <p className="text-xs text-gray-500 mt-1">Driving Is Work LLC</p>
+      <aside className={`hidden lg:flex fixed lg:static inset-y-0 left-0 z-30 bg-gray-900 border-r border-gray-800 flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+        <div className={`border-b border-gray-800 flex items-center ${collapsed ? 'p-3 justify-center' : 'p-6 justify-between'}`}>
+          {!collapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">ETG Moving Services</h1>
+              <p className="text-xs text-gray-500 mt-1">Driving Is Work LLC</p>
+            </div>
+          )}
+          <button
+            onClick={toggleCollapsed}
+            className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
+            title={collapsed ? 'Expandir' : 'Colapsar'}
+          >
+            <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className={`flex-1 space-y-1 ${collapsed ? 'p-2' : 'p-4'}`}>
           {navItems.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass} title={collapsed ? item.label : undefined}>
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 {item.icon}
               </svg>
-              {item.label}
+              {!collapsed && item.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
-          <p className="text-xs text-gray-600">v1.3 - Fase 3</p>
+        <div className={`border-t border-gray-800 ${collapsed ? 'p-2 text-center' : 'p-4'}`}>
+          <p className="text-xs text-gray-600">{collapsed ? 'v1.3' : 'v1.3.1 - Fase 3.5'}</p>
         </div>
       </aside>
 
       {/* Mobile sidebar overlay */}
       {menuOpen && (
         <div className="lg:hidden fixed inset-0 z-40" onClick={() => setMenuOpen(false)}>
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60" />
-
-          {/* Slide-in panel */}
           <aside
-            className="absolute inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl animate-slide-in"
+            className="absolute inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             style={{ animation: 'slideIn 0.2s ease-out' }}
           >
@@ -84,7 +101,11 @@ export default function Layout() {
                   to={item.to}
                   end={item.end}
                   onClick={() => setMenuOpen(false)}
-                  className={navLinkClass}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                    }`
+                  }
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     {item.icon}
@@ -95,7 +116,7 @@ export default function Layout() {
             </nav>
 
             <div className="p-4 border-t border-gray-800">
-              <p className="text-xs text-gray-600">v1.3 - Fase 3</p>
+              <p className="text-xs text-gray-600">v1.3.1 - Fase 3.5</p>
             </div>
           </aside>
         </div>
@@ -132,7 +153,6 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Slide-in animation */}
       <style>{`
         @keyframes slideIn {
           from { transform: translateX(-100%); }

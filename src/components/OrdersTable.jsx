@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
-import { STATUS_CONFIG } from '../lib/orders'
+import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 
 const PAGE_SIZE = 5
 
@@ -38,7 +38,8 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
       .gte('pu_date', period.start)
       .lte('pu_date', period.end)
       .order('pu_date')
-    setRows(data || [])
+    const advanced = await autoAdvanceStatuses(data || [], supabase)
+    setRows(advanced)
   }
 
   function openModal(row = null) {
@@ -272,11 +273,15 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
                     <Link to={`/orders/${row.id}`} className="hover:text-blue-400 transition-colors">
                       {row.order_number}
                     </Link>
-                    {row.status && row.status !== 'delivered' && (
+                    {row.status === 'tonu' ? (
+                      <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 font-semibold">
+                        TONU +$150
+                      </span>
+                    ) : row.status && row.status !== 'delivered' ? (
                       <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded ${STATUS_CONFIG[row.status]?.bg || ''} ${STATUS_CONFIG[row.status]?.text || 'text-gray-500'}`}>
                         {STATUS_CONFIG[row.status]?.label || row.status}
                       </span>
-                    )}
+                    ) : null}
                     {!row.paid && !row.status && (
                       <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
                         Pendiente

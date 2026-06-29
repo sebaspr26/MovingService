@@ -31,3 +31,43 @@ export function isTerminalStatus(status) {
 export function fmt(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 }
+
+/**
+ * Auto-advance order statuses based on pickup/delivery dates.
+ * - assigned + pickup date/time reached → in_transit
+ * - in_transit + delivery date/time reached → delivered
+ * Receives an array of orders, updates DB for changed ones, returns updated array.
+ */
+export async function autoAdvanceStatuses(orders, supabase) {
+  const now = new Date()
+  const updates = []
+
+  const updated = orders.map(o => {
+    if (isTerminalStatus(o.status) || o.status === 'invoiced' || o.status === 'delivered' || o.status === 'booked') return o
+
+    const puDateTime = o.pu_date ? new Date(o.pu_date + 'T00:00:00') : null
+    const doDateTime = o.do_date ? new Date(o.do_date + 'T23:59:59') : null
+
+    let newStatus = null
+    if (o.status === 'in_transit' && doDateTime && now >= doDateTime) {
+      newStatus = 'delivered'
+    } else if (o.status === 'assigned' && puDateTime && now >= puDateTime) {
+      newStatus = 'in_transit'
+    }
+
+    if (newStatus) {
+      updates.push({ id: o.id, status: newStatus })
+      return { ...o, status: newStatus }
+    }
+    return o
+  })
+
+  // Batch update DB
+  if (updates.length > 0) {
+    await Promise.all(updates.map(u =>
+      supabase.from('orders').update({ status: u.status }).eq('id', u.id)
+    ))
+  }
+
+  return updated
+}

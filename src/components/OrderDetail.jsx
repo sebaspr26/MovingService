@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt } from '../lib/orders'
+import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
 import { lookupByMc, lookupByDot, searchByName } from '../lib/fmcsa'
@@ -16,8 +16,10 @@ const INVOICE_ITEM_TYPES = ['Flat Rate', 'Linehaul', 'Fuel Surcharge', 'Detentio
 const UNITS_TYPES = ['Flat', 'Gross', 'Per Mile', 'Per Hour', 'Percentage']
 const COMMODITY_TYPES = ['Pail', 'Pallet', 'Box', 'Crate', 'Drum', 'Roll', 'Bag', 'Bundle', 'Piece', 'Other']
 
-export default function OrderDetail() {
-  const { id } = useParams()
+export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
+  const params = useParams()
+  const id = propId || params.id
+  const isDrawer = !!propId
   const isNew = id === 'new'
   const navigate = useNavigate()
   const toast = useToast()
@@ -46,6 +48,7 @@ export default function OrderDetail() {
   const [miles, setMiles] = useState('')
   const [deadMiles, setDeadMiles] = useState('')
   const [invoiceNotes, setInvoiceNotes] = useState('')
+  const [driverName, setDriverName] = useState('')
   const [puDate, setPuDate] = useState('')
   const [puCity, setPuCity] = useState('')
   const [doDate, setDoDate] = useState('')
@@ -88,6 +91,11 @@ export default function OrderDetail() {
   const [rcPreviewUrl, setRcPreviewUrl] = useState(null)
   const rcFileRef = useRef()
 
+  // Order documents tracking
+  const [orderDocs, setOrderDocs] = useState([])
+  const [showPodUpload, setShowPodUpload] = useState(false)
+  const podFileRef = useRef()
+
   // Route calculation
   const [calculatingRoute, setCalculatingRoute] = useState(false)
   const [routeInfo, setRouteInfo] = useState(null) // { totalMiles, totalMinutes, legs }
@@ -103,15 +111,23 @@ export default function OrderDetail() {
     })
   }, [])
 
+  async function fetchDocs() {
+    if (isNew || !id || id === 'new') return
+    const { data } = await supabase.from('order_documents').select('*').eq('order_id', id)
+    setOrderDocs(data || [])
+  }
+
   useEffect(() => {
     if (isNew) return
     setLoading(true)
+    fetchDocs()
     Promise.all([
       supabase.from('orders').select('*').eq('id', id).single(),
       supabase.from('order_stops').select('*').eq('order_id', id).order('sequence'),
-    ]).then(([orderRes, stopsRes]) => {
-      if (!orderRes.data) { navigate('/orders'); return }
-      const o = orderRes.data
+    ]).then(async ([orderRes, stopsRes]) => {
+      if (!orderRes.data) { isDrawer ? onClose?.() : navigate('/orders'); return }
+      const [advanced] = await autoAdvanceStatuses([orderRes.data], supabase)
+      const o = advanced || orderRes.data
       setStatus(o.status || 'booked')
       setOrderNumber(o.order_number || '')
       setTruckId(o.truck_id || '')
@@ -135,6 +151,7 @@ export default function OrderDetail() {
       setCommodity(o.commodity || '')
       setWeight(o.weight ?? '')
       setSpecialInstructions(o.special_instructions || '')
+      setDriverName(o.driver_name || '')
 
       const existingStops = stopsRes.data || []
       if (existingStops.length > 0) {
@@ -183,6 +200,36 @@ export default function OrderDetail() {
     setStops(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, sequence: i })))
   }
 
+  async function calculateDH(selectedTruckId) {
+    if (!selectedTruckId) return
+    try {
+      const orderId = isNew ? null : id
+      const query = supabase.from('orders').select('do_city, do_date, id')
+        .eq('truck_id', selectedTruckId)
+        .not('do_date', 'is', null)
+        .order('do_date', { ascending: false })
+        .limit(10)
+      if (orderId) query.neq('id', orderId)
+
+      const { data: prevOrders } = await query
+      const thisPickup = puDate || stops.find(s => s.type === 'pickup')?.date
+      if (prevOrders && prevOrders.length > 0 && thisPickup) {
+        const prevOrder = prevOrders.find(o => o.do_date && o.do_date <= thisPickup) || prevOrders[0]
+        if (prevOrder?.do_city) {
+          const firstPickup = stops.find(s => s.type === 'pickup')
+          const pickupLoc = firstPickup ? [firstPickup.city, firstPickup.state].filter(Boolean).join(', ') : puCity
+          if (pickupLoc) {
+            const dh = await calculateTruckRoute(prevOrder.do_city, pickupLoc)
+            if (dh) {
+              setDhInfo(dh)
+              setDeadMiles(String(dh.distanceMiles))
+            }
+          }
+        }
+      }
+    } catch (_) { /* silent — DH is secondary */ }
+  }
+
   async function calculateRoute() {
     // Build stop locations — use address if city is empty
     const stopLocations = stops
@@ -209,32 +256,8 @@ export default function OrderDetail() {
         toast.error('No se pudo calcular la ruta. Verifica las ciudades.')
       }
 
-      // Calculate DH if we have a previous order's delivery city
-      if (!isNew && truckId) {
-        const { data: prevOrders } = await supabase.from('orders').select('do_city, do_date, id')
-          .eq('truck_id', truckId)
-          .neq('id', id)
-          .not('do_date', 'is', null)
-          .order('do_date', { ascending: false })
-          .limit(10)
-
-        // Find the order delivered just before this one's pickup
-        const thisPickup = puDate || stops.find(s => s.type === 'pickup')?.date
-        if (prevOrders && prevOrders.length > 0 && thisPickup) {
-          const prevOrder = prevOrders.find(o => o.do_date && o.do_date <= thisPickup) || prevOrders[0]
-          if (prevOrder?.do_city) {
-            const firstPickup = stops.find(s => s.type === 'pickup')
-            const pickupLoc = firstPickup ? [firstPickup.city, firstPickup.state].filter(Boolean).join(', ') : puCity
-            if (pickupLoc) {
-              const dh = await calculateTruckRoute(prevOrder.do_city, pickupLoc)
-              if (dh) {
-                setDhInfo(dh)
-                setDeadMiles(String(dh.distanceMiles))
-              }
-            }
-          }
-        }
-      }
+      // Calculate DH
+      if (truckId) await calculateDH(truckId)
     } catch (err) {
       toast.error('Error calculando ruta: ' + (err.message || err))
     } finally {
@@ -285,22 +308,32 @@ export default function OrderDetail() {
         if (d.weight) setWeight(String(d.weight))
         if (d.special_instructions) setSpecialInstructions(d.special_instructions)
 
-        // Auto-fill broker
+        // Auto-fill broker — auto-save if new
         if (d.broker && d.broker.name) {
           const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
           if (existing) {
             setBrokerId(existing.id)
           } else {
-            setNewBroker({
+            const brokerRecord = {
+              type: 'broker',
               name: d.broker.name,
-              mc_number: d.broker.mc_number || '',
-              dot_number: d.broker.dot_number || '',
-              ref_number: d.broker.ref_number || '',
-              address: d.broker.address || '',
-              phone: d.broker.phone || '',
-              email: d.broker.email || '',
-            })
-            setShowNewBroker(true)
+              mc_number: d.broker.mc_number || null,
+              dot_number: d.broker.dot_number || null,
+              ref_number: d.broker.ref_number || null,
+              address: d.broker.address || null,
+              phone: d.broker.phone || null,
+              email: d.broker.email || null,
+            }
+            const { data: saved, error } = await supabase.from('brokers').insert(brokerRecord).select().single()
+            if (saved && !error) {
+              setBrokerId(saved.id)
+              setAllBrokers(prev => [...prev, saved])
+              toast.success(`Broker "${saved.name}" guardado automaticamente`)
+            } else {
+              // Fallback: show form manually
+              setNewBroker({ name: d.broker.name, mc_number: d.broker.mc_number || '', dot_number: d.broker.dot_number || '', ref_number: d.broker.ref_number || '', address: d.broker.address || '', phone: d.broker.phone || '', email: d.broker.email || '' })
+              setShowNewBroker(true)
+            }
           }
         }
 
@@ -424,6 +457,7 @@ export default function OrderDetail() {
         commodity: commodity.trim() || null,
         weight: weight !== '' ? Number(weight) : 0,
         special_instructions: specialInstructions.trim() || null,
+        driver_name: driverName.trim() || null,
         pu_date: puDate || null,
         pu_city: puCity.trim() || null,
         do_date: doDate || null,
@@ -482,8 +516,12 @@ export default function OrderDetail() {
 
       setDirty(false)
       toast.success(isNew ? 'Orden creada' : 'Orden actualizada')
-      navigate(`/orders/${orderId}`, { replace: true })
-      if (isNew) window.location.reload()
+      if (isDrawer) {
+        onSaved?.()
+      } else {
+        navigate(`/orders/${orderId}`, { replace: true })
+        if (isNew) window.location.reload()
+      }
     } catch (err) {
       toast.error(friendlyError(err.message || err))
     } finally {
@@ -497,10 +535,54 @@ export default function OrderDetail() {
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
     toast.success('Orden eliminada')
-    navigate('/orders')
+    isDrawer ? onClose?.() : navigate('/orders')
+    if (isDrawer) onSaved?.()
+  }
+
+  const hasPod = orderDocs.some(d => d.doc_type === 'POD')
+
+  async function handlePodUpload(file) {
+    if (!file || !id) return
+    setShowPodUpload(false)
+    try {
+      const ext = file.name.split('.').pop()
+      const filePath = `${id}/POD_${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('order-docs').upload(filePath, file)
+      if (upErr) throw upErr
+      await supabase.from('order_documents').insert({
+        order_id: id, doc_type: 'POD', file_name: file.name,
+        file_path: filePath, file_size: file.size, mime_type: file.type,
+      })
+      await fetchDocs()
+      toast.success('POD subido correctamente')
+      // Now proceed to invoiced
+      setStatus('invoiced')
+      await supabase.from('orders').update({ status: 'invoiced', paid: true }).eq('id', id)
+    } catch (err) {
+      toast.error(friendlyError(err.message || err))
+    }
   }
 
   async function handleStatusChange(newStatus) {
+    // Require POD to move to invoiced
+    if (newStatus === 'invoiced' && !hasPod) {
+      setShowPodUpload(true)
+      toast.warning('Se requiere POD para facturar. Sube el Proof of Delivery.')
+      return
+    }
+    // TONU — confirm and set $150 fee
+    if (newStatus === 'tonu') {
+      const ok = await toast.confirm('¿Marcar como TONU? Se aplicara un cargo de $150.00 USD.')
+      if (!ok) return
+      setStatus('tonu')
+      setRate('150')
+      setApplyDiscount(false)
+      if (!isNew) {
+        await supabase.from('orders').update({ status: 'tonu', rate: 150, apply_discount: false, paid: true }).eq('id', id)
+      }
+      toast.success('TONU aplicado — $150.00')
+      return
+    }
     setStatus(newStatus)
     if (!isNew) {
       const updates = { status: newStatus }
@@ -533,10 +615,13 @@ export default function OrderDetail() {
               const ok = await toast.confirm('Tienes cambios sin guardar. ¿Salir sin guardar?')
               if (!ok) return
             }
-            navigate('/orders')
+            isDrawer ? onClose?.() : navigate('/orders')
           }} className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              {isDrawer
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              }
             </svg>
           </button>
           <h1 className="text-lg sm:text-xl font-bold text-white truncate">
@@ -601,7 +686,11 @@ export default function OrderDetail() {
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${status === 'tonu' ? 'bg-red-500' : 'bg-gray-500'}`} />
               <span className={`text-sm font-semibold ${STATUS_CONFIG[status].text}`}>{STATUS_CONFIG[status].label}</span>
-              {status === 'tonu' && <span className="text-[10px] text-gray-500">Truck Order Not Used</span>}
+              {status === 'tonu' && (
+                <span className="text-xs bg-red-900/30 text-red-400 px-2 py-0.5 rounded-lg font-medium">
+                  +$150.00
+                </span>
+              )}
             </div>
             <button
               onClick={() => handleStatusChange('booked')}
@@ -675,6 +764,34 @@ export default function OrderDetail() {
         )}
       </div>
 
+      {/* POD Upload prompt */}
+      {showPodUpload && (
+        <div className="bg-orange-900/20 border border-orange-700/50 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+            <span className="text-sm font-medium text-orange-300">Se requiere POD para facturar</span>
+          </div>
+          <p className="text-xs text-gray-400">Sube el Proof of Delivery para poder marcar esta orden como facturada.</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => podFileRef.current?.click()}
+              className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+              Subir POD
+            </button>
+            <button onClick={() => setShowPodUpload(false)} className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs hover:text-white transition-colors">
+              Cancelar
+            </button>
+          </div>
+          <input ref={podFileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handlePodUpload(e.target.files[0])} />
+        </div>
+      )}
+
       {/* 2-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left column — main content (2/3) */}
@@ -694,10 +811,14 @@ export default function OrderDetail() {
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
                     if (t && isNew) setDiscountPercent(t.discount_percent || 13)
+                    // Auto-fill driver name from truck
+                    if (t) setDriverName(t.name || '')
                     // Auto-advance: booked → assigned when truck is selected
                     if (val && status === 'booked') setStatus('assigned')
                     // Auto-revert: assigned → booked when truck is removed
                     if (!val && status === 'assigned') setStatus('booked')
+                    // Auto-calculate DH
+                    if (val) calculateDH(val)
                   }}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
                 >
@@ -808,13 +929,13 @@ export default function OrderDetail() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    <input placeholder="Direccion *" value={stop.address || ''} onChange={(e) => updateStop(idx, 'address', e.target.value)}
+                    <input placeholder="Direccion *" value={stop.address || ''} onChange={(e) => updateStop(idx, 'address', e.target.value)} autoComplete="one-time-code"
                       className="col-span-2 sm:col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
-                    <input placeholder="Location Name" value={stop.location_name || ''} onChange={(e) => updateStop(idx, 'location_name', e.target.value)}
+                    <input placeholder="Location Name" value={stop.location_name || ''} onChange={(e) => updateStop(idx, 'location_name', e.target.value)} autoComplete="one-time-code"
                       className="col-span-2 sm:col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
-                    <input placeholder="Ciudad" value={stop.city || ''} onChange={(e) => updateStop(idx, 'city', e.target.value)}
+                    <input placeholder="Ciudad" value={stop.city || ''} onChange={(e) => updateStop(idx, 'city', e.target.value)} autoComplete="one-time-code"
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
-                    <input placeholder="Estado" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)}
+                    <input placeholder="Estado" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
                     <input type="date" value={stop.date || ''} onChange={(e) => updateStop(idx, 'date', e.target.value)}
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
@@ -1137,92 +1258,91 @@ export default function OrderDetail() {
           {/* Broker section */}
           <Section title="Cliente / Broker" open={sections.client} onToggle={() => toggle('client')}>
             <div className="space-y-3">
-              <div className="flex gap-1">
-                {['broker', 'customer'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setBrokerType(t)}
-                    className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-                      brokerType === t ? 'bg-blue-600/20 text-blue-400' : 'bg-gray-800 text-gray-500'
-                    }`}
-                  >
-                    {t === 'broker' ? 'Broker' : 'Directo'}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-1.5">
-                <select
-                  value={brokerId}
-                  onChange={(e) => { setBrokerId(e.target.value); setShowNewBroker(false) }}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {allBrokers.filter(b => b.type === brokerType).map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setShowNewBroker(!showNewBroker)}
-                  className="px-2 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-[11px] hover:text-white transition-colors border border-gray-700"
-                >
-                  +
-                </button>
-              </div>
-
-              {selectedBroker && !showNewBroker && (
-                <div className="bg-gray-800/50 rounded-lg p-2 text-[11px] text-gray-400 space-y-0.5">
-                  {selectedBroker.mc_number && <div>MC# <span className="text-gray-300">{selectedBroker.mc_number}</span></div>}
-                  {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
-                  {selectedBroker.phone && <div>Tel: <span className="text-gray-300">{selectedBroker.phone}</span></div>}
-                  {selectedBroker.email && <div>{selectedBroker.email}</div>}
+              {/* Selected broker display */}
+              {selectedBroker && !showNewBroker ? (
+                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-white">{selectedBroker.name}</p>
+                      <div className="mt-1 space-y-0.5 text-[11px] text-gray-400">
+                        {selectedBroker.mc_number && <div>MC# <span className="text-gray-300">{selectedBroker.mc_number}</span></div>}
+                        {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
+                        {selectedBroker.phone && <div>Tel: <span className="text-gray-300">{selectedBroker.phone}</span></div>}
+                        {selectedBroker.email && <div>{selectedBroker.email}</div>}
+                      </div>
+                    </div>
+                    <button onClick={() => { setBrokerId(''); setShowNewBroker(true) }} className="text-gray-600 hover:text-red-400 transition-colors p-0.5" title="Cambiar broker">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              )}
+              ) : !showNewBroker ? (
+                <button
+                  onClick={() => setShowNewBroker(true)}
+                  className="w-full py-2 border border-dashed border-gray-700 rounded-lg text-xs text-gray-500 hover:text-gray-300 hover:border-gray-600 transition-colors"
+                >
+                  + Asignar Broker
+                </button>
+              ) : null}
 
               {showNewBroker && (
-                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 space-y-2">
-                  <p className="text-[11px] text-gray-400 font-medium">Nuevo {brokerType === 'broker' ? 'Broker' : 'Cliente'}</p>
-
+                <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
                   {/* FMCSA autocomplete search */}
                   <div className="relative">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-3 h-3 text-cyan-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5">
+                      <svg className="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                       </svg>
                       <input
-                        placeholder="Buscar por nombre, MC# o DOT# (FMCSA)..."
+                        placeholder="Buscar broker..."
+                        autoComplete="one-time-code"
                         value={newBroker.name}
                         onChange={(e) => {
                           const val = e.target.value
                           setNewBroker(p => ({ ...p, name: val }))
                           clearTimeout(fmcsaTimer.current)
-                          if (val.length >= 3) {
-                            setFmcsaSearching(true)
-                            fmcsaTimer.current = setTimeout(async () => {
-                              // Check if it's a number (MC/DOT lookup)
-                              const num = val.replace(/[^\d]/g, '')
-                              if (num.length >= 5) {
-                                const [mcResult, dotResult] = await Promise.all([
-                                  lookupByMc(num),
-                                  lookupByDot(num),
-                                ])
-                                const results = [mcResult, dotResult].filter(Boolean)
-                                if (results.length > 0) {
-                                  setFmcsaSuggestions(results)
-                                  setFmcsaSearching(false)
-                                  return
-                                }
-                              }
-                              const results = await searchByName(val)
-                              setFmcsaSuggestions(results)
-                              setFmcsaSearching(false)
-                            }, 400)
+                          if (val.length >= 2) {
+                            // Instant: search local brokers first
+                            const q = val.toLowerCase()
+                            const localResults = allBrokers
+                              .filter(b => b.name.toLowerCase().includes(q) || (b.mc_number || '').includes(q) || (b.dot_number || '').includes(q))
+                              .slice(0, 5)
+                              .map(b => ({ ...b, _local: true, status: 'Local' }))
+                            setFmcsaSuggestions(localResults)
+
+                            // Then FMCSA in background (debounced)
+                            if (val.length >= 3) {
+                              setFmcsaSearching(true)
+                              fmcsaTimer.current = setTimeout(async () => {
+                                try {
+                                  const num = val.replace(/[^\d]/g, '')
+                                  let fmcsaResults = []
+                                  if (num.length >= 5) {
+                                    const [mcResult, dotResult] = await Promise.all([
+                                      lookupByMc(num),
+                                      lookupByDot(num),
+                                    ])
+                                    fmcsaResults = [mcResult, dotResult].filter(Boolean)
+                                  }
+                                  if (fmcsaResults.length === 0) {
+                                    fmcsaResults = await searchByName(val)
+                                  }
+                                  // Merge: local first, then FMCSA (skip duplicates)
+                                  const localNames = new Set(localResults.map(l => l.name.toLowerCase()))
+                                  const merged = [...localResults, ...fmcsaResults.filter(f => !localNames.has(f.name.toLowerCase()))]
+                                  setFmcsaSuggestions(merged)
+                                } catch { /* silent */ }
+                                setFmcsaSearching(false)
+                              }, 600)
+                            }
                           } else {
                             setFmcsaSuggestions([])
                             setFmcsaSearching(false)
                           }
                         }}
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-cyan-500"
+                        className="flex-1 bg-transparent text-gray-100 text-xs focus:outline-none placeholder-gray-600"
                       />
                       {fmcsaSearching && (
                         <svg className="w-3 h-3 text-cyan-400 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
@@ -1239,23 +1359,35 @@ export default function OrderDetail() {
                           <button
                             key={i}
                             onClick={() => {
-                              setNewBroker(p => ({
-                                ...p,
-                                name: s.name,
-                                mc_number: s.mc_number || p.mc_number,
-                                dot_number: s.dot_number || p.dot_number,
-                                phone: s.phone || p.phone,
-                                address: s.address || p.address,
-                              }))
-                              setFmcsaSuggestions([])
-                              toast.success(`${s.name} — ${s.status}`)
+                              if (s._local && s.id) {
+                                // Local broker — select directly
+                                setBrokerId(s.id)
+                                setShowNewBroker(false)
+                                setFmcsaSuggestions([])
+                                toast.success(`Broker seleccionado: ${s.name}`)
+                              } else {
+                                setNewBroker(p => ({
+                                  ...p,
+                                  name: s.name,
+                                  mc_number: s.mc_number || p.mc_number,
+                                  dot_number: s.dot_number || p.dot_number,
+                                  phone: s.phone || p.phone,
+                                  address: s.address || p.address,
+                                }))
+                                setFmcsaSuggestions([])
+                                toast.success(`${s.name} — ${s.status}`)
+                              }
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-gray-700/50 transition-colors border-b border-gray-700/50 last:border-0"
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-white font-medium">{s.name}</span>
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded ${s.status === 'Authorized' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>
-                                {s.status}
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                                s._local ? 'bg-blue-900/40 text-blue-400'
+                                : s.status === 'Authorized' ? 'bg-emerald-900/40 text-emerald-400'
+                                : 'bg-red-900/40 text-red-400'
+                              }`}>
+                                {s._local ? 'Guardado' : s.status}
                               </span>
                             </div>
                             <div className="flex gap-3 mt-0.5 text-[10px] text-gray-500">
@@ -1269,28 +1401,28 @@ export default function OrderDetail() {
                     )}
                   </div>
 
-                  {/* Filled fields */}
+                  {/* Detail fields */}
                   <div className="grid grid-cols-2 gap-1.5">
-                    <input placeholder="MC #" value={newBroker.mc_number}
+                    <input placeholder="MC #" value={newBroker.mc_number} autoComplete="one-time-code"
                       onChange={(e) => setNewBroker(p => ({ ...p, mc_number: e.target.value }))}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
-                    <input placeholder="DOT #" value={newBroker.dot_number}
+                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                    <input placeholder="DOT #" value={newBroker.dot_number} autoComplete="one-time-code"
                       onChange={(e) => setNewBroker(p => ({ ...p, dot_number: e.target.value }))}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
                   </div>
-                  <input placeholder="Telefono" value={newBroker.phone}
+                  <input placeholder="Telefono" value={newBroker.phone} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
-                  <input placeholder="Email" value={newBroker.email}
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                  <input placeholder="Email" value={newBroker.email} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, email: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
-                  <input placeholder="Direccion" value={newBroker.address}
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                  <input placeholder="Direccion" value={newBroker.address} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, address: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
 
-                  <div className="flex gap-1.5 justify-end pt-1">
-                    <button onClick={() => { setShowNewBroker(false); setFmcsaSuggestions([]) }} className="px-2 py-1 text-[11px] text-gray-500 hover:text-white">Cancelar</button>
-                    <button onClick={createBroker} className="px-2 py-1 bg-blue-600 text-white rounded text-[11px] hover:bg-blue-500">Crear</button>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <button onClick={() => { setShowNewBroker(false); setFmcsaSuggestions([]) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-white transition-colors">Cancelar</button>
+                    <button onClick={createBroker} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors">Crear</button>
                   </div>
                 </div>
               )}

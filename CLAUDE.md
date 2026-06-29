@@ -9,6 +9,7 @@ App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel co
 - **IA/OCR:** Gemini 2.5 Flash via OpenRouter API (base64 image -> JSON estructurado)
 - **Geolocation:** HERE Maps REST API (truck routing + geocoding)
 - **FMCSA:** Federal Motor Carrier Safety Administration API (broker/carrier lookup by MC#/DOT#/name)
+- **PDF Rendering:** pdf.js v3.11 via CDN (renderiza PDFs como imagenes para invoices)
 - **Deploy:** Vercel (auto-deploy on push to main)
 - **URL:** moving-service-one.vercel.app
 
@@ -19,11 +20,11 @@ src/
     Layout.jsx          - Sidebar (desktop) + header mobile con back button
     Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks, quick-add, abrir ciclos
     TruckView.jsx       - Vista individual: ciclo nav, filtro semanas, summary cards, 4 tabs, CashBox
-    OrdersView.jsx      - Lista centralizada de ordenes (/orders): stat cards, revenue chart, status inline, DH column
-    OrderDetail.jsx     - Detalle/creacion de orden (/orders/:id): 2-col layout, status bar, broker, stops, invoicing, commodities, route calc, docs, RC viewer
+    OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs, drawer lateral para detalle
+    OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops, invoicing, commodities, route calc, docs, RC viewer. Soporta modo drawer (props) y modo pagina (useParams)
     OrderDocuments.jsx  - Panel de documentos (RC/BOL/POD): upload Supabase Storage, preview inline, tabs por tipo
-    OrderInvoice.jsx    - Generacion de invoice imprimible/PDF para ordenes facturadas
-    OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, modal propio (TruckView)
+    OrderInvoice.jsx    - Invoice unificado: factura + RC + POD renderizados como imagenes (pdf.js CDN). Imprimible como un solo PDF
+    OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, modal propio, badge TONU +$150 (TruckView)
     DieselTable.jsx     - CRUD diesel con AddModal
     ExpensesTable.jsx   - CRUD gastos con 11 categorias + AddModal
     AccountingTable.jsx - Ledger debito/credito con 3 auto-rows (neto, diesel, gastos) + manuales
@@ -82,16 +83,24 @@ All tables have RLS enabled with open policies (no auth yet).
 2. **Asignada** (assigned, amarillo) — auto cuando se selecciona truck; revierte si se quita
 3. **En Transito** (in_transit, naranja) — truck en camino
 4. **Entregada** (delivered, cyan) — carga entregada, falta POD/factura
-5. **Facturada** (invoiced, verde) — POD subido, estado final. Solo este pone `paid=true`. Habilita boton "Invoice" para generar factura
-6. **TONU** (tonu, rojo) — Truck Order Not Used, terminal. Boton "Reactivar" vuelve a booked
+5. **Facturada** (invoiced, verde) — requiere POD subido. Solo este pone `paid=true`. Habilita boton "Invoice" para generar factura
+6. **TONU** (tonu, rojo) — Truck Order Not Used, terminal. Auto-setea rate=$150, apply_discount=false, paid=true. Confirmacion via toast.confirm. Badge "+$150" en status bar y tabla. Boton "Reactivar" vuelve a booked
 7. **Cancelada** (canceled, gris) — orden cancelada, terminal. Boton "Reactivar" vuelve a booked
 
 - `truck_id` es nullable: ordenes sin camion quedan en "Reservada"
 - Status editable desde la lista de ordenes (dropdown inline) y desde el detalle (barra de progreso + botones TONU/Cancelar)
+- **POD requerido para facturar**: al intentar pasar a "Facturada" sin POD, muestra panel naranja para subir POD. Una vez subido, avanza automaticamente a facturada
+
+### Order Detail Drawer (OrdersView)
+- Click en una orden abre un **drawer lateral** (slide-in desde la derecha, 300ms ease-out) en vez de navegar a otra pagina
+- OrderDetail soporta modo drawer (props: orderId, onClose, onSaved) y modo pagina (useParams via /orders/:id)
+- Backdrop transparente (sin blur) para que el cliente siga viendo la lista de ordenes
+- Al guardar/eliminar, se cierra el drawer y refresca la lista automaticamente
+- "Nueva Orden" tambien abre en drawer
 
 ### RC Scanner (gemini.js — extraccion completa de Rate Confirmation)
 - Al subir un RC (panel derecho o boton Escanear), Gemini extrae y auto-llena:
-  - **Broker**: nombre, contacto, telefono, email, MC# (auto-match o abre form nuevo)
+  - **Broker**: nombre, contacto, telefono, email, MC# — **se guarda automaticamente** en tabla brokers si no existe (sin necesidad de presionar "Crear")
   - **Orden**: order #, ref #, rate, equipment type
   - **Stops**: todas las paradas con location name, direccion, ciudad, estado, fecha, hora
   - **Invoicing**: line items del rate breakdown (linehaul, fuel, etc.)
@@ -102,20 +111,37 @@ All tables have RLS enabled with open policies (no auth yet).
 
 ### Invoice Generation (OrderInvoice.jsx)
 - Disponible cuando status = `invoiced` (boton verde "Invoice" en header)
-- Genera vista de factura con: logo ETG, datos de la orden, Bill From/Bill To, tabla de line items, total + Amount Due, stops con badges, payment instructions
-- Boton "Imprimir / PDF" abre ventana de impresion del navegador
+- **Documento unificado**: Invoice + RC + POD en un solo PDF imprimible
+- PDFs adjuntos se renderizan como imagenes via pdf.js v3.11 (CDN, no npm — evita incompatibilidades de bundler)
+- Imagenes adjuntas se convierten a data URLs para evitar CORS en ventana de impresion
+- Cada seccion en su propia pagina (page-break-before)
+- Espera a que todas las imagenes carguen antes de abrir dialogo de impresion
+
+### Broker Search (OrderDetail)
+- **Busqueda hibrida**: primero busca en brokers locales (DB, instantaneo), luego FMCSA en background
+- Con 2+ caracteres: resultados instantaneos de brokers guardados (badge azul "Guardado")
+- Con 3+ caracteres: busca FMCSA en paralelo (debounce 600ms), merge sin duplicados
+- Click en broker local: selecciona directo sin crear nuevo
+- Click en broker FMCSA: llena formulario de creacion
+- FMCSA es lento/poco confiable — brokers locales garantizan respuesta rapida
+
+### Dead Head (DH) — Calculo automatico
+- Se calcula automaticamente al **seleccionar un truck** en el dropdown (ademas de al presionar "Calcular Ruta")
+- Funcion `calculateDH(truckId)` extraida como funcion independiente reutilizable
+- Busca la ultima orden entregada del mismo truck (por do_date) y calcula ruta HERE Maps desde su do_city hasta el primer pickup de la orden actual
+- Si no hay orden anterior, no calcula DH (queda en 0)
+
+### Truck Routing (here.js)
+- HERE Maps REST API con `transportMode=truck` (respeta restricciones de camiones: puentes, rutas prohibidas, peso)
+- **Loaded Miles**: calculo automatico entre stops (pickup → delivery) al clickear "Calcular Ruta"
+- **Dead Head (DH)**: calculo automatico (ver seccion DH arriba)
+- Geocoding: convierte direcciones/ciudades a coordenadas lat/lng
 
 ### FMCSA Integration (fmcsa.js)
 - Autocomplete de brokers al crear uno nuevo: escribe nombre, MC# o DOT# → busca en FMCSA federal database
 - Dropdown con sugerencias: nombre, MC#, DOT#, ciudad, badge Authorized/Not Authorized
 - Click en sugerencia → auto-llena todos los campos del broker
 - API solo funciona desde EEUU (requests desde el browser del cliente o Vercel)
-
-### Truck Routing (here.js)
-- HERE Maps REST API con `transportMode=truck` (respeta restricciones de camiones: puentes, rutas prohibidas, peso)
-- **Loaded Miles**: calculo automatico entre stops (pickup → delivery) al clickear "Calcular Ruta"
-- **Dead Head (DH)**: calculo automatico del delivery de la orden anterior al pickup de la orden actual (mismo truck)
-- Geocoding: convierte direcciones/ciudades a coordenadas lat/lng
 
 ### Order Documents (OrderDocuments.jsx + Supabase Storage)
 - 3 tipos: RC (Rate Confirmation), BOL (Bill of Lading), POD (Proof of Delivery)
@@ -130,7 +156,7 @@ All tables have RLS enabled with open policies (no auth yet).
 - **Paradas**: location name, direccion, ciudad, estado, fecha, hora, ref#, notas. Boton "Calcular Ruta" (HERE)
 - **Invoicing**: invoice note + tabla line items (pay item, units type, qty, rate, total). Auto-llenado desde RC
 - **Commodities**: tabla (name, qty, type, dimensions, weight). Total en lbs. Auto-llenado desde RC
-- Sidebar derecha: resumen (rate, neto, RPM), broker con FMCSA autocomplete, ruta preview, documentos/RC
+- Sidebar derecha: resumen (rate, neto, RPM), broker con busqueda hibrida (local + FMCSA), ruta preview, documentos/RC
 
 ### Ciclos (cycles.js)
 - Reemplazan periodos mensuales fijos. Un ciclo es un rango abierto (start_date -> end_date nullable).
@@ -167,8 +193,9 @@ All tables have RLS enabled with open policies (no auth yet).
 - Scanner inline disponible en TODOS los modales de agregar
 - OrderDetail: layout 2 columnas en desktop, 1 columna en mobile (responsive)
 - Dirty state tracking: confirma antes de salir sin guardar
-- Invoice: formato imprimible con logo, similar a factura profesional
-- Version actual: v1.3 - Fase 3 (sidebar footer)
+- Invoice: documento unificado (factura + RC + POD) imprimible como un solo PDF
+- Animaciones: drawer slide-in 300ms, search expand 300ms, transitions en botones/hover
+- Version actual: v1.3.1 - Fase 3.5 (sidebar footer)
 
 ## Expense Categories
 Mantenimiento, Seguro, Peajes, Reparacion, Llantas, Lavado, Parqueo, Multas, Comida, DEF, Otros
@@ -185,13 +212,14 @@ VITE_FMCSA_KEY=xxx (FMCSA - broker/carrier lookup, solo funciona desde EEUU)
 ## Modules
 - **Dashboard** (`/`) — Grid de camiones, resumen por ciclo, quick-add, CRUD trucks, abrir ciclos
 - **TruckView** (`/truck/:id`) — Vista individual de camion: ciclo nav, semanas, tabs (orders, gastos, contabilidad), CashBox
-- **Orders/Loads** (`/orders`, `/orders/:id`) — Modulo TMS completo: lista con stat cards + revenue chart, detalle con broker (FMCSA autocomplete), stops mejorados, invoicing line items, commodities, route calc (HERE truck routing), documentos RC/BOL/POD, scanner AI que auto-llena todo desde el RC, generacion de invoice imprimible/PDF
+- **Orders/Loads** (`/orders`, `/orders/:id`) — Modulo TMS completo: lista con filter tabs + drawer lateral para detalle, broker search hibrido (local + FMCSA), stops mejorados, invoicing line items, commodities, route calc (HERE truck routing), DH auto al seleccionar truck, documentos RC/BOL/POD, scanner AI que auto-llena todo y guarda broker automaticamente, POD requerido para facturar, TONU con $150 auto, invoice unificado (factura + RC + POD en un solo PDF)
 
 ## Phases
 - **Fase 1 (done):** Setup + Dashboard + CRUD tables + Vercel deploy
 - **Fase 2 (done):** Scanner AI integrado en AddModal + pagina Scanner standalone + ciclos flexibles + search/pagination + CashBox con dividendos
 - **Fase 2.5 (done):** Descuento por orden (discount_percent persistido en cada orden) + deteccion de duplicados
 - **Fase 3 (done):** Modulo Orders/Loads completo — lista + detalle, 7 status (5 flow + TONU/canceled), brokers con FMCSA autocomplete, stops mejorados (location name, ref#), invoicing + commodities, HERE truck routing (loaded miles + DH), documentos RC/BOL/POD con Supabase Storage, scanner AI que extrae RC completo, invoice generation, responsive mobile
+- **Fase 3.5 (done):** Drawer lateral para ordenes (sin navegacion), TONU $150 auto, POD requerido para facturar, invoice unificado (factura+RC+POD en un PDF via pdf.js), broker auto-save desde RC scanner, broker search hibrido (local+FMCSA), DH auto al seleccionar truck, UI cleanup (eliminar revenue chart, status pills duplicados, animacion search)
 - **Fase 4 (next):** Reports, Excel/PDF export, auth/usuarios
 
 ## Commands

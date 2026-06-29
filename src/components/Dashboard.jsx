@@ -437,8 +437,8 @@ export default function Dashboard() {
               <div key={truck.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors group">
                 <div className="flex items-start justify-between mb-4">
                   <Link to={`/truck/${truck.id}`} className="flex-1">
-                    <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">{truck.name}</h3>
-                    <p className="text-xs text-gray-500">#{truck.number}</p>
+                    <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
+                    <p className="text-xs text-gray-500">#{truck.number} · Conductor</p>
                   </Link>
                   <div className="flex gap-1">
                     <button onClick={() => openTruckModal(truck)}
@@ -609,13 +609,13 @@ export default function Dashboard() {
             <form onSubmit={handleSaveTruck} className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Nombre</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Conductor</label>
                   <input
                     type="text"
                     value={truckName}
                     onChange={(e) => setTruckName(e.target.value)}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
-                    placeholder="Ej: Truck 109"
+                    placeholder="Ej: CARLOS"
                     required
                   />
                 </div>
