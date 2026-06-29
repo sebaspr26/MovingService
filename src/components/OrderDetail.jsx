@@ -6,6 +6,7 @@ import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
 import { lookupByMc, lookupByDot, searchByName } from '../lib/fmcsa'
 import { useToast, friendlyError } from './Toast'
+import { getActiveCycle } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 
@@ -207,13 +208,21 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       const query = supabase.from('orders').select('do_city, do_date, id')
         .eq('truck_id', selectedTruckId)
         .not('do_date', 'is', null)
+        .not('do_city', 'is', null)
         .order('do_date', { ascending: false })
         .limit(10)
       if (orderId) query.neq('id', orderId)
 
       const { data: prevOrders } = await query
+      if (!prevOrders || prevOrders.length === 0) {
+        // No previous orders — clear DH
+        setDhInfo(null)
+        setDeadMiles('')
+        return
+      }
+
       const thisPickup = puDate || stops.find(s => s.type === 'pickup')?.date
-      if (prevOrders && prevOrders.length > 0 && thisPickup) {
+      if (thisPickup) {
         const prevOrder = prevOrders.find(o => o.do_date && o.do_date <= thisPickup) || prevOrders[0]
         if (prevOrder?.do_city) {
           const firstPickup = stops.find(s => s.type === 'pickup')
@@ -223,11 +232,29 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
             if (dh) {
               setDhInfo(dh)
               setDeadMiles(String(dh.distanceMiles))
+              return
             }
           }
         }
       }
+      // No valid calculation — clear DH
+      setDhInfo(null)
+      setDeadMiles('')
     } catch (_) { /* silent — DH is secondary */ }
+  }
+
+  async function autoCalculateRoute(stopsArr) {
+    const locs = (stopsArr || stops)
+      .filter(s => s.city || s.address)
+      .map(s => s.address || [s.city, s.state].filter(Boolean).join(', '))
+    if (locs.length < 2) return
+    try {
+      const route = await calculateMultiStopRoute(locs)
+      if (route) {
+        setRouteInfo(route)
+        setMiles(String(route.totalMiles))
+      }
+    } catch (_) { /* silent */ }
   }
 
   async function calculateRoute() {
@@ -337,9 +364,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           }
         }
 
-        // Auto-fill stops
+        // Auto-fill stops + auto-calculate loaded miles
         if (d.stops && d.stops.length > 0) {
-          setStops(d.stops.map((s, i) => ({
+          const newStops = d.stops.map((s, i) => ({
             ...emptyStop(),
             type: s.type === 'delivery' ? 'delivery' : 'pickup',
             location_name: s.location_name || '',
@@ -351,7 +378,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
             ref_number: s.ref_number || '',
             notes: s.notes || '',
             sequence: i,
-          })))
+          }))
+          setStops(newStops)
+          autoCalculateRoute(newStops)
         }
 
         // Auto-fill invoicing from rate_items
@@ -806,8 +835,17 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 <label className="block text-xs font-medium text-gray-400 mb-1">Camion</label>
                 <select
                   value={truckId}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const val = e.target.value
+                    if (val) {
+                      // Check active cycle
+                      const cycle = await getActiveCycle(val)
+                      if (!cycle) {
+                        const t = trucks.find(x => x.id === val)
+                        toast.warning(`El truck ${t?.number || ''} no tiene un ciclo activo. Abre un ciclo primero.`)
+                        return
+                      }
+                    }
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
                     if (t && isNew) setDiscountPercent(t.discount_percent || 13)
@@ -817,8 +855,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     if (val && status === 'booked') setStatus('assigned')
                     // Auto-revert: assigned → booked when truck is removed
                     if (!val && status === 'assigned') setStatus('booked')
-                    // Auto-calculate DH
-                    if (val) calculateDH(val)
+                    // Auto-calculate DH + loaded miles
+                    if (val) { calculateDH(val); autoCalculateRoute() }
                   }}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
                 >

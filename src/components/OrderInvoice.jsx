@@ -66,6 +66,10 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [invoiceItems, setInvoiceItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [docImages, setDocImages] = useState({ rc: [], pod: [] })
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailTo, setEmailTo] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
   const printRef = useRef()
 
   useEffect(() => {
@@ -122,6 +126,35 @@ export default function OrderInvoice({ orderId, onClose }) {
     return data?.publicUrl
   }
 
+  async function handleSendEmail() {
+    if (!emailTo.trim()) return
+    setSendingEmail(true)
+    try {
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; font-size: 13px; line-height: 1.5;">
+          ${printRef.current.innerHTML}
+        </div>
+      `
+      const res = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailTo.split(',').map(e => e.trim()).filter(Boolean),
+          subject: `Invoice ${order.order_number} — ETG Moving Services`,
+          html,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error enviando email')
+      setEmailSent(true)
+      setTimeout(() => { setShowEmailModal(false); setEmailSent(false) }, 2000)
+    } catch (err) {
+      alert('Error: ' + err.message)
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   function handlePrint() {
     const content = printRef.current
     const win = window.open('', '_blank')
@@ -176,6 +209,15 @@ export default function OrderInvoice({ orderId, onClose }) {
         <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between rounded-t-xl z-10">
           <span className="text-sm text-gray-300 font-medium">Invoice Preview</span>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+              </svg>
+              Enviar Email
+            </button>
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
@@ -353,6 +395,66 @@ export default function OrderInvoice({ orderId, onClose }) {
           ))}
         </div>
       </div>
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+              </svg>
+              <h3 className="text-sm font-semibold text-white">Enviar Invoice por Email</h3>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Destinatario(s)</label>
+              <input
+                type="text"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                placeholder="email@ejemplo.com (separar con comas)"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-emerald-500"
+                autoFocus
+              />
+              <p className="text-[10px] text-gray-600 mt-1">Invoice #{order?.order_number} — incluye RC y POD adjuntos</p>
+            </div>
+
+            {emailSent ? (
+              <div className="flex items-center gap-2 text-emerald-400 text-sm py-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                Email enviado correctamente
+              </div>
+            ) : (
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setShowEmailModal(false); setEmailTo('') }}
+                  className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail || !emailTo.trim()}
+                  className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {sendingEmail ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Enviando...
+                    </>
+                  ) : 'Enviar'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
