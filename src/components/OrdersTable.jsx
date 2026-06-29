@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
+import { STATUS_CONFIG } from '../lib/orders'
 
 const PAGE_SIZE = 5
 
@@ -267,8 +269,15 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
                     </button>
                   </td>
                   <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
-                    {row.order_number}
-                    {!row.paid && (
+                    <Link to={`/orders/${row.id}`} className="hover:text-blue-400 transition-colors">
+                      {row.order_number}
+                    </Link>
+                    {row.status && row.status !== 'delivered' && (
+                      <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded ${STATUS_CONFIG[row.status]?.bg || ''} ${STATUS_CONFIG[row.status]?.text || 'text-gray-500'}`}>
+                        {STATUS_CONFIG[row.status]?.label || row.status}
+                      </span>
+                    )}
+                    {!row.paid && !row.status && (
                       <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
                         Pendiente
                       </span>

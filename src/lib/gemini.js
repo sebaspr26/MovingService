@@ -13,13 +13,39 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
 {
   "type": "order",
   "data": {
-    "order_number": "string",
-    "pu_date": "YYYY-MM-DD",
+    "order_number": "string (load # or PRO #)",
+    "ref_number": "string (reference, PO, or pickup number if available)",
+    "pu_date": "YYYY-MM-DD (first pickup date)",
     "pu_city": "CITY, ST",
-    "do_date": "YYYY-MM-DD",
+    "do_date": "YYYY-MM-DD (last delivery date)",
     "do_city": "CITY, ST",
     "miles": number,
-    "rate": number
+    "rate": number (total rate/linehaul),
+    "equipment_type": "string (e.g. Dry Van, Flatbed, Reefer, Step Deck, 26ft Box Truck, etc.)",
+    "broker": {
+      "name": "string (broker/company name)",
+      "contact": "string (contact person name)",
+      "phone": "string",
+      "email": "string",
+      "mc_number": "string",
+      "address": "string"
+    },
+    "stops": [
+      {
+        "type": "pickup or delivery",
+        "location_name": "string (facility/company name)",
+        "address": "string (full street address with city, state, zip)",
+        "city": "CITY, ST",
+        "state": "ST",
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM (24h format)",
+        "ref_number": "string (stop-level reference/PO if any)",
+        "notes": "string"
+      }
+    ],
+    "commodity": "string (what is being shipped)",
+    "weight": number (total weight in lbs, 0 if unknown),
+    "special_instructions": "string (any special notes)"
   }
 }
 
@@ -44,6 +70,7 @@ Rules:
 - For amounts, extract the total amount paid per item
 - If a fuel receipt has BOTH diesel AND DEF, include BOTH as separate items in the array
 - If a receipt has multiple services/repairs, include each as a separate expense item
+- For rate confirmations, extract ALL stops in order (pickups first, then deliveries). Include location names and appointment times.
 - Only use "type": "order" format for load confirmations or bills of lading
 - Return ONLY valid JSON, no markdown, no explanation`
 

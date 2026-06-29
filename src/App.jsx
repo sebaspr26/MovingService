@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './components/Dashboard'
 import TruckView from './components/TruckView'
+import OrdersView from './components/OrdersView'
+import OrderDetail from './components/OrderDetail'
 
 function App() {
   return (
@@ -10,6 +12,8 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="truck/:id" element={<TruckView />} />
+          <Route path="orders" element={<OrdersView />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
         </Route>
       </Routes>
     </BrowserRouter>
