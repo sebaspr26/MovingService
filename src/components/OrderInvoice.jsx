@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
@@ -73,6 +74,7 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [emailTo, setEmailTo] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const toast = useToast()
   const printRef = useRef()
 
   useEffect(() => {
@@ -141,6 +143,16 @@ export default function OrderInvoice({ orderId, onClose }) {
     container.innerHTML = printRef.current.innerHTML
     document.body.appendChild(container)
 
+    // Wait for all images to load before rendering
+    const imgs = container.querySelectorAll('img')
+    await Promise.all(Array.from(imgs).map(img => {
+      if (img.complete) return Promise.resolve()
+      return new Promise(resolve => {
+        img.onload = resolve
+        img.onerror = resolve
+      })
+    }))
+
     // Get all sections (invoice page + doc pages)
     const sections = [container.children[0]] // invoice section
     const docPages = container.querySelectorAll('.doc-page')
@@ -171,7 +183,7 @@ export default function OrderInvoice({ orderId, onClose }) {
         pdfBase64 = await generatePDF()
       } catch (pdfErr) {
         console.error('PDF generation error:', pdfErr)
-        alert('Error generando PDF: ' + (pdfErr.message || String(pdfErr)))
+        toast.error('Error generando PDF: ' + (pdfErr.message || String(pdfErr)))
         setSendingEmail(false)
         return
       }
@@ -181,7 +193,7 @@ export default function OrderInvoice({ orderId, onClose }) {
       console.log(`PDF size: ${sizeMB} MB`)
 
       if (pdfBase64.length * 0.75 > 4 * 1024 * 1024) {
-        alert(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
+        toast.warning(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
         setSendingEmail(false)
         return
       }
@@ -219,7 +231,7 @@ export default function OrderInvoice({ orderId, onClose }) {
       setTimeout(() => { setShowEmailModal(false); setEmailSent(false) }, 2000)
     } catch (err) {
       console.error('Send email error:', err)
-      alert('Error: ' + (err.message || String(err)))
+      toast.error('Error enviando email: ' + (err.message || String(err)))
     } finally {
       setSendingEmail(false)
     }
