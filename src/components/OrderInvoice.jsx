@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -21,35 +23,6 @@ function loadPdfJs() {
   return pdfjsPromise
 }
 
-// Load html2canvas from CDN
-let html2canvasPromise = null
-function loadHtml2Canvas() {
-  if (html2canvasPromise) return html2canvasPromise
-  html2canvasPromise = new Promise((resolve, reject) => {
-    if (window.html2canvas) { resolve(window.html2canvas); return }
-    const script = document.createElement('script')
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
-    script.onload = () => resolve(window.html2canvas)
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
-  return html2canvasPromise
-}
-
-// Load jsPDF from CDN
-let jspdfPromise = null
-function loadJsPDF() {
-  if (jspdfPromise) return jspdfPromise
-  jspdfPromise = new Promise((resolve, reject) => {
-    if (window.jspdf) { resolve(window.jspdf.jsPDF); return }
-    const script = document.createElement('script')
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
-    script.onload = () => resolve(window.jspdf.jsPDF)
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
-  return jspdfPromise
-}
 
 async function pdfToImages(url) {
   try {
@@ -157,8 +130,7 @@ export default function OrderInvoice({ orderId, onClose }) {
   }
 
   async function generatePDF() {
-    const [html2canvas, JsPDF] = await Promise.all([loadHtml2Canvas(), loadJsPDF()])
-    const pdf = new JsPDF('p', 'mm', 'letter')
+    const pdf = new jsPDF('p', 'mm', 'letter')
     const pageW = 215.9
     const pageH = 279.4
     const margin = 10
