@@ -21,6 +21,36 @@ function loadPdfJs() {
   return pdfjsPromise
 }
 
+// Load html2canvas from CDN
+let html2canvasPromise = null
+function loadHtml2Canvas() {
+  if (html2canvasPromise) return html2canvasPromise
+  html2canvasPromise = new Promise((resolve, reject) => {
+    if (window.html2canvas) { resolve(window.html2canvas); return }
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    script.onload = () => resolve(window.html2canvas)
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return html2canvasPromise
+}
+
+// Load jsPDF from CDN
+let jspdfPromise = null
+function loadJsPDF() {
+  if (jspdfPromise) return jspdfPromise
+  jspdfPromise = new Promise((resolve, reject) => {
+    if (window.jspdf) { resolve(window.jspdf.jsPDF); return }
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
+    script.onload = () => resolve(window.jspdf.jsPDF)
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return jspdfPromise
+}
+
 async function pdfToImages(url) {
   try {
     const pdfjsLib = await loadPdfJs()
@@ -126,22 +156,66 @@ export default function OrderInvoice({ orderId, onClose }) {
     return data?.publicUrl
   }
 
+  async function generatePDF() {
+    const [html2canvas, JsPDF] = await Promise.all([loadHtml2Canvas(), loadJsPDF()])
+    const pdf = new JsPDF('p', 'mm', 'letter')
+    const pageW = 215.9
+    const pageH = 279.4
+    const margin = 10
+
+    // Render the printable content into a temporary off-screen container with white bg
+    const container = document.createElement('div')
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#fff;'
+    container.innerHTML = printRef.current.innerHTML
+    document.body.appendChild(container)
+
+    // Get all sections (invoice page + doc pages)
+    const sections = [container.children[0]] // invoice section
+    const docPages = container.querySelectorAll('.doc-page')
+    docPages.forEach(p => sections.push(p))
+
+    for (let i = 0; i < sections.length; i++) {
+      if (i > 0) pdf.addPage()
+      const canvas = await html2canvas(sections[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.85)
+      const imgW = pageW - margin * 2
+      const imgH = (canvas.height * imgW) / canvas.width
+      // If image is taller than page, scale down to fit
+      const finalH = imgH > pageH - margin * 2 ? pageH - margin * 2 : imgH
+      const finalW = imgH > pageH - margin * 2 ? (canvas.width * finalH) / canvas.height : imgW
+      pdf.addImage(imgData, 'JPEG', margin, margin, finalW, finalH)
+    }
+
+    document.body.removeChild(container)
+    return pdf.output('datauristring').split(',')[1] // base64 only
+  }
+
   async function handleSendEmail() {
     if (!emailTo.trim()) return
     setSendingEmail(true)
     try {
-      const html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; font-size: 13px; line-height: 1.5;">
-          ${printRef.current.innerHTML}
-        </div>
-      `
+      const pdfBase64 = await generatePDF()
+      const fileName = `Invoice_${order.order_number || 'ETG'}.pdf`
+
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: emailTo.split(',').map(e => e.trim()).filter(Boolean),
-          subject: `Invoice ${order.order_number} — ETG Moving Services`,
-          html,
+          subject: `Invoice #${order.order_number} — ETG Moving Services`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #333; font-size: 14px; line-height: 1.6;">
+              <p>Please find the attached invoice for your records.</p>
+              <table style="margin: 16px 0; font-size: 13px;">
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Invoice #</td><td style="font-weight: 600;">${order.order_number || '-'}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Amount Due</td><td style="font-weight: 600;">${fmtCurrency(Number(order.rate) || 0)}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Terms</td><td>Due on receipt</td></tr>
+              </table>
+              <p style="font-size: 12px; color: #888; margin-top: 24px;">ETG Moving Services — Driving Is Work LLC</p>
+            </div>
+          `,
+          pdfBase64,
+          fileName,
         }),
       })
       const data = await res.json()

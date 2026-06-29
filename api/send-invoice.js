@@ -7,19 +7,28 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { to, subject, html } = req.body
+  const { to, subject, html, pdfBase64, fileName } = req.body
 
-  if (!to || !subject || !html) {
-    return res.status(400).json({ error: 'Missing required fields: to, subject, html' })
+  if (!to || !subject) {
+    return res.status(400).json({ error: 'Missing required fields: to, subject' })
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    const emailOptions = {
       from: 'ETG Moving Services <invoices@etg-tms.com>',
       to: Array.isArray(to) ? to : [to],
       subject,
-      html,
-    })
+      html: html || '<p>Please find the attached invoice.</p>',
+    }
+
+    if (pdfBase64) {
+      emailOptions.attachments = [{
+        filename: fileName || 'invoice.pdf',
+        content: Buffer.from(pdfBase64, 'base64'),
+      }]
+    }
+
+    const { data, error } = await resend.emails.send(emailOptions)
 
     if (error) {
       return res.status(400).json({ error: error.message })
