@@ -194,8 +194,25 @@ export default function OrderInvoice({ orderId, onClose }) {
     if (!emailTo.trim()) return
     setSendingEmail(true)
     try {
-      const pdfBase64 = await generatePDF()
+      let pdfBase64
+      try {
+        pdfBase64 = await generatePDF()
+      } catch (pdfErr) {
+        console.error('PDF generation error:', pdfErr)
+        alert('Error generando PDF: ' + (pdfErr.message || String(pdfErr)))
+        setSendingEmail(false)
+        return
+      }
+
       const fileName = `Invoice_${order.order_number || 'ETG'}.pdf`
+      const sizeMB = (pdfBase64.length * 0.75 / 1024 / 1024).toFixed(1)
+      console.log(`PDF size: ${sizeMB} MB`)
+
+      if (pdfBase64.length * 0.75 > 4 * 1024 * 1024) {
+        alert(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
+        setSendingEmail(false)
+        return
+      }
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -218,12 +235,19 @@ export default function OrderInvoice({ orderId, onClose }) {
           fileName,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error enviando email')
+
+      let data
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(`Server error (${res.status}): ${res.statusText}`)
+      }
+      if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
       setEmailSent(true)
       setTimeout(() => { setShowEmailModal(false); setEmailSent(false) }, 2000)
     } catch (err) {
-      alert('Error: ' + err.message)
+      console.error('Send email error:', err)
+      alert('Error: ' + (err.message || String(err)))
     } finally {
       setSendingEmail(false)
     }
