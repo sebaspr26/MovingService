@@ -59,29 +59,58 @@ export default function CompanyInfo() {
    ============================ */
 
 function SectionCompanyInfo() {
-  const [form, setForm] = useState({
-    company_name: '',
-    dba: '',
-    ein: '',
-    mc_number: '',
-    dot_number: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    phone: '',
-    email: '',
-    website: '',
-    founded: '',
+  const toast = useToast()
+  const [savedForm, setSavedForm] = useState(() => {
+    const saved = localStorage.getItem('company_info')
+    return saved ? JSON.parse(saved) : {
+      company_name: '', dba: '', ein: '', mc_number: '', dot_number: '',
+      address: '', city: '', state: '', zip: '', phone: '', email: '', website: '', founded: '',
+    }
   })
+  const [form, setForm] = useState(savedForm)
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm)
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  function handleSave() {
+    localStorage.setItem('company_info', JSON.stringify(form))
+    localStorage.setItem('company_name', form.company_name)
+    localStorage.setItem('company_dba', form.dba)
+    setSavedForm(form)
+    toast.success('Informacion guardada')
+  }
+
+  useEffect(() => {
+    if (isDirty) {
+      const timer = setTimeout(() => {
+        toast.warning('Tienes cambios sin guardar')
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [isDirty])
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Company Information</h2>
-        <p className="text-[10px] text-gray-600">Esta info se muestra en el Bill/Invoice</p>
+        <div>
+          <h2 className="text-lg font-semibold text-white">Company Information</h2>
+          <p className="text-[10px] text-gray-600">Esta info se muestra en el Bill/Invoice y sidebar</p>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={!isDirty}
+          className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+            isDirty
+              ? 'bg-blue-600 text-white hover:bg-blue-500'
+              : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75H6.912a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3" />
+          </svg>
+          Guardar
+        </button>
       </div>
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-5">
@@ -152,11 +181,6 @@ function SectionCompanyInfo() {
           </div>
         </div>
 
-        <div className="flex justify-end pt-2">
-          <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors">
-            Guardar
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -167,35 +191,61 @@ function SectionCompanyInfo() {
    ============================ */
 
 function SectionBilling() {
-  const [billing, setBilling] = useState({
-    billing_name: '',
-    billing_address: '',
-    billing_city: '',
-    billing_state: '',
-    billing_zip: '',
-    billing_phone: '',
-    billing_email: '',
+  const toast = useToast()
+  const [savedBilling, setSavedBilling] = useState(() => {
+    const s = localStorage.getItem('billing_info')
+    return s ? JSON.parse(s) : { billing_name: '', billing_address: '', billing_city: '', billing_state: '', billing_zip: '', billing_phone: '', billing_email: '' }
   })
-  const [remit, setRemit] = useState({
-    remit_name: '',
-    remit_address: '',
-    remit_city: '',
-    remit_state: '',
-    remit_zip: '',
+  const [savedRemit, setSavedRemit] = useState(() => {
+    const s = localStorage.getItem('remit_info')
+    return s ? JSON.parse(s) : { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '' }
   })
+  const [billing, setBilling] = useState(savedBilling)
+  const [remit, setRemit] = useState(savedRemit)
+
+  const isDirty = JSON.stringify(billing) !== JSON.stringify(savedBilling) || JSON.stringify(remit) !== JSON.stringify(savedRemit)
 
   const updateB = (field, value) => setBilling(prev => ({ ...prev, [field]: value }))
   const updateR = (field, value) => setRemit(prev => ({ ...prev, [field]: value }))
+
+  function handleSave() {
+    localStorage.setItem('billing_info', JSON.stringify(billing))
+    localStorage.setItem('remit_info', JSON.stringify(remit))
+    setSavedBilling(billing)
+    setSavedRemit(remit)
+    toast.success('Billing guardado')
+  }
+
+  useEffect(() => {
+    if (isDirty) {
+      const timer = setTimeout(() => toast.warning('Tienes cambios sin guardar'), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [isDirty])
 
   const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-white">Billing Information</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white">Billing Information</h2>
+        <button
+          onClick={handleSave}
+          disabled={!isDirty}
+          className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+            isDirty ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75H6.912a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3" />
+          </svg>
+          Guardar
+        </button>
+      </div>
 
       {/* Billing Form */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
-        <h3 className="text-sm font-medium text-gray-400">Bill To</h3>
+        <h3 className="text-sm font-medium text-gray-400">Bill From</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="text-xs text-gray-500 mb-1 block">Company / Name</label>
@@ -259,11 +309,6 @@ function SectionBilling() {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors">
-          Guardar
-        </button>
-      </div>
     </div>
   )
 }

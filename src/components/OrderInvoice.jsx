@@ -203,7 +203,7 @@ export default function OrderInvoice({ orderId, onClose }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: emailTo.split(',').map(e => e.trim()).filter(Boolean),
-          subject: `Invoice #${order.order_number} — ETG Moving Services`,
+          subject: `Invoice #${order.order_number} — ${companyName}`,
           html: `
             <div style="font-family: Arial, sans-serif; color: #333; font-size: 14px; line-height: 1.6;">
               <p>Please find the attached invoice for your records.</p>
@@ -212,7 +212,7 @@ export default function OrderInvoice({ orderId, onClose }) {
                 <tr><td style="padding: 4px 12px 4px 0; color: #888;">Amount Due</td><td style="font-weight: 600;">${fmtCurrency(Number(order.rate) || 0)}</td></tr>
                 <tr><td style="padding: 4px 12px 4px 0; color: #888;">Terms</td><td>Due on receipt</td></tr>
               </table>
-              <p style="font-size: 12px; color: #888; margin-top: 24px;">ETG Moving Services — Driving Is Work LLC</p>
+              <p style="font-size: 12px; color: #888; margin-top: 24px;">${companyName} — ${companyDba}</p>
             </div>
           `,
           pdfBase64,
@@ -282,6 +282,10 @@ export default function OrderInvoice({ orderId, onClose }) {
   const today = new Date().toISOString().split('T')[0]
   const invoiceDate = today
   const total = Number(order.rate) || 0
+  const companyName = localStorage.getItem('company_name') || 'ETG MOVING SERVICES'
+  const companyDba = localStorage.getItem('company_dba') || 'DRIVING IS WORK LLC'
+  const billingInfo = JSON.parse(localStorage.getItem('billing_info') || '{}')
+  const remitInfo = JSON.parse(localStorage.getItem('remit_info') || '{}')
   const rateItems = invoiceItems.length > 0 ? invoiceItems : [{ pay_item: 'Flat Rate', units: 1, rate: total, total }]
 
   return (
@@ -340,27 +344,46 @@ export default function OrderInvoice({ orderId, onClose }) {
               </table>
             </div>
 
-            {/* Bill From / Bill To */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
-              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '8px', padding: '12px' }}>
-                <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>Bill From</p>
-                <p style={{ fontWeight: '600' }}>ETG MOVING SERVICES</p>
-                <p style={{ fontSize: '11px', color: '#64748b' }}>DRIVING IS WORK LLC</p>
-              </div>
-              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '8px', padding: '12px' }}>
-                <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>Bill To</p>
-                {broker ? (
-                  <>
-                    <p style={{ fontWeight: '600' }}>{broker.name}</p>
-                    {broker.address && <p style={{ fontSize: '11px', color: '#64748b' }}>{broker.address}</p>}
-                    {broker.phone && <p style={{ fontSize: '11px', color: '#64748b' }}>Phone: {broker.phone}</p>}
-                    {broker.email && <p style={{ fontSize: '11px', color: '#64748b' }}>{broker.email}</p>}
-                    {broker.mc_number && <p style={{ fontSize: '11px', color: '#64748b' }}>MC: {broker.mc_number}</p>}
-                  </>
-                ) : (
-                  <p style={{ color: '#94a3b8' }}>-</p>
+            {/* Bill From / Bill To / Remit To — single row */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '25px' }}>
+              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+                <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill From</p>
+                <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{billingInfo.billing_name || companyName.toUpperCase()}</p>
+                <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
+                  {[billingInfo.billing_address, [billingInfo.billing_city, billingInfo.billing_state, billingInfo.billing_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                  {!billingInfo.billing_name && companyDba ? companyDba.toUpperCase() : ''}
+                </p>
+                {(billingInfo.billing_phone || billingInfo.billing_email) && (
+                  <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
+                    {[billingInfo.billing_phone, billingInfo.billing_email].filter(Boolean).join(' | ')}
+                  </p>
                 )}
               </div>
+              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+                <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill To</p>
+                {broker ? (
+                  <>
+                    <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{broker.name}</p>
+                    <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
+                      {[broker.address, broker.mc_number ? `MC: ${broker.mc_number}` : ''].filter(Boolean).join(' | ')}
+                    </p>
+                    {(broker.phone || broker.email) && (
+                      <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
+                        {[broker.phone, broker.email].filter(Boolean).join(' | ')}
+                      </p>
+                    )}
+                  </>
+                ) : <p style={{ color: '#94a3b8', fontSize: '11px' }}>-</p>}
+              </div>
+              {remitInfo.remit_name && (
+                <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+                  <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remit To</p>
+                  <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{remitInfo.remit_name}</p>
+                  <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
+                    {[remitInfo.remit_address, [remitInfo.remit_city, remitInfo.remit_state, remitInfo.remit_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Line items table */}
@@ -436,17 +459,9 @@ export default function OrderInvoice({ orderId, onClose }) {
               </div>
             )}
 
-            {/* Payment Instructions */}
-            {order.special_instructions && (
-              <div style={{ marginBottom: '20px' }}>
-                <h3 style={{ color: '#dc2626', fontWeight: '700', fontSize: '14px', marginBottom: '6px' }}>Payment Instructions & Terms</h3>
-                <p style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap' }}>{order.special_instructions}</p>
-              </div>
-            )}
-
             {/* Footer */}
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: '15px', textAlign: 'center', fontSize: '10px', color: '#94a3b8' }}>
-              <p>ETG Moving Services — Driving Is Work LLC</p>
+              <p>{companyName} &mdash; {companyDba}</p>
             </div>
           </div>
 

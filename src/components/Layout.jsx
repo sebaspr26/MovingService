@@ -1,7 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 export default function Layout() {
+  const [companyName, setCompanyName] = useState(() => localStorage.getItem('company_name') || 'ETG Moving Services')
+  const [companyDba, setCompanyDba] = useState(() => localStorage.getItem('company_dba') || 'Driving Is Work LLC')
+
+  useEffect(() => {
+    const onStorage = () => {
+      setCompanyName(localStorage.getItem('company_name') || 'ETG Moving Services')
+      setCompanyDba(localStorage.getItem('company_dba') || 'Driving Is Work LLC')
+    }
+    window.addEventListener('storage', onStorage)
+    const interval = setInterval(onStorage, 1000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval) }
+  }, [])
   const location = useLocation()
   const navigate = useNavigate()
   const isSubPage = location.pathname !== '/' && location.pathname !== '/orders' && location.pathname !== '/company' && location.pathname !== '/settings'
@@ -52,8 +64,8 @@ export default function Layout() {
         <div className={`border-b border-gray-800 flex items-center ${collapsed ? 'p-3 justify-center' : 'p-6 justify-between'}`}>
           {!collapsed && (
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">ETG Moving Services</h1>
-              <p className="text-xs text-gray-500 mt-1">Driving Is Work LLC</p>
+              <h1 className="text-xl font-bold text-white tracking-tight">{companyName}</h1>
+              <p className="text-xs text-gray-500 mt-1">{companyDba}</p>
             </div>
           )}
           <button
@@ -94,8 +106,8 @@ export default function Layout() {
           >
             <div className="p-5 border-b border-gray-800 flex items-center justify-between">
               <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">ETG Moving Services</h1>
-                <p className="text-xs text-gray-500 mt-0.5">Driving Is Work LLC</p>
+                <h1 className="text-lg font-bold text-white tracking-tight">{companyName}</h1>
+                <p className="text-xs text-gray-500 mt-0.5">{companyDba}</p>
               </div>
               <button onClick={() => setMenuOpen(false)} className="text-gray-500 hover:text-white transition-colors p-1">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -155,7 +167,7 @@ export default function Layout() {
               </svg>
             </button>
           )}
-          <h1 className="text-lg font-bold text-white flex-1">ETG Moving Services</h1>
+          <h1 className="text-lg font-bold text-white flex-1">{companyName}</h1>
         </header>
 
         <main className="flex-1 p-3 sm:p-6 overflow-auto">

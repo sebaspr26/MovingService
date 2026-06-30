@@ -30,6 +30,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [dirty, setDirty] = useState(false)
   const [rcFullscreen, setRcFullscreen] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
+  const [showTonuModal, setShowTonuModal] = useState(false)
+  const [tonuPrice, setTonuPrice] = useState('150')
   const [trucks, setTrucks] = useState([])
   const [allBrokers, setAllBrokers] = useState([])
 
@@ -110,6 +112,19 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       setTrucks(tRes.data || [])
       setAllBrokers(bRes.data || [])
     })
+
+    // Auto-generate ref_number for new orders
+    if (isNew) {
+      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(50)
+        .then(({ data }) => {
+          let maxNum = 0
+          ;(data || []).forEach(o => {
+            const n = parseInt((o.ref_number || '').replace(/\D/g, ''), 10)
+            if (n > maxNum) maxNum = n
+          })
+          setRefNumber(String(maxNum + 1).padStart(5, '0'))
+        })
+    }
   }, [])
 
   async function fetchDocs() {
@@ -599,17 +614,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       toast.warning('Se requiere POD para facturar. Sube el Proof of Delivery.')
       return
     }
-    // TONU — confirm and set $150 fee
+    // TONU — show price input modal
     if (newStatus === 'tonu') {
-      const ok = await toast.confirm('¿Marcar como TONU? Se aplicara un cargo de $150.00 USD.')
-      if (!ok) return
-      setStatus('tonu')
-      setRate('150')
-      setApplyDiscount(false)
-      if (!isNew) {
-        await supabase.from('orders').update({ status: 'tonu', rate: 150, apply_discount: false, paid: true }).eq('id', id)
-      }
-      toast.success('TONU aplicado — $150.00')
+      setShowTonuModal(true)
       return
     }
     setStatus(newStatus)
@@ -717,7 +724,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               <span className={`text-sm font-semibold ${STATUS_CONFIG[status].text}`}>{STATUS_CONFIG[status].label}</span>
               {status === 'tonu' && (
                 <span className="text-xs bg-red-900/30 text-red-400 px-2 py-0.5 rounded-lg font-medium">
-                  +$150.00
+                  +{fmt(Number(rate) || 150)}
                 </span>
               )}
             </div>
@@ -1578,6 +1585,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               )}
             </div>
           )}
+
+          {/* Company info for invoice */}
+          <CompanyInfoSidebar />
         </div>
       </div>
 
@@ -1599,6 +1609,57 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
             ) : (
               <iframe src={rcPreviewUrl} className="w-full h-full rounded-lg border border-gray-700" title="Rate Confirmation" />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TONU price modal */}
+      {showTonuModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <h3 className="text-sm font-semibold text-white">TONU — Truck Order Not Used</h3>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Cargo TONU (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={tonuPrice}
+                  onChange={e => setTonuPrice(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-2.5 text-gray-100 text-lg font-semibold focus:outline-none focus:border-red-500"
+                  autoFocus
+                />
+              </div>
+              <p className="text-[10px] text-gray-600 mt-1">Por defecto $150.00 — modifica si es diferente</p>
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => { setShowTonuModal(false); setTonuPrice('150') }}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const price = Number(tonuPrice) || 150
+                  setStatus('tonu')
+                  setRate(String(price))
+                  setApplyDiscount(false)
+                  if (!isNew) {
+                    await supabase.from('orders').update({ status: 'tonu', rate: price, apply_discount: false, paid: true }).eq('id', id)
+                  }
+                  setShowTonuModal(false)
+                  toast.success(`TONU aplicado — ${fmt(price)}`)
+                }}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg font-medium hover:bg-red-500 transition-colors"
+              >
+                Aplicar TONU
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1637,6 +1698,75 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
       />
+    </div>
+  )
+}
+
+function CompanyInfoSidebar() {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(() => localStorage.getItem('company_name') || '')
+  const [dba, setDba] = useState(() => localStorage.getItem('company_dba') || '')
+  const [saved, setSaved] = useState(false)
+
+  function handleSave() {
+    localStorage.setItem('company_name', name)
+    localStorage.setItem('company_dba', dba)
+    // Also update company_info object
+    try {
+      const info = JSON.parse(localStorage.getItem('company_info') || '{}')
+      info.company_name = name
+      info.dba = dba
+      localStorage.setItem('company_info', JSON.stringify(info))
+    } catch {}
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoice - Company</h3>
+        </div>
+        <svg className={`w-4 h-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      {!open && (name || dba) && (
+        <div className="px-4 pb-3">
+          <p className="text-[11px] text-gray-400">{name}{dba ? ` — ${dba}` : ''}</p>
+        </div>
+      )}
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          <div>
+            <label className="block text-[10px] text-gray-500 mb-1">Company Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="ETG Moving Services"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-500 mb-1">DBA</label>
+            <input value={dba} onChange={e => setDba(e.target.value)} placeholder="Driving Is Work LLC"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+          </div>
+          <div className="flex justify-end pt-1">
+            {saved ? (
+              <span className="text-[11px] text-green-400 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Guardado
+              </span>
+            ) : (
+              <button onClick={handleSave} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-[11px] font-medium hover:bg-blue-500 transition-colors">
+                Guardar
+              </button>
+            )}
+          </div>
+          <p className="text-[9px] text-gray-600">Aparece en el invoice como: {name || '...'} — {dba || '...'}</p>
+        </div>
+      )}
     </div>
   )
 }

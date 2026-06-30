@@ -275,7 +275,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
                     </Link>
                     {row.status === 'tonu' ? (
                       <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 font-semibold">
-                        TONU +$150
+                        TONU +{fmt(Number(row.rate) || 150)}
                       </span>
                     ) : row.status && row.status !== 'delivered' ? (
                       <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded ${STATUS_CONFIG[row.status]?.bg || ''} ${STATUS_CONFIG[row.status]?.text || 'text-gray-500'}`}>

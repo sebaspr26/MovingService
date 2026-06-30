@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
 import OrderDetail from './OrderDetail'
+import { useToast } from './Toast'
 
 const PAGE_SIZE = 10
 
@@ -27,6 +28,9 @@ export default function OrdersView() {
   const [page, setPage] = useState(0)
   const [drawerId, setDrawerId] = useState(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [tonuTarget, setTonuTarget] = useState(null)
+  const [tonuPrice, setTonuPrice] = useState('150')
+  const toast = useToast()
 
   useEffect(() => { fetchData() }, [])
   useEffect(() => { setPage(0) }, [tab, search])
@@ -58,15 +62,25 @@ export default function OrdersView() {
   }
 
   async function handleStatusChange(orderId, newStatus) {
+    if (newStatus === 'tonu') {
+      setTonuTarget(orderId)
+      setTonuPrice('150')
+      return
+    }
     const updates = { status: newStatus }
     if (newStatus === 'invoiced') updates.paid = true
-    if (newStatus === 'tonu') {
-      updates.rate = 150
-      updates.apply_discount = false
-      updates.paid = true
-    }
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o))
     await supabase.from('orders').update(updates).eq('id', orderId)
+  }
+
+  async function applyTonu() {
+    if (!tonuTarget) return
+    const price = Number(tonuPrice) || 150
+    const updates = { status: 'tonu', rate: price, apply_discount: false, paid: true }
+    setOrders(prev => prev.map(o => o.id === tonuTarget ? { ...o, ...updates } : o))
+    await supabase.from('orders').update(updates).eq('id', tonuTarget)
+    toast.success(`TONU aplicado — ${fmt(price)}`)
+    setTonuTarget(null)
   }
 
   const truckMap = {}
@@ -247,6 +261,9 @@ export default function OrdersView() {
                   </td>
                   <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
                     <span className="text-green-400 font-medium text-xs">{fmt(row.rate || 0)}</span>
+                    {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
+                      <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
+                    )}
                   </td>
                   <td className="py-2.5">
                     <button
@@ -317,6 +334,37 @@ export default function OrdersView() {
                 onClose={closeDrawer}
                 onSaved={() => { fetchData(); closeDrawer() }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TONU price modal */}
+      {tonuTarget && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <h3 className="text-sm font-semibold text-white">TONU — Truck Order Not Used</h3>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Cargo TONU (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={tonuPrice}
+                  onChange={e => setTonuPrice(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-2.5 text-gray-100 text-lg font-semibold focus:outline-none focus:border-red-500"
+                  autoFocus
+                />
+              </div>
+              <p className="text-[10px] text-gray-600 mt-1">Por defecto $150.00 — modifica si es diferente</p>
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button onClick={() => setTonuTarget(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
+              <button onClick={applyTonu} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg font-medium hover:bg-red-500 transition-colors">Aplicar TONU</button>
             </div>
           </div>
         </div>
