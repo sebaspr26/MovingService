@@ -198,7 +198,7 @@ function SectionBilling() {
   })
   const [savedRemit, setSavedRemit] = useState(() => {
     const s = localStorage.getItem('remit_info')
-    return s ? JSON.parse(s) : { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '' }
+    return s ? JSON.parse(s) : { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '', remit_email: '' }
   })
   const [billing, setBilling] = useState(savedBilling)
   const [remit, setRemit] = useState(savedRemit)
@@ -305,6 +305,10 @@ function SectionBilling() {
               <label className="text-xs text-gray-500 mb-1 block">ZIP</label>
               <input value={remit.remit_zip} onChange={e => updateR('remit_zip', e.target.value)} className={inputClass} placeholder="77001" />
             </div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs text-gray-500 mb-1 block">Email</label>
+            <input type="email" value={remit.remit_email || ''} onChange={e => updateR('remit_email', e.target.value)} className={inputClass} placeholder="remit@company.com" />
           </div>
         </div>
       </div>

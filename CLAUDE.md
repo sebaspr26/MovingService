@@ -116,6 +116,11 @@ All tables have RLS enabled with open policies (no auth yet).
 - Imagenes adjuntas se convierten a data URLs para evitar CORS en ventana de impresion
 - Cada seccion en su propia pagina (page-break-before)
 - Espera a que todas las imagenes carguen antes de abrir dialogo de impresion
+- **Bill From**: datos de Billing Information (localStorage `billing_info`). Fallback: Company Name/DBA
+- **Bill To**: broker de la orden
+- **Remit To**: datos de Remit To (localStorage `remit_info`), solo si tiene datos
+- **Email**: To = Remit To email, CC = Bill From email + Bill To email (broker)
+- **TODO**: El email de Bill To (broker) usa `sapr262004@gmail.com` como fallback temporal cuando el broker no tiene email. Cambiar esto cuando se implemente email real del broker o configuracion de email por defecto
 
 ### Broker Search (OrderDetail)
 - **Busqueda hibrida**: primero busca en brokers locales (DB, instantaneo), luego FMCSA en background
