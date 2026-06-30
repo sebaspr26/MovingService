@@ -62,6 +62,9 @@ async function imageToDataUrl(url) {
   }
 }
 
+// Cache to avoid regenerating every time
+const invoiceCache = {}
+
 export default function OrderInvoice({ orderId, onClose }) {
   const [order, setOrder] = useState(null)
   const [truck, setTruck] = useState(null)
@@ -72,57 +75,84 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [docImages, setDocImages] = useState({ rc: [], pod: [] })
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const toast = useToast()
   const printRef = useRef()
 
-  useEffect(() => {
-    async function load() {
-      const [orderRes, stopsRes, docsRes] = await Promise.all([
-        supabase.from('orders').select('*').eq('id', orderId).single(),
-        supabase.from('order_stops').select('*').eq('order_id', orderId).order('sequence'),
-        supabase.from('order_documents').select('*').eq('order_id', orderId),
-      ])
-      const o = orderRes.data
-      setOrder(o)
-      setStops(stopsRes.data || [])
-
-      if (o?.truck_id) {
-        const { data } = await supabase.from('trucks').select('*').eq('id', o.truck_id).single()
-        setTruck(data)
-      }
-      if (o?.broker_id) {
-        const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
-        setBroker(data)
-      }
-
-      // Render documents as images
-      const docs = docsRes.data || []
-      const rcDocs = docs.filter(d => d.doc_type === 'RC')
-      const podDocs = docs.filter(d => d.doc_type === 'POD')
-
-      const processDoc = async (doc) => {
-        const url = getPublicUrl(doc.file_path)
-        if ((doc.mime_type || '').startsWith('image/')) {
-          return [await imageToDataUrl(url)]
-        } else {
-          return await pdfToImages(url)
-        }
-      }
-
-      const rcImages = []
-      for (const doc of rcDocs) {
-        rcImages.push(...(await processDoc(doc)))
-      }
-      const podImages = []
-      for (const doc of podDocs) {
-        podImages.push(...(await processDoc(doc)))
-      }
-
-      setDocImages({ rc: rcImages, pod: podImages })
+  async function loadInvoice(useCache = true) {
+    if (useCache && invoiceCache[orderId]) {
+      const c = invoiceCache[orderId]
+      setOrder(c.order)
+      setTruck(c.truck)
+      setBroker(c.broker)
+      setStops(c.stops)
+      setDocImages(c.docImages)
       setLoading(false)
+      return
     }
-    load()
-  }, [orderId])
+
+    setLoading(true)
+    const [orderRes, stopsRes, docsRes] = await Promise.all([
+      supabase.from('orders').select('*').eq('id', orderId).single(),
+      supabase.from('order_stops').select('*').eq('order_id', orderId).order('sequence'),
+      supabase.from('order_documents').select('*').eq('order_id', orderId),
+    ])
+    const o = orderRes.data
+    setOrder(o)
+    setStops(stopsRes.data || [])
+
+    let truckData = null
+    let brokerData = null
+    if (o?.truck_id) {
+      const { data } = await supabase.from('trucks').select('*').eq('id', o.truck_id).single()
+      truckData = data
+      setTruck(data)
+    }
+    if (o?.broker_id) {
+      const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
+      brokerData = data
+      setBroker(data)
+    }
+
+    const docs = docsRes.data || []
+    const rcDocs = docs.filter(d => d.doc_type === 'RC')
+    const podDocs = docs.filter(d => d.doc_type === 'POD')
+
+    const processDoc = async (doc) => {
+      const url = getPublicUrl(doc.file_path)
+      if ((doc.mime_type || '').startsWith('image/')) {
+        return [await imageToDataUrl(url)]
+      } else {
+        return await pdfToImages(url)
+      }
+    }
+
+    const rcImages = []
+    for (const doc of rcDocs) {
+      rcImages.push(...(await processDoc(doc)))
+    }
+    const podImages = []
+    for (const doc of podDocs) {
+      podImages.push(...(await processDoc(doc)))
+    }
+
+    const imgs = { rc: rcImages, pod: podImages }
+    setDocImages(imgs)
+
+    // Cache result
+    invoiceCache[orderId] = { order: o, truck: truckData, broker: brokerData, stops: stopsRes.data || [], docImages: imgs }
+    setLoading(false)
+  }
+
+  async function handleRegenerate() {
+    setRegenerating(true)
+    delete invoiceCache[orderId]
+    await loadInvoice(false)
+    setRegenerating(false)
+    toast.success('Invoice regenerado')
+  }
+
+  useEffect(() => { loadInvoice() }, [orderId])
 
   function getPublicUrl(filePath) {
     const { data } = supabase.storage.from('order-docs').getPublicUrl(filePath)
@@ -302,6 +332,16 @@ export default function OrderInvoice({ orderId, onClose }) {
           <span className="text-sm text-gray-300 font-medium">Invoice Preview</span>
           <div className="flex gap-2">
             <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <svg className={`w-3.5 h-3.5 ${regenerating ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+              </svg>
+              Regenerar
+            </button>
+            <button
               onClick={() => setShowEmailConfirm(true)}
               disabled={sendingEmail}
               className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
@@ -334,7 +374,7 @@ export default function OrderInvoice({ orderId, onClose }) {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
               <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.5px' }}>INVOICE</h1>
-              <img src="/logo-invoice.png" alt="ETG Moving Services" style={{ width: '80px', height: '80px', borderRadius: '50%' }} />
+              <img src={localStorage.getItem('invoice_logo') || '/logo-invoice.png'} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
             </div>
 
             {/* Invoice info */}

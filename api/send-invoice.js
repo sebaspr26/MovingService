@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { to, subject, html, pdfBase64, fileName } = req.body
+  const { to, cc, subject, html, pdfBase64, fileName } = req.body
 
   if (!to || !subject) {
     return res.status(400).json({ error: 'Missing required fields: to, subject' })
@@ -19,6 +19,10 @@ export default async function handler(req, res) {
       to: Array.isArray(to) ? to : [to],
       subject,
       html: html || '<p>Please find the attached invoice.</p>',
+    }
+
+    if (cc && cc.length > 0) {
+      emailOptions.cc = Array.isArray(cc) ? cc : [cc]
     }
 
     if (pdfBase64) {

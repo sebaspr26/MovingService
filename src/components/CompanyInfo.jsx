@@ -203,7 +203,12 @@ function SectionBilling() {
   const [billing, setBilling] = useState(savedBilling)
   const [remit, setRemit] = useState(savedRemit)
 
-  const isDirty = JSON.stringify(billing) !== JSON.stringify(savedBilling) || JSON.stringify(remit) !== JSON.stringify(savedRemit)
+  const [logoPreview, setLogoPreview] = useState(() => localStorage.getItem('invoice_logo') || null)
+  const [logoChanged, setLogoChanged] = useState(false)
+  const [logoFullscreen, setLogoFullscreen] = useState(false)
+  const logoRef = useRef()
+
+  const isDirty = JSON.stringify(billing) !== JSON.stringify(savedBilling) || JSON.stringify(remit) !== JSON.stringify(savedRemit) || logoChanged
 
   const updateB = (field, value) => setBilling(prev => ({ ...prev, [field]: value }))
   const updateR = (field, value) => setRemit(prev => ({ ...prev, [field]: value }))
@@ -213,6 +218,7 @@ function SectionBilling() {
     localStorage.setItem('remit_info', JSON.stringify(remit))
     setSavedBilling(billing)
     setSavedRemit(remit)
+    setLogoChanged(false)
     toast.success('Billing guardado')
   }
 
@@ -241,6 +247,37 @@ function SectionBilling() {
           </svg>
           Guardar
         </button>
+      </div>
+
+      {/* Logo */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setLogoFullscreen(true)} className="w-12 h-12 rounded-full border-2 border-gray-700 overflow-hidden bg-gray-800 shrink-0 cursor-pointer hover:border-blue-500 transition-colors" title="Ver grande">
+            <img src={logoPreview || '/logo-invoice.png'} alt="Logo" className="w-full h-full object-cover" />
+          </button>
+          <div>
+            <h3 className="text-sm font-medium text-gray-400">Logo Invoice</h3>
+            <p className="text-[10px] text-gray-600">Click para ver grande</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => logoRef.current?.click()} className="px-3 py-1.5 bg-blue-600/20 border border-blue-600/50 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+            Cambiar
+          </button>
+          {logoPreview && (
+            <button onClick={() => { setLogoPreview(null); localStorage.removeItem('invoice_logo'); setLogoChanged(true) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors">
+              Reset
+            </button>
+          )}
+        </div>
+        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+          const file = e.target.files[0]
+          if (!file) return
+          const reader = new FileReader()
+          reader.onloadend = () => { setLogoPreview(reader.result); localStorage.setItem('invoice_logo', reader.result); setLogoChanged(true); toast.success('Logo actualizado') }
+          reader.readAsDataURL(file)
+          e.target.value = ''
+        }} />
       </div>
 
       {/* Billing Form */}
@@ -313,6 +350,19 @@ function SectionBilling() {
         </div>
       </div>
 
+      {/* Logo fullscreen preview */}
+      {logoFullscreen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8" onClick={() => setLogoFullscreen(false)}>
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <img src={logoPreview || '/logo-invoice.png'} alt="Logo" className="max-w-md max-h-[70vh] rounded-xl border border-gray-700 shadow-2xl" />
+            <button onClick={() => setLogoFullscreen(false)} className="absolute -top-3 -right-3 w-7 h-7 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
