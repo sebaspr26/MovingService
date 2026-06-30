@@ -1,6 +1,116 @@
 @import "tailwindcss";
 
-/* Custom scrollbar - blue theme */
+/* ========================
+   LIGHT MODE — gray inversion
+   ======================== */
+html.light {
+  /* Gray palette inversion */
+  --color-gray-50: #111827;
+  --color-gray-100: #1f2937;
+  --color-gray-200: #374151;
+  --color-gray-300: #4b5563;
+  --color-gray-400: #6b7280;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #9ca3af;
+  --color-gray-700: #d1d5db;
+  --color-gray-800: #e5e7eb;
+  --color-gray-900: #f3f4f6;
+  --color-gray-950: #ffffff;
+
+  /* text-white → dark for headings on light bg */
+  --color-white: #111827;
+
+  /* Accent text: darken 400 shades for contrast on light bg */
+  --color-blue-400: #2563eb;     /* blue-600 */
+  --color-green-400: #16a34a;    /* green-600 */
+  --color-red-400: #dc2626;      /* red-600 */
+  --color-emerald-400: #059669;  /* emerald-600 */
+  --color-yellow-400: #ca8a04;   /* yellow-600 */
+  --color-orange-400: #ea580c;   /* orange-600 */
+  --color-cyan-400: #0891b2;     /* cyan-600 */
+  --color-purple-400: #9333ea;   /* purple-600 */
+
+  /* Badge/tint backgrounds: lighten 900 shades */
+  --color-blue-900: #dbeafe;     /* blue-100 */
+  --color-green-900: #dcfce7;    /* green-100 */
+  --color-red-900: #fee2e2;      /* red-100 */
+  --color-emerald-900: #d1fae5;  /* emerald-100 */
+  --color-yellow-900: #fef9c3;   /* yellow-100 */
+  --color-orange-900: #ffedd5;   /* orange-100 */
+  --color-cyan-900: #cffafe;     /* cyan-100 */
+  --color-purple-900: #f3e8ff;   /* purple-100 */
+
+  /* Badge/tint borders: lighten 700 shades */
+  --color-blue-700: #93c5fd;     /* blue-300 */
+  --color-green-700: #86efac;    /* green-300 */
+  --color-red-700: #fca5a5;      /* red-300 */
+  --color-emerald-700: #6ee7b7;  /* emerald-300 */
+  --color-orange-700: #fdba74;   /* orange-300 */
+  --color-cyan-700: #67e8f9;     /* cyan-300 */
+  --color-purple-700: #d8b4fe;   /* purple-300 */
+
+  /* Border 800 shades used in accent borders */
+  --color-blue-800: #bfdbfe;     /* blue-200 */
+  --color-green-800: #bbf7d0;    /* green-200 */
+  --color-red-800: #fecaca;      /* red-200 */
+  --color-emerald-800: #a7f3d0;  /* emerald-200 */
+  --color-orange-800: #fed7aa;   /* orange-200 */
+  --color-cyan-800: #a5f3fc;     /* cyan-200 */
+  --color-purple-800: #e9d5ff;   /* purple-200 */
+
+  /* Text 300 shades: darken for light bg */
+  --color-blue-300: #1d4ed8;     /* blue-700 */
+  --color-green-300: #15803d;    /* green-700 */
+  --color-red-300: #b91c1c;      /* red-700 */
+  --color-emerald-300: #047857;  /* emerald-700 */
+  --color-orange-300: #c2410c;   /* orange-700 */
+  --color-cyan-300: #0e7490;     /* cyan-700 */
+  --color-purple-300: #7e22ce;   /* purple-700 */
+
+  /* Tint button bg 600 shades stay same for solid, opacity handles the rest */
+
+  color-scheme: light;
+}
+
+/* Keep actual white text on solid colored buttons */
+html.light :is(
+  .bg-blue-600, .bg-blue-500, .bg-blue-700,
+  .bg-red-600, .bg-red-500,
+  .bg-green-600, .bg-green-500,
+  .bg-emerald-600, .bg-emerald-500
+) {
+  --color-white: #ffffff;
+}
+
+/* Scrollbar adapts to theme */
+html.light {
+  scrollbar-color: #93c5fd #e5e7eb;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #93c5fd;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa;
+}
+
+html.light ::-webkit-scrollbar-corner {
+  background: #e5e7eb;
+}
+
+/* Modal overlay stays dark in both modes */
+html.light .bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ========================
+   DARK MODE (default)
+   ======================== */
 * {
   scrollbar-width: thin;
   scrollbar-color: #3b82f6 #1f2937;
