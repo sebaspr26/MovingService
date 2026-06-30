@@ -174,7 +174,7 @@ export default function OrderInvoice({ orderId, onClose }) {
 
   async function handleSendEmail() {
     const toEmail = remitInfo.remit_email || ''
-    const ccEmails = [billingInfo.billing_email, broker?.email || 'sapr262004@gmail.com'].filter(Boolean)
+    const ccEmails = [billingInfo.billing_email, 'sapr262004@gmail.com'].filter(Boolean)
 
     if (!toEmail) {
       toast.warning('Configura el email del Remit To en Compania > Billing Information')
@@ -526,7 +526,7 @@ export default function OrderInvoice({ orderId, onClose }) {
                 <hr className="border-gray-700" />
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase font-semibold">Bill To (CC)</p>
-                  <p className="text-gray-200">{broker?.email || 'sapr262004@gmail.com'}</p>
+                  <p className="text-gray-200">sapr262004@gmail.com</p>
                 </div>
               </div>
               <p className="text-[10px] text-gray-600">Invoice #{order?.order_number} — incluye RC y POD adjuntos</p>
