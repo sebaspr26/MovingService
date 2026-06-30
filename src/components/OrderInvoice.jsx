@@ -75,6 +75,7 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [docImages, setDocImages] = useState({ rc: [], pod: [] })
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
+  const [emailToggles, setEmailToggles] = useState({ remit: true, billFrom: true, billTo: true })
   const [regenerating, setRegenerating] = useState(false)
   const toast = useToast()
   const printRef = useRef()
@@ -203,11 +204,19 @@ export default function OrderInvoice({ orderId, onClose }) {
   }
 
   async function handleSendEmail() {
-    const toEmail = remitInfo.remit_email || ''
-    const ccEmails = [billingInfo.billing_email, 'sapr262004@gmail.com'].filter(Boolean)
+    const remitEmail = remitInfo.remit_email || ''
+    const billFromEmail = billingInfo.billing_email || ''
+    const billToEmail = broker?.email || ''
 
-    if (!toEmail) {
-      toast.warning('Configura el email del Remit To en Compania > Billing Information')
+    // Build recipients based on toggles
+    const toList = []
+    const ccList = []
+    if (emailToggles.remit && remitEmail) toList.push(remitEmail)
+    if (emailToggles.billFrom && billFromEmail) ccList.push(billFromEmail)
+    if (emailToggles.billTo && billToEmail) ccList.push(billToEmail)
+
+    if (toList.length === 0) {
+      toast.warning('No hay destinatario principal. Configura el email del Remit To en Compania > Billing Information')
       return
     }
 
@@ -238,8 +247,8 @@ export default function OrderInvoice({ orderId, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: [toEmail],
-          cc: ccEmails,
+          to: toList,
+          cc: ccList,
           subject: `Invoice #${order.order_number} — ${companyName}`,
           html: `
             <div style="font-family: Arial, sans-serif; color: #333; font-size: 14px; line-height: 1.6;">
@@ -264,7 +273,7 @@ export default function OrderInvoice({ orderId, onClose }) {
         throw new Error(`Server error (${res.status}): ${res.statusText}`)
       }
       if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
-      toast.success(`Invoice enviado a ${toEmail} (CC: ${ccEmails.join(', ')})`)
+      toast.success(`Invoice enviado a ${toList.join(', ')}${ccList.length ? ` (CC: ${ccList.join(', ')})` : ''}`)
     } catch (err) {
       console.error('Send email error:', err)
       toast.error('Error enviando email: ' + (err.message || String(err)))
@@ -326,7 +335,7 @@ export default function OrderInvoice({ orderId, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4 overflow-auto">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[95vh] overflow-auto shadow-2xl">
+      <div style={{ backgroundColor: '#ffffff' }} className="rounded-xl w-full max-w-3xl max-h-[95vh] overflow-auto shadow-2xl">
         {/* Toolbar */}
         <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between rounded-t-xl z-10">
           <span className="text-sm text-gray-300 font-medium">Invoice Preview</span>
@@ -542,59 +551,78 @@ export default function OrderInvoice({ orderId, onClose }) {
       </div>
 
       {/* Email confirmation modal */}
-      {showEmailConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm shadow-2xl space-y-4">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-              </svg>
-              <h3 className="text-sm font-semibold text-white">Confirmar envio</h3>
-            </div>
+      {showEmailConfirm && (() => {
+        const remitEmail = remitInfo.remit_email || ''
+        const billFromEmail = billingInfo.billing_email || ''
+        const billToEmail = broker?.email || ''
+        const hasAnyTo = emailToggles.remit && remitEmail
 
-            <div className="space-y-3 text-sm">
-              <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase font-semibold">Remit To (destinatario)</p>
-                  <p className="text-gray-200">{remitInfo.remit_email || <span className="text-red-400 text-xs">Sin email configurado</span>}</p>
-                </div>
-                <hr className="border-gray-700" />
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase font-semibold">Bill From (CC)</p>
-                  <p className="text-gray-200">{billingInfo.billing_email || <span className="text-gray-600 text-xs">Sin email</span>}</p>
-                </div>
-                <hr className="border-gray-700" />
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase font-semibold">Bill To (CC)</p>
-                  <p className="text-gray-200">sapr262004@gmail.com</p>
-                </div>
+        const EmailRow = ({ label, type, email, tag }) => (
+          <div className="flex items-center justify-between py-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-gray-500 uppercase font-semibold">{label}</p>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-blue-900/40 text-blue-400'}`}>{tag}</span>
               </div>
-              <p className="text-[10px] text-gray-600">Invoice #{order?.order_number} — incluye RC y POD adjuntos</p>
+              {email ? (
+                <p className={`text-sm ${emailToggles[type] ? 'text-gray-200' : 'text-gray-600 line-through'}`}>{email}</p>
+              ) : (
+                <p className="text-xs text-gray-600">Sin email</p>
+              )}
             </div>
-
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowEmailConfirm(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
-                Cancelar
-              </button>
+            {email && (
               <button
-                onClick={() => { setShowEmailConfirm(false); handleSendEmail() }}
-                disabled={sendingEmail || !remitInfo.remit_email}
-                className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                onClick={() => setEmailToggles(prev => ({ ...prev, [type]: !prev[type] }))}
+                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${emailToggles[type] ? 'bg-emerald-600' : 'bg-gray-700'}`}
               >
-                {sendingEmail ? (
-                  <>
-                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Enviando...
-                  </>
-                ) : 'Confirmar y Enviar'}
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${emailToggles[type] ? 'left-[18px]' : 'left-0.5'}`} />
               </button>
+            )}
+          </div>
+        )
+
+        return (
+          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+                <h3 className="text-sm font-semibold text-white">Confirmar envio</h3>
+              </div>
+
+              <div className="bg-gray-800/50 rounded-lg px-3 divide-y divide-gray-700/50">
+                <EmailRow label="Remit To" type="remit" email={remitEmail} tag="To" />
+                <EmailRow label="Bill From" type="billFrom" email={billFromEmail} tag="CC" />
+                <EmailRow label="Bill To (Broker)" type="billTo" email={billToEmail} tag="CC" />
+              </div>
+
+              <p className="text-[10px] text-gray-600">Invoice #{order?.order_number} — incluye RC y POD adjuntos</p>
+
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowEmailConfirm(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { setShowEmailConfirm(false); handleSendEmail() }}
+                  disabled={sendingEmail || !hasAnyTo}
+                  className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {sendingEmail ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Enviando...
+                    </>
+                  ) : 'Confirmar y Enviar'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
