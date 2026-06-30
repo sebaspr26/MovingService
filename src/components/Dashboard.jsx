@@ -63,6 +63,8 @@ export default function Dashboard() {
 
   const [truckName, setTruckName] = useState('')
   const [truckNumber, setTruckNumber] = useState('')
+  const [truckDriverId, setTruckDriverId] = useState('')
+  const [drivers, setDrivers] = useState([])
   const [truckPartners, setTruckPartners] = useState([{ name: '', percentage: '' }])
   const [truckCajaInicial, setTruckCajaInicial] = useState('')
   const [truckDiscount, setTruckDiscount] = useState('13')
@@ -74,7 +76,12 @@ export default function Dashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  useEffect(() => { fetchTrucks() }, [])
+  useEffect(() => { fetchTrucks(); fetchDrivers() }, [])
+
+  async function fetchDrivers() {
+    const { data } = await supabase.from('drivers').select('id, name, truck_id, status').order('name')
+    setDrivers(data || [])
+  }
 
   async function fetchTrucks() {
     const { data } = await supabase.from('trucks').select('*').order('number')
@@ -165,6 +172,9 @@ export default function Dashboard() {
         setTruckDiscount('custom')
         setTruckDiscountCustom(String(truck.discount_percent || ''))
       }
+      // Find driver assigned to this truck
+      const assignedDriver = drivers.find(d => d.truck_id === truck.id)
+      setTruckDriverId(assignedDriver?.id || '')
       supabase.from('partners').select('*').eq('truck_id', truck.id).order('created_at')
         .then(({ data }) => {
           setTruckPartners(data && data.length > 0 ? data.map(p => ({ name: p.name, percentage: String(p.percentage) })) : [{ name: '', percentage: '' }])
@@ -173,6 +183,7 @@ export default function Dashboard() {
       setEditingTruck(null)
       setTruckName('')
       setTruckNumber('')
+      setTruckDriverId('')
       setTruckPartners([{ name: '', percentage: '' }])
       setTruckDiscount('13')
       setTruckDiscountCustom('')
@@ -215,6 +226,12 @@ export default function Dashboard() {
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
+      // Update driver assignment: unassign previous, assign new
+      await supabase.from('drivers').update({ truck_id: null }).eq('truck_id', editingTruck.id)
+      if (truckDriverId) {
+        await supabase.from('drivers').update({ truck_id: editingTruck.id }).eq('id', truckDriverId)
+      }
+
       await supabase.from('partners').delete().eq('truck_id', editingTruck.id)
       if (validPartners.length > 0) {
         await supabase.from('partners').insert(
@@ -232,6 +249,11 @@ export default function Dashboard() {
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
+
+      // Assign driver to new truck
+      if (truckDriverId) {
+        await supabase.from('drivers').update({ truck_id: truck.id }).eq('id', truckDriverId)
+      }
 
       if (validPartners.length > 0) {
         await supabase.from('partners').insert(
@@ -254,6 +276,7 @@ export default function Dashboard() {
     toast.success(editingTruck ? 'Camion actualizado' : 'Camion creado')
     setEditingTruck(null)
     await fetchTrucks()
+    await fetchDrivers()
   }
 
   async function handleDeleteTruck() {
@@ -433,12 +456,13 @@ export default function Dashboard() {
             const s = summaries[truck.id] || {}
             const displayCycle = truckCycles[truck.id]
             const isActive = displayCycle && !displayCycle.closed
+            const assignedDriver = drivers.find(d => d.truck_id === truck.id)
             return (
               <div key={truck.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors group">
                 <div className="flex items-start justify-between mb-4">
                   <Link to={`/truck/${truck.id}`} className="flex-1">
                     <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
-                    <p className="text-xs text-gray-500">#{truck.number} · Conductor</p>
+                    <p className="text-xs text-gray-500">#{truck.number}{assignedDriver ? ` · ${assignedDriver.name}` : ''}</p>
                   </Link>
                   <div className="flex gap-1">
                     <button onClick={() => openTruckModal(truck)}
@@ -609,7 +633,7 @@ export default function Dashboard() {
             <form onSubmit={handleSaveTruck} className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Conductor</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Nombre Truck</label>
                   <input
                     type="text"
                     value={truckName}
@@ -630,6 +654,23 @@ export default function Dashboard() {
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Chofer Asignado</label>
+                <select
+                  value={truckDriverId}
+                  onChange={(e) => setTruckDriverId(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Sin asignar</option>
+                  {drivers
+                    .filter(d => d.status === 'active')
+                    .filter(d => !d.truck_id || d.truck_id === editingTruck?.id)
+                    .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                  }
+                </select>
+                <p className="text-[10px] text-gray-600 mt-1">Los choferes se crean en Compania → Choferes</p>
               </div>
 
               <div>
