@@ -157,7 +157,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       setRefNumber(o.ref_number || '')
       setRate(o.rate ?? '')
       setApplyDiscount(o.apply_discount !== false)
-      setDiscountPercent(o.discount_percent || 13)
+      setDiscountPercent(o.discount_percent ?? 13)
       setMiles(o.miles ?? '')
       setDeadMiles(o.dead_miles ?? '')
       setInvoiceNotes(o.invoice_notes || '')
@@ -524,7 +524,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       let orderId = id
       if (isNew) {
         const truck = trucks.find(t => t.id === truckId)
-        record.discount_percent = truck?.discount_percent || 13
+        record.discount_percent = truck?.discount_percent ?? 13
 
         const { data: existing } = await supabase.from('orders').select('id')
           .eq('truck_id', truckId).eq('order_number', record.order_number).limit(1)
@@ -871,7 +871,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     }
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
-                    if (t && isNew) setDiscountPercent(t.discount_percent || 13)
+                    if (t) setDiscountPercent(t.discount_percent || 13)
                     // Auto-fill driver name from truck
                     if (t) setDriverName(t.name || '')
                     // Auto-advance: booked → assigned when truck is selected
