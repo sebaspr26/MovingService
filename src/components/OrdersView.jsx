@@ -432,6 +432,7 @@ export default function OrdersView() {
           <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
           <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
           <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
+          {(() => { const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0); const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0); return tMi > 0 ? <span className="text-cyan-400"><span className="text-gray-600 mr-1">RPM</span> ${(tRate / tMi).toFixed(2)}</span> : null })()}
         </div>
       )}
 

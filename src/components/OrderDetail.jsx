@@ -94,6 +94,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [rcFile, setRcFile] = useState(null)
   const [rcPreviewUrl, setRcPreviewUrl] = useState(null)
   const rcFileRef = useRef()
+  const [rcDragging, setRcDragging] = useState(false)
+  const rcDragCounter = useRef(0)
 
   // Order documents tracking
   const [orderDocs, setOrderDocs] = useState([])
@@ -1545,16 +1547,26 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               </div>
 
               {!rcPreviewUrl ? (
-                <div className="p-4">
+                <div
+                  className="p-4"
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); rcDragCounter.current++; setRcDragging(true) }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); rcDragCounter.current--; if (rcDragCounter.current === 0) setRcDragging(false) }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); rcDragCounter.current = 0; setRcDragging(false); const f = e.dataTransfer.files[0]; if (f) handleRcFile(f) }}
+                >
                   <button
                     onClick={() => rcFileRef.current?.click()}
-                    className="w-full py-8 border-2 border-dashed border-gray-700 rounded-lg flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors"
+                    className={`w-full py-8 border-2 border-dashed rounded-lg flex flex-col items-center gap-2 transition-colors ${
+                      rcDragging
+                        ? 'border-blue-500 bg-blue-600/10 text-blue-300'
+                        : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500'
+                    }`}
                   >
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                     </svg>
-                    <span className="text-xs font-medium">Subir Rate Confirmation</span>
-                    <span className="text-[10px] text-gray-600">Imagen o PDF</span>
+                    <span className="text-xs font-medium">{rcDragging ? 'Soltar archivo aqui' : 'Subir Rate Confirmation'}</span>
+                    <span className="text-[10px] text-gray-600">Arrastra o haz click — Imagen o PDF</span>
                   </button>
                   <input
                     ref={rcFileRef}
