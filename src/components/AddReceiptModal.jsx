@@ -10,7 +10,7 @@ const EXPENSE_CATEGORIES = [
 
 const EMPTY_LINE = { type: 'diesel', gallons: '', value: '', category: '', description: '', amount: '' }
 
-export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, period, editRow, truckOptions, truckCycles }) {
+export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, period, cycle, editRow, truckOptions, truckCycles }) {
   const toast = useToast()
   const [selectedTruck, setSelectedTruck] = useState('')
   const [invoice, setInvoice] = useState('')
@@ -26,12 +26,14 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
   // If truckOptions provided, user must select truck (Dashboard mode)
   const isDashboard = !!truckOptions
   const effectiveTruckId = isDashboard ? selectedTruck : truckId
+  const effectiveCycle = isDashboard ? truckCycles?.[selectedTruck] : cycle
+  const effectiveCycleId = effectiveCycle?.id || null
   const effectivePeriod = isDashboard
     ? (() => {
-        const cycle = truckCycles?.[selectedTruck]
-        if (!cycle) return null
+        const c = truckCycles?.[selectedTruck]
+        if (!c) return null
         const today = new Date().toISOString().split('T')[0]
-        return { start: cycle.start_date, end: cycle.end_date || today }
+        return { start: c.start_date, end: c.end_date || today }
       })()
     : period
 
@@ -150,6 +152,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
             description: line.description,
             amount: Number(line.amount) || 0,
             truck_id: tid,
+            cycle_id: effectiveCycleId,
             period_start: pStart,
             period_end: pEnd,
           }
@@ -161,6 +164,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
             gallons: Number(line.gallons) || 0,
             value: Number(line.value) || 0,
             truck_id: tid,
+            cycle_id: effectiveCycleId,
             period_start: pStart,
             period_end: pEnd,
           }
@@ -192,6 +196,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
               gallons: Number(line.gallons) || 0,
               value: Number(line.value) || 0,
               truck_id: tid,
+              cycle_id: effectiveCycleId,
               period_start: pStart,
               period_end: pEnd,
             })
@@ -204,6 +209,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
               amount: Number(line.amount) || 0,
               date,
               truck_id: tid,
+              cycle_id: effectiveCycleId,
               period_start: pStart,
               period_end: pEnd,
             })

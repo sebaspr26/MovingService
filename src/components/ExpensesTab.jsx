@@ -13,7 +13,7 @@ const FILTERS = [
   { key: 'expense', label: 'Otros Gastos' },
 ]
 
-export default function ExpensesTab({ truckId, period, onDataChange, readOnly }) {
+export default function ExpensesTab({ truckId, period, cycle, onDataChange, readOnly }) {
   const toast = useToast()
   const [filter, setFilter] = useState('all')
   const [dieselRows, setDieselRows] = useState([])
@@ -25,21 +25,27 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
   const [showSearch, setShowSearch] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  useEffect(() => { fetchAll() }, [truckId, period])
+  useEffect(() => { fetchAll() }, [truckId, cycle?.id, period])
   useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchAll() {
+    if (!cycle?.id) return
     const [diesel, def, expenses] = await Promise.all([
       supabase.from('diesel').select('*').eq('truck_id', truckId)
-        .gte('date', period.start).lte('date', period.end).order('date'),
+        .eq('cycle_id', cycle.id).order('date'),
       supabase.from('def').select('*').eq('truck_id', truckId)
-        .gte('date', period.start).lte('date', period.end).order('date'),
+        .eq('cycle_id', cycle.id).order('date'),
       supabase.from('expenses').select('*').eq('truck_id', truckId)
-        .gte('date', period.start).lte('date', period.end).order('date'),
+        .eq('cycle_id', cycle.id).order('date'),
     ])
-    setDieselRows(diesel.data || [])
-    setDefRows(def.data || [])
-    setExpenseRows(expenses.data || [])
+    // Sub-filter by week if a week is selected
+    const weekFilter = (arr) => {
+      if (period.start === cycle.start_date) return arr
+      return (arr || []).filter(r => r.date >= period.start && r.date <= period.end)
+    }
+    setDieselRows(weekFilter(diesel.data || []))
+    setDefRows(weekFilter(def.data || []))
+    setExpenseRows(weekFilter(expenses.data || []))
   }
 
   // Normalize all rows into common format
@@ -253,6 +259,7 @@ export default function ExpensesTab({ truckId, period, onDataChange, readOnly })
         onSaved={handleSaved}
         truckId={truckId}
         period={period}
+        cycle={cycle}
         editRow={editRow}
       />
     </div>

@@ -13,7 +13,7 @@ const fields = [
 
 const PAGE_SIZE = 5
 
-export default function AccountingTable({ truckId, period, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
+export default function AccountingTable({ truckId, period, cycle, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -22,16 +22,20 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
   const [showSearch, setShowSearch] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  useEffect(() => { fetchRows() }, [truckId, period])
+  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
   useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
+    if (!cycle?.id) return
     const { data } = await supabase.from('accounting').select('*')
       .eq('truck_id', truckId)
-      .gte('date', period.start)
-      .lte('date', period.end)
+      .eq('cycle_id', cycle.id)
       .order('date')
-    setRows(data || [])
+    let filtered = data || []
+    if (period.start !== cycle.start_date) {
+      filtered = filtered.filter(r => r.date >= period.start && r.date <= period.end)
+    }
+    setRows(filtered)
   }
 
   async function handleSave(data) {
@@ -43,6 +47,7 @@ export default function AccountingTable({ truckId, period, onDataChange, netInco
         debit: data.debit !== '' && data.debit !== null && data.debit !== undefined ? Number(data.debit) : null,
         credit: data.credit !== '' && data.credit !== null && data.credit !== undefined ? Number(data.credit) : null,
         truck_id: truckId,
+        cycle_id: cycle?.id || null,
         period_start: period.start,
         period_end: period.end,
       }

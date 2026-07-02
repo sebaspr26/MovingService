@@ -61,18 +61,20 @@ supabase/
   009_order_status_invoiced.sql - Status 'invoiced' + truck_id nullable
   010_driver_pay_enhanced_stops.sql - Enhanced stops (location_name, ref_number) + commodity/weight/special_instructions en orders
   011_company_info.sql     - Drivers, driver_documents, truck_documents, trailers, trailer_documents
+  012_cycle_id.sql         - cycle_id FK en orders/diesel/def/expenses/accounting (desacopla de filtro por fechas)
 ```
 
 ## Database Tables (Supabase)
 - `trucks` (id, name, number, discount_percent [default 13])
-- `orders` (id, truck_id [nullable], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
+- `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email)
 - `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, ref_number, sequence, notes)
 - `order_documents` (id, order_id FK CASCADE, doc_type [RC/BOL/POD], file_name, file_path, file_size, mime_type)
 - `driver_pay_items` (id, order_id FK CASCADE, pay_item, units_type, units, rate, total)
-- `diesel` (id, truck_id, invoice_number, date, city, gallons, value, period_start, period_end)
-- `expenses` (id, truck_id, category, invoice_number, description, amount, date, period_start, period_end)
-- `accounting` (id, truck_id, description, reference, date, debit, credit, period_start, period_end)
+- `diesel` (id, truck_id, cycle_id [nullable FK→cycles], invoice_number, date, city, gallons, value, period_start, period_end)
+- `def` (id, truck_id, cycle_id [nullable FK→cycles], invoice_number, date, city, gallons, value, period_start, period_end)
+- `expenses` (id, truck_id, cycle_id [nullable FK→cycles], category, invoice_number, description, amount, date, period_start, period_end)
+- `accounting` (id, truck_id, cycle_id [nullable FK→cycles], description, reference, date, debit, credit, period_start, period_end)
 - `cycles` (id, truck_id, start_date, end_date, previous_balance, cuadre_caja, closed, closed_at)
 - `partners` (id, truck_id, name, percentage, invested)
 - `drivers` (id, name, phone, email, license_number, license_state, license_expiry, medical_card_expiry, truck_id FK nullable, status [active/inactive])

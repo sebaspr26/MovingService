@@ -7,7 +7,7 @@ import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 
 const PAGE_SIZE = 5
 
-export default function OrdersTable({ truckId, period, onDataChange, readOnly, discountPct }) {
+export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -29,16 +29,21 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
   const [scanned, setScanned] = useState(false)
   const scanFileRef = useRef()
 
-  useEffect(() => { fetchRows() }, [truckId, period])
+  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
   useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
+    if (!cycle?.id) return
     const { data } = await supabase.from('orders').select('*')
       .eq('truck_id', truckId)
-      .gte('pu_date', period.start)
-      .lte('pu_date', period.end)
+      .eq('cycle_id', cycle.id)
       .order('pu_date')
-    const advanced = await autoAdvanceStatuses(data || [], supabase)
+    // Sub-filter by week if a week is selected (period narrower than full cycle)
+    let filtered = data || []
+    if (period.start !== cycle.start_date) {
+      filtered = filtered.filter(r => r.pu_date >= period.start && r.pu_date <= period.end)
+    }
+    const advanced = await autoAdvanceStatuses(filtered, supabase)
     setRows(advanced)
   }
 
@@ -116,6 +121,7 @@ export default function OrdersTable({ truckId, period, onDataChange, readOnly, d
         rate: fRate !== '' ? Number(fRate) : null,
         apply_discount: fApplyDiscount,
         truck_id: truckId,
+        cycle_id: cycle?.id || null,
         period_start: period.start,
         period_end: period.end,
       }

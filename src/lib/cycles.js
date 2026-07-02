@@ -104,6 +104,17 @@ export async function closeCycle(cycleId, cuadreCaja, endDate) {
   return data
 }
 
+export async function getActiveCycleId(truckId) {
+  const { data } = await supabase.from('cycles').select('id')
+    .eq('truck_id', truckId)
+    .eq('closed', false)
+    .is('end_date', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data?.id || null
+}
+
 export async function reopenCycle(cycleId) {
   const { data, error } = await supabase.from('cycles').update({
     closed: false,

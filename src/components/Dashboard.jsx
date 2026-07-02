@@ -102,21 +102,17 @@ export default function Dashboard() {
       cyclesMap[truck.id] = displayCycle
 
       if (displayCycle) {
-        const periodStart = displayCycle.start_date
-        const weeks = computeWeeks(displayCycle.start_date, displayCycle.end_date, displayCycle.closed)
-        const periodEnd = displayCycle.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
-
         const [orders, diesel, def, expenses, accounting] = await Promise.all([
           supabase.from('orders').select('rate, paid, apply_discount, discount_percent').eq('truck_id', truck.id)
-            .gte('pu_date', periodStart).lte('pu_date', periodEnd),
+            .eq('cycle_id', displayCycle.id),
           supabase.from('diesel').select('value').eq('truck_id', truck.id)
-            .gte('date', periodStart).lte('date', periodEnd),
+            .eq('cycle_id', displayCycle.id),
           supabase.from('def').select('value').eq('truck_id', truck.id)
-            .gte('date', periodStart).lte('date', periodEnd),
+            .eq('cycle_id', displayCycle.id),
           supabase.from('expenses').select('amount').eq('truck_id', truck.id)
-            .gte('date', periodStart).lte('date', periodEnd),
+            .eq('cycle_id', displayCycle.id),
           supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
-            .gte('date', periodStart).lte('date', periodEnd),
+            .eq('cycle_id', displayCycle.id),
         ])
 
         const allOrders = orders.data || []
@@ -322,7 +318,7 @@ export default function Dashboard() {
     const periodStart = cycle.start_date
     const periodEnd = cycle.end_date || today
 
-    const record = { ...rest, truck_id: _truck_select, period_start: periodStart, period_end: periodEnd }
+    const record = { ...rest, truck_id: _truck_select, cycle_id: cycle.id, period_start: periodStart, period_end: periodEnd }
 
     // Normalizar apply_discount a boolean real para orders y guardar discount_percent
     if (quickAdd === 'order') {

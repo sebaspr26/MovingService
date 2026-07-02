@@ -8,9 +8,15 @@ export async function geocode(query) {
   if (!query || !query.trim()) return null
   const url = `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(query)}&in=countryCode:USA&apiKey=${API_KEY}`
   const res = await fetch(url)
-  if (!res.ok) return null
+  if (!res.ok) {
+    console.warn(`[HERE Geocode] HTTP ${res.status} for "${query}"`)
+    return null
+  }
   const data = await res.json()
-  if (!data.items || data.items.length === 0) return null
+  if (!data.items || data.items.length === 0) {
+    console.warn(`[HERE Geocode] No results for "${query}"`)
+    return null
+  }
   const pos = data.items[0].position
   return { lat: pos.lat, lng: pos.lng, label: data.items[0].address?.label || query }
 }
@@ -30,7 +36,10 @@ export async function calculateTruckRoute(origin, destination) {
 
   const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&return=summary,polyline&apiKey=${API_KEY}`
   const res = await fetch(url)
-  if (!res.ok) return null
+  if (!res.ok) {
+    console.warn(`[HERE TruckRoute] HTTP ${res.status}`)
+    return null
+  }
   const data = await res.json()
 
   if (!data.routes || data.routes.length === 0) return null
@@ -64,7 +73,11 @@ export async function calculateMultiStopRoute(stops) {
 
   // Geocode all
   const coords = await Promise.all(locations.map(l => geocode(l)))
-  if (coords.some(c => !c)) return null
+  const failedIdx = coords.findIndex(c => !c)
+  if (failedIdx !== -1) {
+    console.warn(`[HERE Route] Geocode failed for stop ${failedIdx + 1}: "${locations[failedIdx]}"`)
+    return null
+  }
 
   // Build route request with via points
   const origin = `${coords[0].lat},${coords[0].lng}`
@@ -73,10 +86,17 @@ export async function calculateMultiStopRoute(stops) {
 
   const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&apiKey=${API_KEY}`
   const res = await fetch(url)
-  if (!res.ok) return null
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    console.warn(`[HERE MultiRoute] HTTP ${res.status}: ${errText}`)
+    return null
+  }
   const data = await res.json()
 
-  if (!data.routes || data.routes.length === 0) return null
+  if (!data.routes || data.routes.length === 0) {
+    console.warn('[HERE MultiRoute] No routes returned', data)
+    return null
+  }
   const route = data.routes[0]
 
   const legs = route.sections.map((s, i) => ({

@@ -58,6 +58,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [doCity, setDoCity] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
+  const [cycleId, setCycleId] = useState(null)
 
   const [commodity, setCommodity] = useState('')
   const [weight, setWeight] = useState('')
@@ -164,6 +165,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       setDoCity(o.do_city || '')
       setPeriodStart(o.period_start || '')
       setPeriodEnd(o.period_end || '')
+      setCycleId(o.cycle_id || null)
       setCommodity(o.commodity || '')
       setWeight(o.weight ?? '')
       setSpecialInstructions(o.special_instructions || '')
@@ -488,6 +490,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
         order_number: orderNumber.trim(),
         truck_id: truckId || null,
         broker_id: brokerId || null,
+        cycle_id: cycleId || null,
         status,
         equipment_type: equipmentType || null,
         load_type: loadType || null,
@@ -845,13 +848,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   onChange={async (e) => {
                     const val = e.target.value
                     if (val) {
-                      // Check active cycle
-                      const cycle = await getActiveCycle(val)
-                      if (!cycle) {
+                      // Check active cycle and auto-assign cycle_id
+                      const activeCycle = await getActiveCycle(val)
+                      if (!activeCycle) {
                         const t = trucks.find(x => x.id === val)
                         toast.warning(`El truck ${t?.number || ''} no tiene un ciclo activo. Abre un ciclo primero.`)
                         return
                       }
+                      setCycleId(activeCycle.id)
+                    } else {
+                      setCycleId(null)
                     }
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)

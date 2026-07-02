@@ -57,24 +57,40 @@ export default function TruckView() {
 
   async function fetchSummary() {
     if (!cycle) return
+
+    // If viewing a specific week, filter by cycle_id then sub-filter in JS
+    const useWeekFilter = !!selectedWeek
     const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
-      supabase.from('orders').select('rate, apply_discount, discount_percent').eq('truck_id', id)
+      supabase.from('orders').select('rate, apply_discount, discount_percent, pu_date').eq('truck_id', id)
         .eq('paid', true)
-        .gte('pu_date', period.start).lte('pu_date', period.end),
-      supabase.from('orders').select('paid').eq('truck_id', id)
-        .gte('pu_date', period.start).lte('pu_date', period.end),
-      supabase.from('diesel').select('value').eq('truck_id', id)
-        .gte('date', period.start).lte('date', period.end),
-      supabase.from('def').select('value').eq('truck_id', id)
-        .gte('date', period.start).lte('date', period.end),
-      supabase.from('expenses').select('amount, category').eq('truck_id', id)
-        .gte('date', period.start).lte('date', period.end),
-      supabase.from('accounting').select('debit, credit').eq('truck_id', id)
-        .gte('date', period.start).lte('date', period.end),
+        .eq('cycle_id', cycle.id),
+      supabase.from('orders').select('paid, pu_date').eq('truck_id', id)
+        .eq('cycle_id', cycle.id),
+      supabase.from('diesel').select('value, date').eq('truck_id', id)
+        .eq('cycle_id', cycle.id),
+      supabase.from('def').select('value, date').eq('truck_id', id)
+        .eq('cycle_id', cycle.id),
+      supabase.from('expenses').select('amount, category, date').eq('truck_id', id)
+        .eq('cycle_id', cycle.id),
+      supabase.from('accounting').select('debit, credit, date').eq('truck_id', id)
+        .eq('cycle_id', cycle.id),
     ])
+
+    // Sub-filter by week dates if a week is selected
+    const weekFilter = (arr, dateField) => {
+      if (!useWeekFilter) return arr
+      return (arr || []).filter(r => r[dateField] >= period.start && r[dateField] <= period.end)
+    }
+
+    const filteredPaidOrders = weekFilter(paidOrders.data, 'pu_date')
+    const filteredAllOrders = weekFilter(allOrders.data, 'pu_date')
+    const filteredDiesel = weekFilter(diesel.data, 'date')
+    const filteredDef = weekFilter(def.data, 'date')
+    const filteredExpenses = weekFilter(expenses.data, 'date')
+    const filteredAccounting = weekFilter(accounting.data, 'date')
     // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
-    const grossOrders = (paidOrders.data || []).reduce((s, r) => s + (Number(r.rate) || 0), 0)
-    const netIncomeCalc = (paidOrders.data || []).reduce((s, r) => {
+    const grossOrders = filteredPaidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+    const netIncomeCalc = filteredPaidOrders.reduce((s, r) => {
       const rate = Number(r.rate) || 0
       const applyDisc = r.apply_discount !== false
       const pct = Number(r.discount_percent) || discountPct
@@ -84,13 +100,13 @@ export default function TruckView() {
     setSummary({
       grossOrders,
       income: netIncomeCalc,
-      pending: (allOrders.data || []).filter(r => !r.paid).length,
-      diesel: (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
-      def: (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0),
-      chofer: (expenses.data || []).filter(r => r.category === 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
-      expenses: (expenses.data || []).filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
-      debito: (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0),
-      credito: (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0),
+      pending: filteredAllOrders.filter(r => !r.paid).length,
+      diesel: filteredDiesel.reduce((s, r) => s + (Number(r.value) || 0), 0),
+      def: filteredDef.reduce((s, r) => s + (Number(r.value) || 0), 0),
+      chofer: filteredExpenses.filter(r => r.category === 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      expenses: filteredExpenses.filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
+      credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
     })
   }
 
@@ -356,9 +372,9 @@ export default function TruckView() {
 
           {/* Tab content */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
-            {tab === 'orders' && <OrdersTable truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
-            {tab === 'expenses' && <ExpensesTab truckId={id} period={period} onDataChange={fetchSummary} readOnly={readOnly} />}
-            {tab === 'accounting' && <AccountingTable truckId={id} period={period} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
+            {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
+            {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} />}
+            {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
           </div>
 
           {/* Cash Box & Dividends */}
