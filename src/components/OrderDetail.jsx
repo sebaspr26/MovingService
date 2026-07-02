@@ -478,6 +478,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
 
   async function handleSave() {
     if (!orderNumber.trim()) { toast.warning('Orden # es requerido'); return }
+    if (isNew && !dispatcher.trim()) { toast.warning('Dispatcher es requerido'); return }
     // truck_id is optional — no truck = booked status
     if (!rate && rate !== 0) { toast.warning('Rate es requerido'); return }
 

@@ -154,3 +154,19 @@ html.light .bg-black\/60 {
 .toast-slide-in {
   animation: toast-slide-in 0.3s ease-out;
 }
+
+/* DatePicker dropdown animation */
+@keyframes datepicker-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-in {
+  animation: datepicker-in 0.15s ease-out;
+}

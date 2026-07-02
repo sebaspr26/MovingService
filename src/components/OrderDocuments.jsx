@@ -2,6 +2,43 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 
+// pdf.js loader (shared with OrderInvoice)
+let pdfjsPromise = null
+function loadPdfJs() {
+  if (pdfjsPromise) return pdfjsPromise
+  pdfjsPromise = new Promise((resolve, reject) => {
+    if (window.pdfjsLib) { resolve(window.pdfjsLib); return }
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+      resolve(window.pdfjsLib)
+    }
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return pdfjsPromise
+}
+
+async function pdfToImagesProgressive(url, onPage) {
+  try {
+    const pdfjsLib = await loadPdfJs()
+    const pdf = await pdfjsLib.getDocument(url).promise
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const scale = 1.5
+      const viewport = page.getViewport({ scale })
+      const canvas = document.createElement('canvas')
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
+      onPage(canvas.toDataURL('image/png'))
+    }
+  } catch (err) {
+    console.error('PDF render error:', err)
+  }
+}
+
 const DOC_TYPES = [
   { key: 'RC', label: 'RC', full: 'Rate Confirmation', color: 'text-blue-400 bg-blue-900/40 border-blue-700/50' },
   { key: 'BOL', label: 'BOL', full: 'Bill of Lading', color: 'text-emerald-400 bg-emerald-900/40 border-emerald-700/50' },
@@ -17,6 +54,9 @@ export default function OrderDocuments({ orderId }) {
   const [preview, setPreview] = useState(null) // doc being previewed
   const fileRef = useRef()
   const [uploadType, setUploadType] = useState('RC')
+  const [fullscreen, setFullscreen] = useState(null)
+  const [viewerImages, setViewerImages] = useState([])
+  const [viewerLoading, setViewerLoading] = useState(false)
 
   useEffect(() => {
     if (orderId) fetchDocs()
@@ -84,6 +124,25 @@ export default function OrderDocuments({ orderId }) {
 
   const isImage = (mime) => mime && mime.startsWith('image/')
   const isPdf = (mime) => mime === 'application/pdf'
+
+  async function openViewer(doc) {
+    setFullscreen(doc)
+    setViewerImages([])
+    setViewerLoading(true)
+    const url = getPublicUrl(doc.file_path)
+    if (isPdf(doc.mime_type)) {
+      await pdfToImagesProgressive(url, (img) => {
+        setViewerImages(prev => [...prev, img])
+        setViewerLoading(false)
+      })
+      setViewerLoading(false)
+    } else if (isImage(doc.mime_type)) {
+      setViewerImages([url])
+      setViewerLoading(false)
+    } else {
+      setViewerLoading(false)
+    }
+  }
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -184,6 +243,15 @@ export default function OrderDocuments({ orderId }) {
                     <p className="text-[10px] text-gray-500 truncate">{doc.file_name}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openViewer(doc) }}
+                      className="p-1 text-gray-600 hover:text-blue-400 transition-colors"
+                      title="Ver en grande"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                      </svg>
+                    </button>
                     <a
                       href={getPublicUrl(doc.file_path)}
                       target="_blank"
@@ -223,11 +291,18 @@ export default function OrderDocuments({ orderId }) {
               </svg>
               <span className="text-[11px] text-gray-400 font-medium">{preview.doc_type}</span>
             </div>
-            <button onClick={() => setPreview(null)} className="text-gray-600 hover:text-white transition-colors">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => openViewer(preview)} className="p-1 text-gray-500 hover:text-blue-400 transition-colors" title="Ver en grande">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                </svg>
+              </button>
+              <button onClick={() => setPreview(null)} className="p-1 text-gray-600 hover:text-white transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="p-2 bg-gray-950">
             {isImage(preview.mime_type) ? (
@@ -250,6 +325,63 @@ export default function OrderDocuments({ orderId }) {
                 </a>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Document viewer (invoice-style modal with pdf.js rendering) */}
+      {fullscreen && (
+        <div className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-auto">
+          <div style={{ backgroundColor: '#ffffff' }} className="rounded-xl w-full max-w-3xl max-h-[95vh] overflow-auto shadow-2xl">
+            {/* Toolbar */}
+            <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between rounded-t-xl z-10">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${
+                  DOC_TYPES.find(t => t.key === fullscreen.doc_type)?.color || ''
+                }`}>{fullscreen.doc_type}</span>
+                <span className="text-sm text-gray-300 font-medium truncate max-w-[200px] sm:max-w-none">{fullscreen.file_name}</span>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={getPublicUrl(fullscreen.file_path)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                  Abrir
+                </a>
+                <button onClick={() => setFullscreen(null)} className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs hover:text-white transition-colors">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {/* Content — rendered as images via pdf.js */}
+            <div style={{ padding: '20px', minHeight: '400px' }}>
+              {viewerLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: '12px' }}>
+                  <svg className="w-6 h-6 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span style={{ color: '#9ca3af', fontSize: '13px' }}>Cargando documento...</span>
+                </div>
+              ) : viewerImages.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {viewerImages.map((src, i) => (
+                    <img key={i} src={src} alt={`${fullscreen.doc_type} pag ${i + 1}`} style={{ width: '100%', borderRadius: '4px', border: '1px solid #e5e7eb' }} />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '60px 0', color: '#6b7280' }}>
+                  <p style={{ marginBottom: '8px' }}>Vista previa no disponible</p>
+                  <a href={getPublicUrl(fullscreen.file_path)} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
+                    Descargar archivo
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

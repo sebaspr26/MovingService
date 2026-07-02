@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
 import OrderDetail from './OrderDetail'
+import DatePicker from './DatePicker'
 import { useToast } from './Toast'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 30
 
 const TABS = [
   { key: 'all', label: 'Todas' },
@@ -25,6 +26,12 @@ export default function OrdersView() {
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterTruck, setFilterTruck] = useState('')
+  const [filterDispatcher, setFilterDispatcher] = useState('')
+  const [filterBroker, setFilterBroker] = useState('')
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
   const [page, setPage] = useState(0)
   const [drawerId, setDrawerId] = useState(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
@@ -33,7 +40,7 @@ export default function OrdersView() {
   const toast = useToast()
 
   useEffect(() => { fetchData() }, [])
-  useEffect(() => { setPage(0) }, [tab, search])
+  useEffect(() => { setPage(0) }, [tab, search, filterTruck, filterDispatcher, filterBroker, filterDateFrom, filterDateTo])
 
   const openDrawer = useCallback((id) => {
     setDrawerId(id)
@@ -86,12 +93,32 @@ export default function OrdersView() {
   const truckMap = {}
   trucks.forEach(t => { truckMap[t.id] = t })
 
+  // Unique dispatchers and broker list for filter dropdowns
+  const dispatchers = [...new Set(orders.map(o => o.dispatcher).filter(Boolean))].sort()
+  const brokerList = Object.values(brokers).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+  const hasActiveFilters = filterTruck || filterDispatcher || filterBroker || filterDateFrom || filterDateTo
+
+  function clearFilters() {
+    setFilterTruck('')
+    setFilterDispatcher('')
+    setFilterBroker('')
+    setFilterDateFrom('')
+    setFilterDateTo('')
+  }
+
   // Counts per status
   const counts = { all: orders.length }
   ALL_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.status === s).length })
 
   // Filter by tab
   let filtered = tab === 'all' ? orders : orders.filter(o => o.status === tab)
+
+  // Advanced filters
+  if (filterTruck) filtered = filtered.filter(o => o.truck_id === filterTruck)
+  if (filterDispatcher) filtered = filtered.filter(o => o.dispatcher === filterDispatcher)
+  if (filterBroker) filtered = filtered.filter(o => o.broker_id === filterBroker)
+  if (filterDateFrom) filtered = filtered.filter(o => (o.pu_date || '') >= filterDateFrom)
+  if (filterDateTo) filtered = filtered.filter(o => (o.pu_date || '') <= filterDateTo)
 
   // Search
   const q = search.toLowerCase()
@@ -183,6 +210,64 @@ export default function OrdersView() {
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
           </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-1.5 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+            title="Filtros avanzados"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+            </svg>
+            {hasActiveFilters && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Advanced filters panel */}
+      <div className={`transition-all duration-300 ease-out ${showFilters ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none h-0'}`}>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="min-w-[130px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Truck</label>
+              <select value={filterTruck} onChange={e => setFilterTruck(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                <option value="">Todos</option>
+                {trucks.map(t => <option key={t.id} value={t.id}>{t.number} - {t.name}</option>)}
+              </select>
+            </div>
+            <div className="min-w-[130px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Dispatcher</label>
+              <select value={filterDispatcher} onChange={e => setFilterDispatcher(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                <option value="">Todos</option>
+                {dispatchers.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="min-w-[130px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Broker</label>
+              <select value={filterBroker} onChange={e => setFilterBroker(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                <option value="">Todos</option>
+                {brokerList.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="min-w-[140px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Desde</label>
+              <DatePicker value={filterDateFrom} onChange={setFilterDateFrom} placeholder="Fecha inicio" />
+            </div>
+            <div className="min-w-[140px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Hasta</label>
+              <DatePicker value={filterDateTo} onChange={setFilterDateTo} placeholder="Fecha fin" />
+            </div>
+            {hasActiveFilters && (
+              <button onClick={clearFilters}
+                className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">
+                Limpiar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -190,7 +275,7 @@ export default function OrdersView() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+            <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
               <th className="pb-2 pr-3">Status</th>
               <th className="pb-2 pr-3">Orden #</th>
               <th className="pb-2 pr-3">Truck</th>
@@ -215,10 +300,19 @@ export default function OrdersView() {
                 tonu: 'border-l-red-500',
                 canceled: 'border-l-gray-600',
               }[row.status] || 'border-l-gray-700'
+              const rowBg = {
+                booked: 'bg-blue-500/10',
+                assigned: 'bg-yellow-500/10',
+                in_transit: 'bg-orange-500/10',
+                delivered: 'bg-cyan-500/10',
+                invoiced: 'bg-emerald-500/10',
+                tonu: 'bg-red-500/10',
+                canceled: 'bg-gray-500/10',
+              }[row.status] || ''
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-gray-800/50 border-l-2 ${rowBorder} hover:bg-gray-800/30 transition-colors group`}
+                  className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}
                 >
                   <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
                     <select
@@ -231,36 +325,39 @@ export default function OrdersView() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-2.5 pr-3 font-medium text-white cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {row.order_number}
+                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                    <div className="font-semibold text-white">{row.order_number}</div>
+                    {brokers[row.broker_id] && (
+                      <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                     {truck ? (
-                      <span className="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">
+                      <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">
                         {truck.number}
                       </span>
                     ) : '-'}
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-300 text-xs">{row.pu_city || '-'}</div>
-                    <div className="text-[10px] text-gray-600">{row.pu_date}</div>
+                    <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
+                    <div className="text-[10px] text-gray-500">{row.pu_date}</div>
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-300 text-xs">{row.do_city || '-'}</div>
-                    <div className="text-[10px] text-gray-600">{row.do_date}</div>
+                    <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
+                    <div className="text-[10px] text-gray-500">{row.do_date}</div>
                   </td>
-                  <td className="py-2.5 pr-3 text-right text-gray-400 text-xs cursor-pointer" onClick={() => openDrawer(row.id)}>
+                  <td className="py-2.5 pr-3 text-right text-gray-300 text-sm font-medium cursor-pointer" onClick={() => openDrawer(row.id)}>
                     {Number(row.miles || 0).toLocaleString()}
                   </td>
-                  <td className="py-2.5 pr-3 text-right text-xs cursor-pointer" onClick={() => openDrawer(row.id)}>
+                  <td className="py-2.5 pr-3 text-right text-sm cursor-pointer" onClick={() => openDrawer(row.id)}>
                     {Number(row.dead_miles || 0) > 0 ? (
-                      <span className="text-orange-400">{Number(row.dead_miles).toLocaleString()}</span>
+                      <span className="text-orange-400 font-medium">{Number(row.dead_miles).toLocaleString()}</span>
                     ) : (
                       <span className="text-gray-700">-</span>
                     )}
                   </td>
                   <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <span className="text-green-400 font-medium text-xs">{fmt(row.rate || 0)}</span>
+                    <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
                     {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
                       <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                     )}
@@ -310,6 +407,15 @@ export default function OrdersView() {
               Siguiente
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Floating totals bar */}
+      {filtered.length > 0 && !drawerId && (
+        <div className="fixed bottom-4 right-4 sm:right-6 z-40 bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg">
+          <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
+          <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
+          <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
         </div>
       )}
 
