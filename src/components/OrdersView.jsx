@@ -7,6 +7,10 @@ import { useToast } from './Toast'
 
 const PAGE_SIZE = 30
 
+// Cache orders data to avoid re-fetching on every navigation
+let ordersCache = { orders: null, trucks: null, brokers: null, ts: 0 }
+const CACHE_TTL = 30000
+
 const TABS = [
   { key: 'all', label: 'Todas' },
   { key: 'booked', label: 'Reservadas' },
@@ -40,7 +44,16 @@ export default function OrdersView() {
   const [tonuPrice, setTonuPrice] = useState('150')
   const toast = useToast()
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    if (ordersCache.orders && Date.now() - ordersCache.ts < CACHE_TTL) {
+      setOrders(ordersCache.orders)
+      setTrucks(ordersCache.trucks || [])
+      setBrokers(ordersCache.brokers || {})
+      setLoading(false)
+      return
+    }
+    fetchData()
+  }, [])
   useEffect(() => { setPage(0) }, [tab, search, filterTruck, filterDispatcher, filterBroker, filterDateFrom, filterDateTo])
 
   const openDrawer = useCallback((id) => {
@@ -66,6 +79,7 @@ export default function OrdersView() {
     const bMap = {}
     ;(brokersRes.data || []).forEach(b => { bMap[b.id] = b })
     setBrokers(bMap)
+    ordersCache = { orders: advancedOrders, trucks: trucksRes.data || [], brokers: bMap, ts: Date.now() }
     setLoading(false)
   }
 
@@ -311,19 +325,19 @@ export default function OrdersView() {
                 in_transit: 'border-l-orange-500',
                 delivered: 'border-l-cyan-500',
                 invoiced: 'border-l-emerald-500',
-                paid: 'border-l-green-500',
+                paid: 'border-l-violet-500',
                 tonu: 'border-l-red-500',
                 canceled: 'border-l-gray-600',
               }[row.status] || 'border-l-gray-700'
               const rowBg = {
-                booked: 'bg-blue-500/10',
-                assigned: 'bg-yellow-500/10',
-                in_transit: 'bg-orange-500/10',
-                delivered: 'bg-cyan-500/10',
-                invoiced: 'bg-emerald-500/10',
-                paid: 'bg-green-500/10',
-                tonu: 'bg-red-500/10',
-                canceled: 'bg-gray-500/10',
+                booked: 'bg-blue-600/25',
+                assigned: 'bg-yellow-600/25',
+                in_transit: 'bg-orange-600/25',
+                delivered: 'bg-cyan-600/25',
+                invoiced: 'bg-emerald-600/25',
+                paid: 'bg-violet-600/25',
+                tonu: 'bg-red-600/25',
+                canceled: 'bg-gray-600/15',
               }[row.status] || ''
               return (
                 <tr

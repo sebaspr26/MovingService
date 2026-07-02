@@ -6,6 +6,10 @@ import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 import AddReceiptModal from './AddReceiptModal'
 
+// Cache dashboard data to avoid re-fetching on every navigation
+let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
+const CACHE_TTL = 30000 // 30 seconds
+
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
   'Lavado', 'Parqueo', 'Multas', 'Comida', 'Otros'
@@ -76,11 +80,23 @@ export default function Dashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  useEffect(() => { fetchTrucks(); fetchDrivers() }, [])
+  useEffect(() => {
+    // Use cache if fresh enough
+    if (dashboardCache.trucks && Date.now() - dashboardCache.ts < CACHE_TTL) {
+      setTrucks(dashboardCache.trucks)
+      setDrivers(dashboardCache.drivers || [])
+      setTruckCycles(dashboardCache.cycles || {})
+      setSummaries(dashboardCache.summaries || {})
+      setLoading(false)
+      return
+    }
+    fetchTrucks(); fetchDrivers()
+  }, [])
 
   async function fetchDrivers() {
     const { data } = await supabase.from('drivers').select('id, name, truck_id, status').order('name')
     setDrivers(data || [])
+    dashboardCache.drivers = data || []
   }
 
   async function fetchTrucks() {
@@ -89,72 +105,77 @@ export default function Dashboard() {
     if (data && data.length > 0) {
       await fetchCyclesAndSummaries(data)
     }
+    dashboardCache.trucks = data || []
+    dashboardCache.ts = Date.now()
     setLoading(false)
   }
 
   async function fetchCyclesAndSummaries(truckList) {
-    const cyclesMap = {}
-    const sums = {}
-
-    for (const truck of truckList) {
+    // Fetch all cycles and summaries in parallel instead of sequentially
+    const results = await Promise.all(truckList.map(async (truck) => {
       const activeCycle = await getActiveCycle(truck.id)
       const displayCycle = activeCycle || await getLatestClosedCycle(truck.id)
-      cyclesMap[truck.id] = displayCycle
 
-      if (displayCycle) {
-        const [orders, diesel, def, expenses, accounting] = await Promise.all([
-          supabase.from('orders').select('rate, paid, apply_discount, discount_percent').eq('truck_id', truck.id)
-            .eq('cycle_id', displayCycle.id),
-          supabase.from('diesel').select('value').eq('truck_id', truck.id)
-            .eq('cycle_id', displayCycle.id),
-          supabase.from('def').select('value').eq('truck_id', truck.id)
-            .eq('cycle_id', displayCycle.id),
-          supabase.from('expenses').select('amount').eq('truck_id', truck.id)
-            .eq('cycle_id', displayCycle.id),
-          supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
-            .eq('cycle_id', displayCycle.id),
-        ])
-
-        const allOrders = orders.data || []
-        const truckDiscountPct = Number(truck.discount_percent) || 13
-        const netIncome = allOrders
-          .filter(r => r.paid)
-          .reduce((s, r) => {
-            const rate = Number(r.rate) || 0
-            const applyDisc = r.apply_discount !== false
-            const pct = Number(r.discount_percent) || truckDiscountPct
-            return s + (applyDisc ? rate * (1 - pct / 100) : rate)
-          }, 0)
-
-        const pendingOrders = allOrders.filter(r => !r.paid)
-        const pendingCount = pendingOrders.length
-        const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
-
-        const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
-        const defTotal = (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
-        const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
-        const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
-        const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
-
-        const previousBalance = Number(displayCycle.previous_balance) || 0
-        const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
-        const totalCredito = previousBalance + netIncome + acctCredit
-        const balance = totalCredito - totalDebito
-
-        sums[truck.id] = {
-          income: totalCredito,
-          expenses: totalDebito,
-          balance,
-          pendingCount,
-          pendingAmount,
-        }
-      } else {
-        sums[truck.id] = { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 }
+      if (!displayCycle) {
+        return { truckId: truck.id, cycle: null, summary: { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 } }
       }
-    }
 
+      const [orders, diesel, def, expenses, accounting] = await Promise.all([
+        supabase.from('orders').select('rate, paid, apply_discount, discount_percent').eq('truck_id', truck.id)
+          .eq('cycle_id', displayCycle.id),
+        supabase.from('diesel').select('value').eq('truck_id', truck.id)
+          .eq('cycle_id', displayCycle.id),
+        supabase.from('def').select('value').eq('truck_id', truck.id)
+          .eq('cycle_id', displayCycle.id),
+        supabase.from('expenses').select('amount').eq('truck_id', truck.id)
+          .eq('cycle_id', displayCycle.id),
+        supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
+          .eq('cycle_id', displayCycle.id),
+      ])
+
+      const allOrders = orders.data || []
+      const truckDiscountPct = Number(truck.discount_percent) || 13
+      const netIncome = allOrders
+        .filter(r => r.paid)
+        .reduce((s, r) => {
+          const rate = Number(r.rate) || 0
+          const applyDisc = r.apply_discount !== false
+          const pct = Number(r.discount_percent) || truckDiscountPct
+          return s + (applyDisc ? rate * (1 - pct / 100) : rate)
+        }, 0)
+
+      const pendingOrders = allOrders.filter(r => !r.paid)
+      const pendingCount = pendingOrders.length
+      const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+
+      const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
+      const defTotal = (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
+      const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
+      const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
+      const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
+
+      const previousBalance = Number(displayCycle.previous_balance) || 0
+      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
+      const totalCredito = previousBalance + netIncome + acctCredit
+      const balance = totalCredito - totalDebito
+
+      return {
+        truckId: truck.id,
+        cycle: displayCycle,
+        summary: { income: totalCredito, expenses: totalDebito, balance, pendingCount, pendingAmount },
+      }
+    }))
+
+    const cyclesMap = {}
+    const sums = {}
+    results.forEach(r => {
+      cyclesMap[r.truckId] = r.cycle
+      sums[r.truckId] = r.summary
+    })
     setTruckCycles(cyclesMap)
     setSummaries(sums)
+    dashboardCache.cycles = cyclesMap
+    dashboardCache.summaries = sums
   }
 
   function openTruckModal(truck = null) {
