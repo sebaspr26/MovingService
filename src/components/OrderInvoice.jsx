@@ -221,7 +221,7 @@ export default function OrderInvoice({ orderId, onClose }) {
     }
 
     setSendingEmail(true)
-    toast.info(`Enviando a ${toEmail}...`)
+    toast.info(`Enviando a ${toList.join(', ')}...`)
 
     try {
       let pdfBase64
