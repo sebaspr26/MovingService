@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { getCompanySettings } from '../lib/company'
 
 export default function Layout() {
-  const [companyName, setCompanyName] = useState(() => localStorage.getItem('company_name') || 'ETG Moving Services')
-  const [companyDba, setCompanyDba] = useState(() => localStorage.getItem('company_dba') || 'Driving Is Work LLC')
+  const [companyName, setCompanyName] = useState('ETG Moving Services')
+  const [companyDba, setCompanyDba] = useState('Driving Is Work LLC')
 
   useEffect(() => {
-    const onStorage = () => {
-      setCompanyName(localStorage.getItem('company_name') || 'ETG Moving Services')
-      setCompanyDba(localStorage.getItem('company_dba') || 'Driving Is Work LLC')
-    }
-    window.addEventListener('storage', onStorage)
-    const interval = setInterval(onStorage, 1000)
-    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval) }
+    getCompanySettings().then(s => {
+      const info = s?.company_info || {}
+      if (info.company_name) setCompanyName(info.company_name)
+      if (info.dba) setCompanyDba(info.dba)
+    })
   }, [])
   const location = useLocation()
   const navigate = useNavigate()

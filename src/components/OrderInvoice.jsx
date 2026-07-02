@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
+import { getCompanySettings, getLogoUrl } from '../lib/company'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -77,6 +78,7 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
   const [emailToggles, setEmailToggles] = useState({ remit: true, billFrom: true, billTo: true })
   const [regenerating, setRegenerating] = useState(false)
+  const [companySettings, setCompanySettings] = useState(null)
   const toast = useToast()
   const printRef = useRef()
 
@@ -153,7 +155,10 @@ export default function OrderInvoice({ orderId, onClose }) {
     toast.success('Invoice regenerado')
   }
 
-  useEffect(() => { loadInvoice() }, [orderId])
+  useEffect(() => {
+    loadInvoice()
+    getCompanySettings().then(s => setCompanySettings(s))
+  }, [orderId])
 
   function getPublicUrl(filePath) {
     const { data } = supabase.storage.from('order-docs').getPublicUrl(filePath)
@@ -327,10 +332,11 @@ export default function OrderInvoice({ orderId, onClose }) {
   const today = new Date().toISOString().split('T')[0]
   const invoiceDate = today
   const total = Number(order.rate) || 0
-  const companyName = localStorage.getItem('company_name') || 'ETG MOVING SERVICES'
-  const companyDba = localStorage.getItem('company_dba') || 'DRIVING IS WORK LLC'
-  const billingInfo = JSON.parse(localStorage.getItem('billing_info') || '{}')
-  const remitInfo = JSON.parse(localStorage.getItem('remit_info') || '{}')
+  const companyInfo = companySettings?.company_info || {}
+  const companyName = companyInfo.company_name || 'ETG MOVING SERVICES'
+  const companyDba = companyInfo.dba || 'DRIVING IS WORK LLC'
+  const billingInfo = companySettings?.billing_info || {}
+  const remitInfo = companySettings?.remit_info || {}
   const rateItems = invoiceItems.length > 0 ? invoiceItems : [{ pay_item: 'Flat Rate', units: 1, rate: total, total }]
 
   return (
@@ -383,7 +389,7 @@ export default function OrderInvoice({ orderId, onClose }) {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
               <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.5px' }}>INVOICE</h1>
-              <img src={localStorage.getItem('invoice_logo') || '/logo-invoice.png'} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
+              <img src={getLogoUrl(companySettings?.logo_path)} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
             </div>
 
             {/* Invoice info */}

@@ -1752,20 +1752,25 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
 
 function CompanyInfoSidebar() {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState(() => localStorage.getItem('company_name') || '')
-  const [dba, setDba] = useState(() => localStorage.getItem('company_dba') || '')
+  const [name, setName] = useState('')
+  const [dba, setDba] = useState('')
   const [saved, setSaved] = useState(false)
 
-  function handleSave() {
-    localStorage.setItem('company_name', name)
-    localStorage.setItem('company_dba', dba)
-    // Also update company_info object
-    try {
-      const info = JSON.parse(localStorage.getItem('company_info') || '{}')
-      info.company_name = name
-      info.dba = dba
-      localStorage.setItem('company_info', JSON.stringify(info))
-    } catch {}
+  useEffect(() => {
+    import('../lib/company').then(({ getCompanySettings }) => {
+      getCompanySettings().then(s => {
+        const info = s?.company_info || {}
+        setName(info.company_name || '')
+        setDba(info.dba || '')
+      })
+    })
+  }, [])
+
+  async function handleSave() {
+    const { getCompanySettings, updateCompanyInfo } = await import('../lib/company')
+    const s = await getCompanySettings()
+    const info = { ...(s?.company_info || {}), company_name: name, dba }
+    await updateCompanyInfo(info)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }

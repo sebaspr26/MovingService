@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
+import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
 
 const SECTIONS = [
   { key: 'company_info', label: 'Company Information', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5M3.75 3v18m16.5-18v18M5.25 6h.008v.008H5.25V6Zm0 3h.008v.008H5.25V9Zm0 3h.008v.008H5.25V12Zm7.5-6h.008v.008h-.008V6Zm0 3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" /> },
@@ -60,25 +61,35 @@ export default function CompanyInfo() {
 
 function SectionCompanyInfo() {
   const toast = useToast()
-  const [savedForm, setSavedForm] = useState(() => {
-    const saved = localStorage.getItem('company_info')
-    return saved ? JSON.parse(saved) : {
-      company_name: '', dba: '', ein: '', mc_number: '', dot_number: '',
-      address: '', city: '', state: '', zip: '', phone: '', email: '', website: '', founded: '',
-    }
-  })
-  const [form, setForm] = useState(savedForm)
+  const emptyForm = {
+    company_name: '', dba: '', ein: '', mc_number: '', dot_number: '',
+    address: '', city: '', state: '', zip: '', phone: '', email: '', website: '', founded: '',
+  }
+  const [savedForm, setSavedForm] = useState(emptyForm)
+  const [form, setForm] = useState(emptyForm)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getCompanySettings().then(s => {
+      const info = { ...emptyForm, ...(s?.company_info || {}) }
+      setSavedForm(info)
+      setForm(info)
+      setLoading(false)
+    })
+  }, [])
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm)
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
-  function handleSave() {
-    localStorage.setItem('company_info', JSON.stringify(form))
-    localStorage.setItem('company_name', form.company_name)
-    localStorage.setItem('company_dba', form.dba)
-    setSavedForm(form)
-    toast.success('Informacion guardada')
+  async function handleSave() {
+    try {
+      await updateCompanyInfo(form)
+      setSavedForm(form)
+      toast.success('Informacion guardada')
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    }
   }
 
   useEffect(() => {
@@ -192,34 +203,45 @@ function SectionCompanyInfo() {
 
 function SectionBilling() {
   const toast = useToast()
-  const [savedBilling, setSavedBilling] = useState(() => {
-    const s = localStorage.getItem('billing_info')
-    return s ? JSON.parse(s) : { billing_name: '', billing_address: '', billing_city: '', billing_state: '', billing_zip: '', billing_phone: '', billing_email: '' }
-  })
-  const [savedRemit, setSavedRemit] = useState(() => {
-    const s = localStorage.getItem('remit_info')
-    return s ? JSON.parse(s) : { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '', remit_email: '' }
-  })
-  const [billing, setBilling] = useState(savedBilling)
-  const [remit, setRemit] = useState(savedRemit)
+  const emptyBilling = { billing_name: '', billing_address: '', billing_city: '', billing_state: '', billing_zip: '', billing_phone: '', billing_email: '' }
+  const emptyRemit = { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '', remit_email: '' }
+  const [savedBilling, setSavedBilling] = useState(emptyBilling)
+  const [savedRemit, setSavedRemit] = useState(emptyRemit)
+  const [billing, setBilling] = useState(emptyBilling)
+  const [remit, setRemit] = useState(emptyRemit)
 
-  const [logoPreview, setLogoPreview] = useState(() => localStorage.getItem('invoice_logo') || null)
+  const [logoPreview, setLogoPreview] = useState(null)
   const [logoChanged, setLogoChanged] = useState(false)
   const [logoFullscreen, setLogoFullscreen] = useState(false)
   const logoRef = useRef()
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getCompanySettings().then(s => {
+      const b = { ...emptyBilling, ...(s?.billing_info || {}) }
+      const r = { ...emptyRemit, ...(s?.remit_info || {}) }
+      setSavedBilling(b); setBilling(b)
+      setSavedRemit(r); setRemit(r)
+      setLogoPreview(getLogoUrl(s?.logo_path))
+      setLoading(false)
+    })
+  }, [])
 
   const isDirty = JSON.stringify(billing) !== JSON.stringify(savedBilling) || JSON.stringify(remit) !== JSON.stringify(savedRemit) || logoChanged
 
   const updateB = (field, value) => setBilling(prev => ({ ...prev, [field]: value }))
   const updateR = (field, value) => setRemit(prev => ({ ...prev, [field]: value }))
 
-  function handleSave() {
-    localStorage.setItem('billing_info', JSON.stringify(billing))
-    localStorage.setItem('remit_info', JSON.stringify(remit))
-    setSavedBilling(billing)
-    setSavedRemit(remit)
-    setLogoChanged(false)
-    toast.success('Billing guardado')
+  async function handleSave() {
+    try {
+      await updateBillingInfo(billing, remit)
+      setSavedBilling(billing)
+      setSavedRemit(remit)
+      setLogoChanged(false)
+      toast.success('Billing guardado')
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    }
   }
 
   useEffect(() => {
@@ -265,17 +287,22 @@ function SectionBilling() {
             Cambiar
           </button>
           {logoPreview && (
-            <button onClick={() => { setLogoPreview(null); localStorage.removeItem('invoice_logo'); setLogoChanged(true) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors">
+            <button onClick={async () => { await removeLogo(); setLogoPreview('/logo-invoice.png'); setLogoChanged(true) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors">
               Reset
             </button>
           )}
         </div>
-        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
           const file = e.target.files[0]
           if (!file) return
-          const reader = new FileReader()
-          reader.onloadend = () => { setLogoPreview(reader.result); localStorage.setItem('invoice_logo', reader.result); setLogoChanged(true); toast.success('Logo actualizado') }
-          reader.readAsDataURL(file)
+          try {
+            const updated = await updateLogo(file)
+            setLogoPreview(getLogoUrl(updated.logo_path))
+            setLogoChanged(true)
+            toast.success('Logo actualizado')
+          } catch (err) {
+            toast.error(friendlyError(err.message))
+          }
           e.target.value = ''
         }} />
       </div>
