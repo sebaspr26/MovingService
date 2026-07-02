@@ -4,15 +4,16 @@ export const STATUS_CONFIG = {
   in_transit: { label: 'En Transito', color: 'orange',  bg: 'bg-orange-900/40',  text: 'text-orange-400',  border: 'border-orange-700/50' },
   delivered:  { label: 'Entregada',   color: 'cyan',    bg: 'bg-cyan-900/40',    text: 'text-cyan-400',    border: 'border-cyan-700/50' },
   invoiced:   { label: 'Facturada',   color: 'green',   bg: 'bg-emerald-900/40', text: 'text-emerald-400', border: 'border-emerald-700/50' },
+  paid:       { label: 'Pagado',      color: 'green',   bg: 'bg-green-900/40',   text: 'text-green-400',   border: 'border-green-700/50' },
   tonu:       { label: 'TONU',        color: 'red',     bg: 'bg-red-900/40',     text: 'text-red-400',     border: 'border-red-700/50' },
   canceled:   { label: 'Cancelada',   color: 'gray',    bg: 'bg-gray-800/60',    text: 'text-gray-500',    border: 'border-gray-700/50' },
 }
 
 // Main flow (progress bar)
-export const STATUS_ORDER = ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced']
+export const STATUS_ORDER = ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid']
 
 // All statuses including terminal ones (for dropdowns)
-export const ALL_STATUSES = ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'tonu', 'canceled']
+export const ALL_STATUSES = ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid', 'tonu', 'canceled']
 
 export const EQUIPMENT_TYPES = ['Dry Van', 'Flatbed', 'Reefer', 'Step Deck', 'Power Only', 'Hotshot']
 
@@ -43,7 +44,7 @@ export async function autoAdvanceStatuses(orders, supabase) {
   const updates = []
 
   const updated = orders.map(o => {
-    if (isTerminalStatus(o.status) || o.status === 'invoiced' || o.status === 'delivered' || o.status === 'booked') return o
+    if (isTerminalStatus(o.status) || o.status === 'paid' || o.status === 'invoiced' || o.status === 'delivered' || o.status === 'booked') return o
 
     const puDateTime = o.pu_date ? new Date(o.pu_date + 'T00:00:00') : null
     const doDateTime = o.do_date ? new Date(o.do_date + 'T23:59:59') : null

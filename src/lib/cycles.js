@@ -81,6 +81,10 @@ export async function getLatestClosedCycle(truckId) {
 }
 
 export async function openCycle(truckId, startDate, previousBalance = 0) {
+  // Prevent duplicate open cycles
+  const existing = await getActiveCycle(truckId)
+  if (existing) throw new Error('Ya existe un ciclo activo para este camion')
+
   const { data, error } = await supabase.from('cycles').insert({
     truck_id: truckId,
     start_date: startDate,

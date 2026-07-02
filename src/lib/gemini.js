@@ -38,7 +38,9 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
         "city": "CITY, ST",
         "state": "ST",
         "date": "YYYY-MM-DD",
-        "time": "HH:MM (24h format)",
+        "time": "HH:MM (24h format, start/from time)",
+        "time_end": "HH:MM (24h format, end/to time)",
+        "schedule_type": "appointment or range (appointment = both times are the same e.g. 5:00 AM - 5:00 AM, range = different times e.g. 6:00 AM - 12:00 PM)",
         "ref_number": "string (stop-level reference/PO if any)",
         "notes": "string"
       }
@@ -71,6 +73,7 @@ Rules:
 - If a fuel receipt has BOTH diesel AND DEF, include BOTH as separate items in the array
 - If a receipt has multiple services/repairs, include each as a separate expense item
 - For rate confirmations, extract ALL stops in order (pickups first, then deliveries). Include location names and appointment times.
+- For stop times: if a stop shows "5:00 AM - 5:00 AM" (same time twice), it's schedule_type "appointment". If it shows "6:00 AM - 12:00 PM" (different times), it's schedule_type "range". Extract both time (start) and time_end (end) in 24h HH:MM format.
 - Only use "type": "order" format for load confirmations or bills of lading
 - Return ONLY valid JSON, no markdown, no explanation`
 

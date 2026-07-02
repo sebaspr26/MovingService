@@ -14,6 +14,7 @@ const TABS = [
   { key: 'in_transit', label: 'En Transito' },
   { key: 'delivered', label: 'Entregadas' },
   { key: 'invoiced', label: 'Facturadas' },
+  { key: 'paid', label: 'Pagadas' },
   { key: 'tonu', label: 'TONU' },
   { key: 'canceled', label: 'Canceladas' },
 ]
@@ -68,6 +69,18 @@ export default function OrdersView() {
     setLoading(false)
   }
 
+  async function handleTogglePaid(row) {
+    const wasPaid = row.paid
+    const newPaid = !wasPaid
+    const newStatus = newPaid ? 'paid' : 'invoiced'
+    const updates = { paid: newPaid, status: newStatus }
+    setOrders(prev => prev.map(o => o.id === row.id ? { ...o, ...updates } : o))
+    const { error } = await supabase.from('orders').update(updates).eq('id', row.id)
+    if (error) {
+      setOrders(prev => prev.map(o => o.id === row.id ? { ...o, paid: wasPaid, status: row.status } : o))
+    }
+  }
+
   async function handleStatusChange(orderId, newStatus) {
     if (newStatus === 'tonu') {
       setTonuTarget(orderId)
@@ -75,7 +88,8 @@ export default function OrdersView() {
       return
     }
     const updates = { status: newStatus }
-    if (newStatus === 'invoiced') updates.paid = true
+    if (newStatus === 'paid') updates.paid = true
+    if (newStatus !== 'paid' && newStatus !== 'tonu') updates.paid = false
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o))
     await supabase.from('orders').update(updates).eq('id', orderId)
   }
@@ -150,7 +164,7 @@ export default function OrdersView() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -297,6 +311,7 @@ export default function OrdersView() {
                 in_transit: 'border-l-orange-500',
                 delivered: 'border-l-cyan-500',
                 invoiced: 'border-l-emerald-500',
+                paid: 'border-l-green-500',
                 tonu: 'border-l-red-500',
                 canceled: 'border-l-gray-600',
               }[row.status] || 'border-l-gray-700'
@@ -306,6 +321,7 @@ export default function OrdersView() {
                 in_transit: 'bg-orange-500/10',
                 delivered: 'bg-cyan-500/10',
                 invoiced: 'bg-emerald-500/10',
+                paid: 'bg-green-500/10',
                 tonu: 'bg-red-500/10',
                 canceled: 'bg-gray-500/10',
               }[row.status] || ''

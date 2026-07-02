@@ -10,7 +10,7 @@ import { getActiveCycle } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 
-const emptyStop = () => ({ id: null, type: 'pickup', location_name: '', address: '', city: '', state: '', date: '', time: '', ref_number: '', notes: '' })
+const emptyStop = () => ({ id: null, type: 'pickup', location_name: '', address: '', city: '', state: '', date: '', time: '', time_end: '', schedule_type: 'range', ref_number: '', notes: '' })
 const emptyInvoiceItem = () => ({ id: null, pay_item: 'Flat Rate', units_type: 'Gross', units: 1, rate: '', total: '' })
 const emptyCommodity = () => ({ id: null, name: '', qty: 1, type: 'Pail', dimensions: '', weight: '' })
 const INVOICE_ITEM_TYPES = ['Flat Rate', 'Linehaul', 'Fuel Surcharge', 'Detention', 'Layover', 'TONU', 'Lumper', 'Stop Off', 'Driver Assist', 'Accessorial', 'Other']
@@ -392,6 +392,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
             state: s.state || '',
             date: s.date || '',
             time: s.time || '',
+            time_end: s.time_end || '',
+            schedule_type: s.schedule_type || 'range',
             ref_number: s.ref_number || '',
             notes: s.notes || '',
             sequence: i,
@@ -512,7 +514,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
         do_city: doCity.trim() || null,
         period_start: pStart,
         period_end: pEnd,
-        paid: status === 'invoiced',
+        paid: status === 'paid',
       }
 
       let orderId = id
@@ -550,6 +552,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           state: s.state || null,
           date: s.date || null,
           time: s.time || null,
+          time_end: s.time_end || null,
+          schedule_type: s.schedule_type || 'range',
           ref_number: s.ref_number || null,
           sequence: i,
           notes: s.notes || null,
@@ -605,7 +609,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       toast.success('POD subido correctamente')
       // Now proceed to invoiced
       setStatus('invoiced')
-      await supabase.from('orders').update({ status: 'invoiced', paid: true }).eq('id', id)
+      await supabase.from('orders').update({ status: 'invoiced' }).eq('id', id)
     } catch (err) {
       toast.error(friendlyError(err.message || err))
     }
@@ -626,7 +630,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
     setStatus(newStatus)
     if (!isNew) {
       const updates = { status: newStatus }
-      if (newStatus === 'invoiced') updates.paid = true
+      if (newStatus === 'paid') updates.paid = true
+      if (newStatus !== 'paid' && newStatus !== 'tonu') updates.paid = false
       await supabase.from('orders').update(updates).eq('id', id)
     }
   }
@@ -697,7 +702,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               </svg>
             </button>
           )}
-          {!isNew && status === 'invoiced' && (
+          {!isNew && (status === 'invoiced' || status === 'paid') && (
             <button
               onClick={() => setShowInvoice(true)}
               className="px-2 sm:px-3 py-1.5 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-600/30 transition-colors flex items-center gap-1"
@@ -980,23 +985,45 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    <input placeholder="Direccion *" value={stop.address || ''} onChange={(e) => updateStop(idx, 'address', e.target.value)} autoComplete="one-time-code"
-                      className="col-span-2 sm:col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {/* Row 1: Address + Location Name */}
+                    <input placeholder="Direccion" value={stop.address || ''} onChange={(e) => updateStop(idx, 'address', e.target.value)} autoComplete="one-time-code"
+                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
                     <input placeholder="Location Name" value={stop.location_name || ''} onChange={(e) => updateStop(idx, 'location_name', e.target.value)} autoComplete="one-time-code"
-                      className="col-span-2 sm:col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                    {/* Row 2: City, State, Date, Time From, Time To, Schedule */}
                     <input placeholder="Ciudad" value={stop.city || ''} onChange={(e) => updateStop(idx, 'city', e.target.value)} autoComplete="one-time-code"
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
-                    <input placeholder="Estado" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
+                    <input placeholder="ST" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
                     <input type="date" value={stop.date || ''} onChange={(e) => updateStop(idx, 'date', e.target.value)}
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
-                    <input type="time" value={stop.time || ''} onChange={(e) => updateStop(idx, 'time', e.target.value)}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                    <input type="time" value={stop.time || ''} onChange={(e) => {
+                      updateStop(idx, 'time', e.target.value)
+                      if (e.target.value && e.target.value === stop.time_end) updateStop(idx, 'schedule_type', 'appointment')
+                      else if (e.target.value && stop.time_end && e.target.value !== stop.time_end) updateStop(idx, 'schedule_type', 'range')
+                    }}
+                      title="Hora inicio"
+                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                    <input type="time" value={stop.time_end || ''} onChange={(e) => {
+                      updateStop(idx, 'time_end', e.target.value)
+                      if (e.target.value && e.target.value === stop.time) updateStop(idx, 'schedule_type', 'appointment')
+                      else if (e.target.value && stop.time && e.target.value !== stop.time) updateStop(idx, 'schedule_type', 'range')
+                    }}
+                      title="Hora fin"
+                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                    <button type="button" onClick={() => updateStop(idx, 'schedule_type', stop.schedule_type === 'appointment' ? 'range' : 'appointment')}
+                      className={`px-1.5 py-1 rounded text-[10px] font-medium border transition-colors ${
+                        stop.schedule_type === 'appointment'
+                          ? 'bg-purple-900/40 text-purple-400 border-purple-700/50'
+                          : 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50'
+                      }`}
+                    >{stop.schedule_type === 'appointment' ? 'Cita' : 'Rango'}</button>
+                    {/* Row 3: Ref + Notes */}
                     <input placeholder="Ref #" value={stop.ref_number || ''} onChange={(e) => updateStop(idx, 'ref_number', e.target.value)}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
                     <input placeholder="Notas" value={stop.notes || ''} onChange={(e) => updateStop(idx, 'notes', e.target.value)}
-                      className="col-span-2 sm:col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-4 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
                   </div>
                 </div>
               ))}

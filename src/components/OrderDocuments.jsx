@@ -57,6 +57,8 @@ export default function OrderDocuments({ orderId }) {
   const [fullscreen, setFullscreen] = useState(null)
   const [viewerImages, setViewerImages] = useState([])
   const [viewerLoading, setViewerLoading] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const dragCounter = useRef(0)
 
   useEffect(() => {
     if (orderId) fetchDocs()
@@ -176,41 +178,54 @@ export default function OrderDocuments({ orderId }) {
         </div>
       </div>
 
-      {/* Upload bar */}
-      <div className="px-4 py-2 border-b border-gray-800 flex gap-1.5 items-center">
-        <select
-          value={uploadType}
-          onChange={(e) => setUploadType(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-gray-300 focus:outline-none focus:border-blue-500"
-        >
+      {/* Upload zone with drag & drop */}
+      <div
+        className={`px-4 py-2 border-b transition-colors ${dragging ? 'border-blue-500 bg-blue-600/10' : 'border-gray-800'}`}
+        onDragEnter={(e) => { e.preventDefault(); dragCounter.current++; setDragging(true) }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={(e) => { e.preventDefault(); dragCounter.current--; if (dragCounter.current === 0) setDragging(false) }}
+        onDrop={(e) => { e.preventDefault(); dragCounter.current = 0; setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleUpload(f) }}
+      >
+        <div className="flex gap-1 items-center">
           {DOC_TYPES.map(t => (
-            <option key={t.key} value={t.key}>{t.key} - {t.full}</option>
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setUploadType(t.key)}
+              className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
+                uploadType === t.key ? t.color + ' border' : 'text-gray-600 bg-gray-800/50 border border-transparent hover:text-gray-400'
+              }`}
+            >{t.key}</button>
           ))}
-        </select>
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="flex-1 px-2 py-1 bg-blue-600/20 border border-blue-600/50 text-blue-300 rounded text-[11px] font-medium hover:bg-blue-600/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-        >
-          {uploading ? (
-            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : (
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-          )}
-          {uploading ? 'Subiendo...' : 'Subir'}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(e) => handleUpload(e.target.files[0])}
-        />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className={`ml-auto px-2 py-1 rounded text-[10px] font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ${
+              dragging
+                ? 'bg-blue-600/30 border border-blue-500 text-blue-300'
+                : 'bg-blue-600/20 border border-blue-600/50 text-blue-300 hover:bg-blue-600/30'
+            }`}
+          >
+            {uploading ? (
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+            )}
+            {uploading ? '...' : dragging ? 'Soltar' : 'Subir'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => handleUpload(e.target.files[0])}
+          />
+        </div>
       </div>
 
       {/* Document list */}

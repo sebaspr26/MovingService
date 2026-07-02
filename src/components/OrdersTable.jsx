@@ -92,10 +92,13 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
 
   async function handleTogglePaid(row) {
     if (readOnly) return
-    setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: !r.paid } : r))
-    const { error } = await supabase.from('orders').update({ paid: !row.paid }).eq('id', row.id)
+    const wasPaid = row.paid
+    const newPaid = !wasPaid
+    const newStatus = newPaid ? 'paid' : 'invoiced'
+    setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: newPaid, status: newStatus } : r))
+    const { error } = await supabase.from('orders').update({ paid: newPaid, status: newStatus }).eq('id', row.id)
     if (error) {
-      setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: row.paid } : r))
+      setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: wasPaid, status: row.status } : r))
       toast.error(friendlyError(error.message))
       return
     }
