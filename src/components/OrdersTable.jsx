@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
 import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
+import { getActiveCycleId } from '../lib/cycles'
 
 const PAGE_SIZE = 5
 
@@ -114,6 +115,8 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     if (!fDoCity.trim()) { toast.warning('Completa el campo "Ciudad Delivery"'); return }
     if (!fRate && fRate !== 0) { toast.warning('Completa el campo "Rate"'); return }
     try {
+      // For new orders, always use the active cycle (not the viewed cycle)
+      const activeCycleId = editRow ? (cycle?.id || null) : await getActiveCycleId(truckId)
       const record = {
         order_number: fOrderNumber.trim(),
         pu_date: fPuDate,
@@ -124,7 +127,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
         rate: fRate !== '' ? Number(fRate) : null,
         apply_discount: fApplyDiscount,
         truck_id: truckId,
-        cycle_id: cycle?.id || null,
+        cycle_id: activeCycleId,
         period_start: period.start,
         period_end: period.end,
       }

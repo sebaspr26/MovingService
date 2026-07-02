@@ -6,7 +6,7 @@ import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
 import { lookupByMc, lookupByDot, searchByName } from '../lib/fmcsa'
 import { useToast, friendlyError } from './Toast'
-import { getActiveCycle } from '../lib/cycles'
+import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 
@@ -489,11 +489,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       const pStart = periodStart || puDate || new Date().toISOString().split('T')[0]
       const pEnd = periodEnd || doDate || pStart
 
+      // For new orders with a truck, ensure we use the active cycle
+      const finalCycleId = (isNew && truckId) ? await getActiveCycleId(truckId) : (cycleId || null)
       const record = {
         order_number: orderNumber.trim(),
         truck_id: truckId || null,
         broker_id: brokerId || null,
-        cycle_id: cycleId || null,
+        cycle_id: finalCycleId,
         status,
         equipment_type: equipmentType || null,
         load_type: loadType || null,
