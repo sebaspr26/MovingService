@@ -611,19 +611,20 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       })
       await fetchDocs()
       toast.success('POD subido correctamente')
-      // Now proceed to invoiced
-      setStatus('invoiced')
-      await supabase.from('orders').update({ status: 'invoiced' }).eq('id', id)
     } catch (err) {
       toast.error(friendlyError(err.message || err))
     }
   }
 
   async function handleStatusChange(newStatus) {
-    // Require POD to move to invoiced
-    if (newStatus === 'invoiced' && !hasPod) {
-      setShowPodUpload(true)
-      toast.warning('Se requiere POD para facturar. Sube el Proof of Delivery.')
+    // invoiced only via email send, not manual status change
+    if (newStatus === 'invoiced') {
+      if (!hasPod) {
+        setShowPodUpload(true)
+        toast.warning('Se requiere POD para facturar. Sube el Proof of Delivery.')
+      } else {
+        setShowInvoice(true)
+      }
       return
     }
     // TONU — show price input modal
@@ -706,7 +707,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               </svg>
             </button>
           )}
-          {!isNew && (status === 'invoiced' || status === 'paid') && (
+          {!isNew && (status === 'invoiced' || status === 'paid' || (status === 'delivered' && hasPod)) && (
             <button
               onClick={() => setShowInvoice(true)}
               className="px-2 sm:px-3 py-1.5 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-600/30 transition-colors flex items-center gap-1"
@@ -714,7 +715,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
               </svg>
-              <span className="hidden sm:inline">Invoice</span>
+              <span className="hidden sm:inline">{status === 'delivered' ? 'Generar Factura' : 'Invoice'}</span>
             </button>
           )}
           <button
@@ -756,8 +757,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 const reached = STATUS_ORDER.indexOf(status) >= i
                 const isCurrent = status === s
                 const cfg = STATUS_CONFIG[s]
-                const dotColors = { blue: 'bg-blue-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500', cyan: 'bg-cyan-500', green: 'bg-emerald-500' }
-                const lineColors = { blue: 'bg-blue-500/50', yellow: 'bg-yellow-500/50', orange: 'bg-orange-500/50', cyan: 'bg-cyan-500/50', green: 'bg-emerald-500/50' }
+                const dotColors = { blue: 'bg-blue-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500', cyan: 'bg-cyan-500', green: 'bg-emerald-500', violet: 'bg-violet-500' }
+                const lineColors = { blue: 'bg-blue-500/50', yellow: 'bg-yellow-500/50', orange: 'bg-orange-500/50', cyan: 'bg-cyan-500/50', green: 'bg-emerald-500/50', violet: 'bg-violet-500/50' }
                 return (
                   <div key={s} className="flex items-center flex-1">
                     <button
@@ -785,7 +786,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   onClick={() => handleStatusChange(nextStatus)}
                   className={`px-3 py-1 ${STATUS_CONFIG[nextStatus].bg} ${STATUS_CONFIG[nextStatus].text} border ${STATUS_CONFIG[nextStatus].border} rounded-lg text-[11px] font-medium hover:brightness-125 transition-all flex items-center gap-1`}
                 >
-                  {STATUS_CONFIG[nextStatus].label}
+                  {nextStatus === 'invoiced' ? 'Generar Factura' : STATUS_CONFIG[nextStatus].label}
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
@@ -1537,7 +1538,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           )}
 
           {/* Documents panel — existing orders */}
-          {!isNew && <OrderDocuments orderId={id} />}
+          {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} />}
 
           {/* RC upload + preview — new orders */}
           {isNew && (
@@ -1713,7 +1714,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       )}
 
       {/* Invoice modal */}
-      {showInvoice && <OrderInvoice orderId={id} onClose={() => setShowInvoice(false)} />}
+      {showInvoice && <OrderInvoice orderId={id} onClose={() => setShowInvoice(false)} onEmailSent={async () => {
+        if (status === 'delivered') {
+          setStatus('invoiced')
+          await supabase.from('orders').update({ status: 'invoiced' }).eq('id', id)
+        }
+      }} />}
     </div>
   )
 }

@@ -45,7 +45,7 @@ const DOC_TYPES = [
   { key: 'POD', label: 'POD', full: 'Proof of Delivery', color: 'text-orange-400 bg-orange-900/40 border-orange-700/50' },
 ]
 
-export default function OrderDocuments({ orderId }) {
+export default function OrderDocuments({ orderId, onDocsChange }) {
   const toast = useToast()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -102,6 +102,7 @@ export default function OrderDocuments({ orderId }) {
 
       toast.success(`${uploadType} subido correctamente`)
       fetchDocs()
+      onDocsChange?.()
     } catch (err) {
       toast.error(friendlyError(err.message))
     } finally {
@@ -118,6 +119,7 @@ export default function OrderDocuments({ orderId }) {
     if (preview?.id === doc.id) setPreview(null)
     toast.success('Documento eliminado')
     fetchDocs()
+    onDocsChange?.()
   }
 
   const filtered = activeType ? docs.filter(d => d.doc_type === activeType) : docs

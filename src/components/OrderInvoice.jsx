@@ -66,7 +66,7 @@ async function imageToDataUrl(url) {
 // Cache to avoid regenerating every time
 const invoiceCache = {}
 
-export default function OrderInvoice({ orderId, onClose }) {
+export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const [order, setOrder] = useState(null)
   const [truck, setTruck] = useState(null)
   const [broker, setBroker] = useState(null)
@@ -77,6 +77,9 @@ export default function OrderInvoice({ orderId, onClose }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
   const [emailToggles, setEmailToggles] = useState({ remit: true, billFrom: true, billTo: true })
+  const [sendingPod, setSendingPod] = useState(false)
+  const [showPodEmailConfirm, setShowPodEmailConfirm] = useState(false)
+  const [podEmailToggles, setPodEmailToggles] = useState({ broker: true, billFrom: true })
   const [regenerating, setRegenerating] = useState(false)
   const [companySettings, setCompanySettings] = useState(null)
   const toast = useToast()
@@ -279,11 +282,110 @@ export default function OrderInvoice({ orderId, onClose }) {
       }
       if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
       toast.success(`Invoice enviado a ${toList.join(', ')}${ccList.length ? ` (CC: ${ccList.join(', ')})` : ''}`)
+      onEmailSent?.()
     } catch (err) {
       console.error('Send email error:', err)
       toast.error('Error enviando email: ' + (err.message || String(err)))
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  async function generatePodPDF() {
+    const pdf = new jsPDF('p', 'mm', 'letter')
+    const pageW = 215.9
+    const pageH = 279.4
+    const margin = 10
+
+    const container = document.createElement('div')
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#fff;'
+    // Only render POD pages
+    const podPages = printRef.current.querySelectorAll('[data-doc-type="pod"]')
+    if (podPages.length === 0) { toast.warning('No hay POD para enviar'); return null }
+    podPages.forEach(p => container.appendChild(p.cloneNode(true)))
+    document.body.appendChild(container)
+
+    const imgs = container.querySelectorAll('img')
+    await Promise.all(Array.from(imgs).map(img => {
+      if (img.complete) return Promise.resolve()
+      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve })
+    }))
+
+    for (let i = 0; i < container.children.length; i++) {
+      if (i > 0) pdf.addPage()
+      const canvas = await html2canvas(container.children[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.85)
+      const imgW = pageW - margin * 2
+      const imgH = (canvas.height * imgW) / canvas.width
+      const finalH = imgH > pageH - margin * 2 ? pageH - margin * 2 : imgH
+      const finalW = imgH > pageH - margin * 2 ? (canvas.width * finalH) / canvas.height : imgW
+      pdf.addImage(imgData, 'JPEG', margin, margin, finalW, finalH)
+    }
+
+    document.body.removeChild(container)
+    return pdf.output('datauristring').split(',')[1]
+  }
+
+  async function handleSendPod() {
+    const billToEmail = broker?.email || ''
+    const billFromEmail = billingInfo.billing_email || ''
+
+    const toList = []
+    const ccList = []
+    if (podEmailToggles.broker && billToEmail) toList.push(billToEmail)
+    if (podEmailToggles.billFrom && billFromEmail) ccList.push(billFromEmail)
+
+    if (toList.length === 0) {
+      toast.warning('No hay destinatario principal. El broker no tiene email configurado.')
+      return
+    }
+
+    setSendingPod(true)
+    toast.info(`Enviando POD a ${toList.join(', ')}...`)
+
+    try {
+      const pdfBase64 = await generatePodPDF()
+      if (!pdfBase64) { setSendingPod(false); return }
+
+      const fileName = `POD_${order.order_number || 'ETG'}.pdf`
+
+      if (pdfBase64.length * 0.75 > 4 * 1024 * 1024) {
+        toast.warning('El PDF es muy grande. Intenta con menos documentos.')
+        setSendingPod(false)
+        return
+      }
+
+      const res = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: toList,
+          cc: ccList,
+          subject: `POD — Load #${order.order_number} — ${companyName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #333; font-size: 14px; line-height: 1.6;">
+              <p>Please find the attached Proof of Delivery for your records.</p>
+              <table style="margin: 16px 0; font-size: 13px;">
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Load #</td><td style="font-weight: 600;">${order.order_number || '-'}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Ref #</td><td style="font-weight: 600;">${order.ref_number || '-'}</td></tr>
+              </table>
+              <p style="font-size: 12px; color: #888; margin-top: 24px;">${companyName}${companyDba ? ` — ${companyDba}` : ''}</p>
+            </div>
+          `,
+          pdfBase64,
+          fileName,
+        }),
+      })
+
+      let data
+      try { data = await res.json() } catch { throw new Error(`Server error (${res.status}): ${res.statusText}`) }
+      if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
+      toast.success(`POD enviado a ${toList.join(', ')}${ccList.length ? ` (CC: ${ccList.join(', ')})` : ''}`)
+    } catch (err) {
+      console.error('Send POD error:', err)
+      toast.error('Error enviando POD: ' + (err.message || String(err)))
+    } finally {
+      setSendingPod(false)
     }
   }
 
@@ -366,6 +468,18 @@ export default function OrderInvoice({ orderId, onClose }) {
               </svg>
               Enviar Email
             </button>
+            {docImages.pod.length > 0 && (
+              <button
+                onClick={() => setShowPodEmailConfirm(true)}
+                disabled={sendingPod}
+                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                Enviar POD
+              </button>
+            )}
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
@@ -543,7 +657,7 @@ export default function OrderInvoice({ orderId, onClose }) {
 
           {/* POD pages */}
           {docImages.pod.map((src, i) => (
-            <div key={`pod-${i}`} className="doc-page" style={{ pageBreakBefore: 'always', padding: '30px' }}>
+            <div key={`pod-${i}`} className="doc-page" data-doc-type="pod" style={{ pageBreakBefore: 'always', padding: '30px' }}>
               {i === 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                   <span style={{ background: '#ffedd5', color: '#c2410c', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>POD</span>
@@ -615,6 +729,78 @@ export default function OrderInvoice({ orderId, onClose }) {
                   className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {sendingEmail ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Enviando...
+                    </>
+                  ) : 'Confirmar y Enviar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* POD email confirmation modal */}
+      {showPodEmailConfirm && (() => {
+        const billToEmail = broker?.email || ''
+        const billFromEmail = billingInfo.billing_email || ''
+        const hasAnyTo = podEmailToggles.broker && billToEmail
+
+        const PodEmailRow = ({ label, type, email, tag }) => (
+          <div className="flex items-center justify-between py-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-gray-500 uppercase font-semibold">{label}</p>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>{tag}</span>
+              </div>
+              {email ? (
+                <p className={`text-sm ${podEmailToggles[type] ? 'text-gray-200' : 'text-gray-600 line-through'}`}>{email}</p>
+              ) : (
+                <p className="text-xs text-gray-600">Sin email</p>
+              )}
+            </div>
+            {email && (
+              <button
+                onClick={() => setPodEmailToggles(prev => ({ ...prev, [type]: !prev[type] }))}
+                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${podEmailToggles[type] ? 'bg-orange-600' : 'bg-gray-700'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${podEmailToggles[type] ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+            )}
+          </div>
+        )
+
+        return (
+          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <h3 className="text-sm font-semibold text-white">Enviar POD</h3>
+              </div>
+
+              <div className="bg-gray-800/50 rounded-lg px-3 divide-y divide-gray-700/50">
+                <PodEmailRow label="Broker" type="broker" email={billToEmail} tag="To" />
+                <PodEmailRow label="Bill From" type="billFrom" email={billFromEmail} tag="CC" />
+              </div>
+
+              <p className="text-[10px] text-gray-600">Load #{order?.order_number} — solo POD adjunto</p>
+
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowPodEmailConfirm(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { setShowPodEmailConfirm(false); handleSendPod() }}
+                  disabled={sendingPod || !hasAnyTo}
+                  className="px-4 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {sendingPod ? (
                     <>
                       <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

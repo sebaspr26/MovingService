@@ -18,29 +18,31 @@ App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel co
 ```
 src/
   components/
-    Layout.jsx          - Sidebar (desktop) + header mobile. Company name/DBA dinamico desde localStorage
-    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks, quick-add, abrir ciclos, asignacion de chofer
-    TruckView.jsx       - Vista individual: ciclo nav, filtro semanas, summary cards, 4 tabs, CashBox
-    OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs, drawer lateral, TONU modal con precio editable, rate/mi en tabla
-    OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops, invoicing, commodities, route calc, docs, RC viewer, company info sidebar, ref# auto-generado
-    OrderDocuments.jsx  - Panel de documentos (RC/BOL/POD): upload Supabase Storage, preview inline, tabs por tipo
-    OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo dinamico
+    Layout.jsx          - Sidebar (desktop) + header mobile. Company name/DBA dinamico desde Supabase (company_settings)
+    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks, quick-add, abrir ciclos, asignacion de chofer. Cache en memoria (30s TTL), queries paralelas con Promise.all
+    TruckView.jsx       - Vista individual: ciclo nav, filtro semanas, summary cards, 4 tabs, CashBox. Queries por cycle_id FK (sub-filtro JS por semana)
+    OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs (incl. Pagadas), drawer lateral, TONU modal con precio editable, rate/mi en tabla, filtros avanzados (truck/dispatcher/broker/fechas), cache en memoria (30s TTL), PAGE_SIZE=30
+    OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops con schedule_type (appointment/range), invoicing, commodities, route calc, docs, RC viewer con drag & drop, company info sidebar, ref# auto-generado, dispatcher requerido en nuevas ordenes
+    OrderDocuments.jsx  - Panel de documentos (RC/BOL/POD): upload Supabase Storage + drag & drop, visor fullscreen con render progresivo de PDFs (pdf.js), tabs por tipo
+    OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo desde Supabase Storage
     OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, badge TONU con rate real (TruckView)
+    DatePicker.jsx      - Calendario custom en espanol, reemplaza inputs nativos de fecha
     DieselTable.jsx     - CRUD diesel con AddModal
     ExpensesTable.jsx   - CRUD gastos con 11 categorias + AddModal
     AccountingTable.jsx - Ledger debito/credito con 3 auto-rows (neto, diesel, gastos) + manuales
     AddModal.jsx        - Modal reutilizable con soporte scanner inline (image/PDF -> AI -> autofill)
     CashBox.jsx         - Cierre/reapertura de ciclo + dividendos por socio
-    CompanyInfo.jsx     - Modulo compania: choferes, camiones, trailers, company info, billing (bill from + remit to + logo), company docs
+    CompanyInfo.jsx     - Modulo compania: choferes, camiones, trailers, company info, billing (bill from + remit to + logo), company docs. Datos en Supabase (company_settings) en vez de localStorage
     Settings.jsx        - Configuracion: tema light/dark con cards de preview
     Toast.jsx           - Toast system (success/error/warning/info/confirm)
   lib/
     supabase.js         - Cliente Supabase singleton (VITE_ env vars)
-    cycles.js           - Utilidades de ciclos (computeWeeks, open/close/reopen, getActive, getAll)
-    orders.js           - Constantes y utilidades del modulo Orders (STATUS_CONFIG 7 estados, EQUIPMENT_TYPES, etc)
-    here.js             - HERE Maps API: geocoding, truck routing (loaded miles + DH), polyline decode
+    cycles.js           - Utilidades de ciclos (computeWeeks, open/close/reopen, getActive, getActiveCycleId, getAll). Previene ciclos duplicados abiertos
+    orders.js           - Constantes y utilidades del modulo Orders (STATUS_CONFIG 8 estados, EQUIPMENT_TYPES, etc)
+    here.js             - HERE Maps API: geocoding, truck routing (loaded miles + DH), polyline decode. Console warnings en errores
     fmcsa.js            - FMCSA API: lookupByMc, lookupByDot, searchByName (autocomplete brokers)
     gemini.js           - API OpenRouter -> Gemini 2.5 Flash, extrae RC completo (broker, stops, rate items, commodity)
+    company.js          - CRUD company_settings en Supabase (getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl). Cache en memoria
     theme.jsx           - ThemeProvider + useTheme hook. Persiste en localStorage. Aplica clase 'light' en html
   App.jsx               - Router: / = Dashboard, /truck/:id, /orders, /orders/:id, /company, /settings
   main.jsx              - Entry point (ThemeProvider + ToastProvider + App)
@@ -48,7 +50,7 @@ src/
 api/
   send-invoice.js       - Serverless function (Vercel): envia email via Resend con to, cc, adjunto PDF
 public/
-  logo-invoice.png      - Logo por defecto para invoices (override via localStorage 'invoice_logo')
+  logo-invoice.png      - Logo por defecto para invoices (override via Supabase Storage company-docs)
 supabase/
   schema.sql            - Schema base (trucks, orders, diesel, expenses, accounting)
   002_partners_cashbox.sql - Partners + cashbox (legacy)
@@ -62,13 +64,16 @@ supabase/
   010_driver_pay_enhanced_stops.sql - Enhanced stops (location_name, ref_number) + commodity/weight/special_instructions en orders
   011_company_info.sql     - Drivers, driver_documents, truck_documents, trailers, trailer_documents
   012_cycle_id.sql         - cycle_id FK en orders/diesel/def/expenses/accounting (desacopla de filtro por fechas)
+  013_company_settings.sql - Tabla company_settings (company_info, billing_info, remit_info, logo_path como JSONB/text)
+  013_unique_active_cycle.sql - Partial unique index: un solo ciclo abierto por truck
+  014_stop_schedule.sql    - time_end y schedule_type en order_stops (appointment vs range)
 ```
 
 ## Database Tables (Supabase)
 - `trucks` (id, name, number, discount_percent [default 13])
 - `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email)
-- `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, ref_number, sequence, notes)
+- `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, time_end, schedule_type [appointment/range], ref_number, sequence, notes)
 - `order_documents` (id, order_id FK CASCADE, doc_type [RC/BOL/POD], file_name, file_path, file_size, mime_type)
 - `driver_pay_items` (id, order_id FK CASCADE, pay_item, units_type, units, rate, total)
 - `diesel` (id, truck_id, cycle_id [nullable FK→cycles], invoice_number, date, city, gallons, value, period_start, period_end)
@@ -82,6 +87,7 @@ supabase/
 - `truck_documents` (id, truck_id FK CASCADE, doc_type [license_plate/cab_card/truck_picture/vin_picture/other], label, file_name, file_path, file_size, mime_type)
 - `trailers` (id, name, number, type, truck_id FK nullable, status [active/inactive])
 - `trailer_documents` (id, trailer_id FK CASCADE, doc_type, label, file_name, file_path, file_size, mime_type)
+- `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
 
@@ -90,23 +96,24 @@ All tables have RLS enabled with open policies (no auth yet).
 ## Key Business Logic
 
 ### Order Status Flow
-7 estados: 5 secuenciales + 2 terminales:
+8 estados: 6 secuenciales + 2 terminales:
 1. **Reservada** (booked, azul) — orden creada sin camion asignado
 2. **Asignada** (assigned, amarillo) — auto cuando se selecciona truck; revierte si se quita
 3. **En Transito** (in_transit, naranja) — truck en camino
 4. **Entregada** (delivered, cyan) — carga entregada, falta POD/factura
-5. **Facturada** (invoiced, verde) — requiere POD subido. Solo este pone `paid=true`. Habilita boton "Invoice"
-6. **TONU** (tonu, rojo) — Truck Order Not Used, terminal. Modal con precio editable (default $150), apply_discount=false, paid=true. Badge muestra rate real. Boton "Reactivar" vuelve a booked
-7. **Cancelada** (canceled, gris) — terminal. Boton "Reactivar" vuelve a booked
+5. **Facturada** (invoiced, verde) — requiere POD subido. Habilita boton "Invoice". NO pone `paid=true`
+6. **Pagado** (paid, violeta) — pago recibido. Este pone `paid=true`
+7. **TONU** (tonu, rojo) — Truck Order Not Used, terminal. Modal con precio editable (default $150), apply_discount=false, paid=true. Badge muestra rate real. Boton "Reactivar" vuelve a booked
+8. **Cancelada** (canceled, gris) — terminal. Boton "Reactivar" vuelve a booked
 
 ### Invoice Generation (OrderInvoice.jsx)
 - Disponible cuando status = `invoiced` (boton verde "Invoice" en header)
 - **Documento unificado**: Invoice + RC + POD en un solo PDF imprimible
 - **Cache en memoria**: se genera una vez por orden, abre instantaneo las siguientes veces. Boton "Regenerar" para forzar recarga
-- **Logo dinamico**: usa localStorage `invoice_logo` (data URL). Fallback: `/logo-invoice.png`. Editable desde Compania > Billing
-- **Bill From**: datos de Billing Information (localStorage `billing_info`). Fallback: Company Name/DBA
+- **Logo dinamico**: usa Supabase Storage (company_settings.logo_path). Fallback: `/logo-invoice.png`. Editable desde Compania > Billing
+- **Bill From**: datos de Billing Information (Supabase company_settings.billing_info). Fallback: Company Name/DBA
 - **Bill To**: broker de la orden (email del broker en DB)
-- **Remit To**: datos de Remit To (localStorage `remit_info`), solo si tiene datos
+- **Remit To**: datos de Remit To (Supabase company_settings.remit_info), solo si tiene datos
 - **Ref # auto-generado**: al crear orden nueva, genera secuencial 00001, 00002... Editable por el usuario
 - **Rate/mi**: calculo `rate / (miles + DH)` mostrado debajo del rate en la tabla de ordenes
 
@@ -125,8 +132,8 @@ All tables have RLS enabled with open policies (no auth yet).
 - Dashboard muestra nombre del chofer asignado en cada truck card
 
 ### Company Info Module (/company)
-- **Company Information**: datos generales (name, DBA, EIN, MC#, DOT#, address, contact). Se guarda en localStorage. Company Name y DBA se reflejan en sidebar y invoice
-- **Billing Information**: Bill From (datos facturacion), Remit To (destinatario pagos + email), Logo invoice (upload/preview/reset). Boton guardar arriba, deshabilitado sin cambios, toast warning a los 5s
+- **Company Information**: datos generales (name, DBA, EIN, MC#, DOT#, address, contact). Se guarda en Supabase (company_settings). Company Name y DBA se reflejan en sidebar y invoice
+- **Billing Information**: Bill From (datos facturacion), Remit To (destinatario pagos + email), Logo invoice (upload a Supabase Storage/preview/reset). Boton guardar arriba, deshabilitado sin cambios, toast warning a los 5s
 - **Company Documents**: upload documentos generales (local, no conectado a DB aun)
 - **Choferes**: CRUD con documentos (licencia, tarjeta medica, custom). Badges vencimiento. Asignacion a trucks
 - **Camiones**: lista de trucks del Dashboard con documentos (license plate, cab card, truck picture, VIN picture, custom)
@@ -140,7 +147,7 @@ All tables have RLS enabled with open policies (no auth yet).
 - `text-white` se overridea a oscuro en light mode. Se preserva blanco en botones con bg solido (blue-600, red-600, etc.)
 
 ### Sidebar Layout
-- Company Name y DBA dinamicos desde localStorage (con polling cada 1s para reflejar cambios)
+- Company Name y DBA dinamicos desde Supabase (company_settings, cargados al montar)
 - Navegacion: Dashboard, Ordenes, Compania, Configuracion
 
 ### Toast System (Toast.jsx)
@@ -152,9 +159,9 @@ All tables have RLS enabled with open policies (no auth yet).
 ## Conventions
 - UI en espanol (labels, buttons, messages)
 - Dark theme default, light theme via CSS variable overrides
-- Colores semanticos: green=facturada/income, red=TONU/debito, blue=reservada/balance, orange=en transito/diesel, yellow=asignada/pending, cyan=entregada/routing, purple=scanner, gray=cancelada
+- Colores semanticos: green=facturada/income, red=TONU/debito, blue=reservada/balance, orange=en transito/diesel, yellow=asignada/pending, cyan=entregada/routing, violet=pagado, purple=scanner, gray=cancelada
 - Currency: USD con `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`
-- Datos de compania/billing almacenados en localStorage (company_info, billing_info, remit_info, invoice_logo, company_name, company_dba)
+- Datos de compania/billing almacenados en Supabase (tabla company_settings: company_info, billing_info, remit_info como JSONB + logo_path en Storage)
 - Formularios con dirty state: boton guardar deshabilitado sin cambios, toast warning a los 5s con cambios pendientes
 - Invoice cacheado en memoria por orderId, boton Regenerar para forzar recarga
 
@@ -182,6 +189,7 @@ RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 - **Fase 3 (done):** Modulo Orders/Loads completo — lista + detalle, 7 status, brokers con FMCSA, stops mejorados, invoicing + commodities, HERE truck routing, documentos RC/BOL/POD, scanner AI, invoice generation
 - **Fase 3.5 (done):** Drawer lateral, TONU $150 auto, POD requerido para facturar, invoice unificado, broker auto-save, broker search hibrido, DH auto
 - **Fase 4 (done):** Modulo Compania (choferes, camiones, trailers, company info, billing, docs), tema light/dark, configuracion, TONU precio editable, ref# auto-generado, rate/mi en tabla, invoice cache + regenerar, email con CC y switches, logo dinamico, sidebar dinamico, drivers conectados a trucks
+- **Fase 4.5 (done):** Status "Pagado" (8vo estado, violeta), company settings migrado de localStorage a Supabase (company_settings table + lib/company.js), DatePicker custom, filtros avanzados en OrdersView (truck/dispatcher/broker/fechas), cache en memoria (Dashboard + OrdersView, 30s TTL), OrderDocuments drag & drop + visor fullscreen PDF progresivo, stops con schedule_type (appointment/range) + time_end, queries por cycle_id FK (TruckView/Dashboard), unique active cycle constraint, Dashboard queries paralelas (Promise.all), HERE Maps error logging, RC drag & drop en OrderDetail, dispatcher requerido en nuevas ordenes
 - **Fase 5 (next):** Reports, Excel/PDF export, auth/usuarios
 
 ## Commands
