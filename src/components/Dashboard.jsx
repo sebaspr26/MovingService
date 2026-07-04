@@ -5,6 +5,7 @@ import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '.
 import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 import AddReceiptModal from './AddReceiptModal'
+import DayPicker from './DayPicker'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -74,6 +75,11 @@ export default function Dashboard() {
   const [truckDiscount, setTruckDiscount] = useState('13')
   const [truckDiscountCustom, setTruckDiscountCustom] = useState('')
   const [truckError, setTruckError] = useState('')
+  const [truckRecurring, setTruckRecurring] = useState([])
+
+  // Recurring expenses banner
+  const [pendingRecurring, setPendingRecurring] = useState([])
+  const [applyingRecurring, setApplyingRecurring] = useState(null)
 
   const [openCycleTarget, setOpenCycleTarget] = useState(null)
   const [openCycleDate, setOpenCycleDate] = useState(new Date().toISOString().split('T')[0])
@@ -90,13 +96,75 @@ export default function Dashboard() {
       setLoading(false)
       return
     }
-    fetchTrucks(); fetchDrivers()
+    fetchTrucks(); fetchDrivers(); fetchPendingRecurring()
   }, [])
 
   async function fetchDrivers() {
     const { data } = await supabase.from('drivers').select('id, name, truck_id, status').order('name')
     setDrivers(data || [])
     dashboardCache.drivers = data || []
+  }
+
+  async function fetchPendingRecurring() {
+    const todayDay = new Date().getDate()
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+    const { data } = await supabase.from('recurring_expenses').select('*, trucks(name, number)')
+      .eq('active', true)
+      .eq('day_of_month', todayDay)
+    if (!data) return
+    // Filter out already applied this month
+    const notApplied = data.filter(r => r.last_applied_month !== currentMonth)
+    // Filter out trucks with closed cycles (no active cycle = don't charge)
+    const pending = []
+    for (const rec of notApplied) {
+      const cycle = await getActiveCycle(rec.truck_id)
+      if (cycle) pending.push(rec)
+    }
+    setPendingRecurring(pending)
+  }
+
+  async function handleApplyRecurring(rec) {
+    const ok = await toast.confirm(`¿Aplicar gasto recurrente "${rec.description}" por $${Number(rec.amount).toFixed(2)} al camion ${rec.trucks?.name || ''}?`, { confirmText: 'Aplicar', confirmClass: 'bg-amber-600 hover:bg-amber-500' })
+    if (!ok) return
+    setApplyingRecurring(rec.id)
+    try {
+      const truckId = rec.truck_id
+      const cycle = await getActiveCycle(truckId)
+      if (!cycle) {
+        toast.error('No hay ciclo abierto para este camion')
+        setApplyingRecurring(null)
+        return
+      }
+      const todayDate = new Date().toISOString().split('T')[0]
+
+      await supabase.from('expenses').insert({
+        truck_id: truckId, cycle_id: cycle.id, category: 'Recurrente',
+        invoice_number: 'REC', description: rec.description, amount: Number(rec.amount),
+        date: todayDate, period_start: todayDate, period_end: todayDate,
+      })
+
+      // Mark as applied this month
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+      await supabase.from('recurring_expenses').update({ last_applied_month: currentMonth }).eq('id', rec.id)
+
+      setPendingRecurring(prev => prev.filter(r => r.id !== rec.id))
+      dashboardCache.ts = 0 // invalidate cache
+      toast.success(`Gasto recurrente aplicado: ${rec.description}`)
+      fetchTrucks()
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setApplyingRecurring(null)
+    }
+  }
+
+  async function handleDismissRecurring(rec) {
+    const ok = await toast.confirm(`¿Seguro que NO deseas aplicar "${rec.description}" este mes?`, { confirmText: 'Omitir', confirmClass: 'bg-gray-600 hover:bg-gray-500' })
+    if (!ok) return
+    // Mark as applied so it won't show again this month
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+    await supabase.from('recurring_expenses').update({ last_applied_month: currentMonth }).eq('id', rec.id)
+    setPendingRecurring(prev => prev.filter(r => r.id !== rec.id))
   }
 
   async function fetchTrucks() {
@@ -196,12 +264,17 @@ export default function Dashboard() {
         .then(({ data }) => {
           setTruckPartners(data && data.length > 0 ? data.map(p => ({ name: p.name, percentage: String(p.percentage) })) : [{ name: '', percentage: '' }])
         })
+      supabase.from('recurring_expenses').select('*').eq('truck_id', truck.id).order('created_at')
+        .then(({ data }) => {
+          setTruckRecurring(data && data.length > 0 ? data.map(r => ({ id: r.id, description: r.description, amount: String(r.amount), day_of_month: r.day_of_month })) : [])
+        })
     } else {
       setEditingTruck(null)
       setTruckName('')
       setTruckNumber('')
       setTruckDriverId('')
       setTruckPartners([{ name: '', percentage: '' }])
+      setTruckRecurring([])
       setTruckDiscount('13')
       setTruckDiscountCustom('')
     }
@@ -220,6 +293,33 @@ export default function Dashboard() {
 
   function removePartner(index) {
     setTruckPartners(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function addRecurringRow() {
+    setTruckRecurring(prev => [...prev, { id: null, description: '', amount: '', day_of_month: null }])
+  }
+
+  function updateRecurring(index, field, value) {
+    setTruckRecurring(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+
+  function removeRecurring(index) {
+    setTruckRecurring(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function saveRecurringExpenses(truckId) {
+    const validRecurring = truckRecurring.filter(r => r.description.trim() && r.amount && r.day_of_month)
+    await supabase.from('recurring_expenses').delete().eq('truck_id', truckId)
+    if (validRecurring.length > 0) {
+      await supabase.from('recurring_expenses').insert(
+        validRecurring.map(r => ({
+          truck_id: truckId,
+          description: r.description.trim(),
+          amount: Number(r.amount),
+          day_of_month: r.day_of_month,
+        }))
+      )
+    }
   }
 
   async function handleSaveTruck(e) {
@@ -260,6 +360,9 @@ export default function Dashboard() {
           }))
         )
       }
+
+      // Save recurring expenses
+      await saveRecurringExpenses(editingTruck.id)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
         .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
@@ -287,6 +390,9 @@ export default function Dashboard() {
       if (cajaInicial > 0) {
         await openCycle(truck.id, today, cajaInicial)
       }
+
+      // Save recurring expenses
+      await saveRecurringExpenses(truck.id)
     }
 
     setShowTruckModal(false)
@@ -294,6 +400,7 @@ export default function Dashboard() {
     setEditingTruck(null)
     await fetchTrucks()
     await fetchDrivers()
+    fetchPendingRecurring()
   }
 
   async function handleDeleteTruck() {
@@ -439,6 +546,59 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Recurring expenses banner */}
+      {pendingRecurring.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <div className="bg-amber-900/20 border border-amber-600/40 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <h3 className="text-sm font-semibold text-amber-300">
+                {pendingRecurring.length === 1 ? 'Gasto recurrente pendiente' : `${pendingRecurring.length} gastos recurrentes pendientes`}
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {pendingRecurring.map(rec => (
+                  <div key={rec.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gray-900/60 rounded-lg p-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="min-w-0">
+                        <p className="text-sm text-gray-200 font-medium truncate">{rec.description}</p>
+                        <p className="text-xs text-gray-500">{rec.trucks?.name} #{rec.trucks?.number} — {fmt(Number(rec.amount))}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleDismissRecurring(rec)}
+                        className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs font-medium hover:text-white transition-colors"
+                      >
+                        Omitir
+                      </button>
+                      <button
+                        onClick={() => handleApplyRecurring(rec)}
+                        disabled={applyingRecurring === rec.id}
+                        className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {applyingRecurring === rec.id ? (
+                          <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        )}
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -780,6 +940,58 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                   Agregar Socio
+                </button>
+              </div>
+
+              {/* Gastos Recurrentes */}
+              <div>
+                <label className="text-sm font-medium text-gray-400 mb-2 block">Gastos Recurrentes</label>
+                {truckRecurring.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    {truckRecurring.map((r, i) => (
+                      <div key={i} className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="grid grid-cols-3 gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={r.description}
+                              onChange={(e) => updateRecurring(i, 'description', e.target.value)}
+                              className="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                              placeholder="Nombre"
+                            />
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={r.amount}
+                                onChange={(e) => updateRecurring(i, 'amount', e.target.value)}
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-6 pr-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                                placeholder="Valor"
+                              />
+                            </div>
+                            <DayPicker
+                              value={r.day_of_month}
+                              onChange={(day) => updateRecurring(i, 'day_of_month', day)}
+                              placeholder="Dia del mes"
+                            />
+                          </div>
+                          <button type="button" onClick={() => removeRecurring(i)} className="p-1 text-gray-500 hover:text-red-400 shrink-0">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={addRecurringRow}
+                  className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Agregar Gasto Recurrente
                 </button>
               </div>
 

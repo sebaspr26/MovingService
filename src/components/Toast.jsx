@@ -46,8 +46,8 @@ export function ToastProvider({ children }) {
     error: (msg) => addToast(msg, 'error'),
     warning: (msg) => addToast(msg, 'warning'),
     info: (msg) => addToast(msg, 'info'),
-    confirm: (message) => new Promise(resolve => {
-      setConfirmState({ message, resolve })
+    confirm: (message, opts) => new Promise(resolve => {
+      setConfirmState({ message, resolve, ...opts })
     }),
   }
 
@@ -89,9 +89,9 @@ export function ToastProvider({ children }) {
               <button
                 onClick={() => handleConfirm(true)}
                 autoFocus
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-500 transition-colors"
+                className={`flex-1 px-4 py-2 text-white rounded-lg text-sm transition-colors ${confirmState.confirmClass || 'bg-red-600 hover:bg-red-500'}`}
               >
-                Eliminar
+                {confirmState.confirmText || 'Eliminar'}
               </button>
             </div>
           </div>

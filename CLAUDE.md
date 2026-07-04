@@ -19,7 +19,7 @@ App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel co
 src/
   components/
     Layout.jsx          - Sidebar (desktop) + header mobile. Company name/DBA dinamico desde Supabase (company_settings)
-    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks, quick-add, abrir ciclos, asignacion de chofer. Cache en memoria (30s TTL), queries paralelas con Promise.all
+    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks (con gastos recurrentes + DayPicker), quick-add, abrir ciclos, asignacion de chofer, auto-aplicacion de gastos recurrentes al abrir ciclo. Cache en memoria (30s TTL), queries paralelas con Promise.all
     TruckView.jsx       - Vista individual: ciclo nav, filtro semanas, summary cards, 4 tabs, CashBox. Queries por cycle_id FK (sub-filtro JS por semana)
     OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs (incl. Pagadas), drawer lateral, TONU modal con precio editable, rate/mi en tabla, filtros avanzados (truck/dispatcher/broker/fechas), cache en memoria (30s TTL), PAGE_SIZE=30
     OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops con schedule_type (appointment/range), invoicing, commodities, route calc, docs, RC viewer con drag & drop, company info sidebar, ref# auto-generado, dispatcher requerido en nuevas ordenes
@@ -27,6 +27,7 @@ src/
     OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo desde Supabase Storage
     OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, badge TONU con rate real (TruckView)
     DatePicker.jsx      - Calendario custom en espanol, reemplaza inputs nativos de fecha
+    DayPicker.jsx       - Selector de dia del mes (1-31) con dropdown portal (createPortal), posicion auto arriba/abajo. Usado en gastos recurrentes del truck modal
     DieselTable.jsx     - CRUD diesel con AddModal
     ExpensesTable.jsx   - CRUD gastos con 11 categorias + AddModal
     AccountingTable.jsx - Ledger debito/credito con 3 auto-rows (neto, diesel, gastos) + manuales
@@ -67,6 +68,7 @@ supabase/
   013_company_settings.sql - Tabla company_settings (company_info, billing_info, remit_info, logo_path como JSONB/text)
   013_unique_active_cycle.sql - Partial unique index: un solo ciclo abierto por truck
   014_stop_schedule.sql    - time_end y schedule_type en order_stops (appointment vs range)
+  015_recurring_expenses.sql - Tabla recurring_expenses (gastos recurrentes por truck: description, amount, day_of_month)
 ```
 
 ## Database Tables (Supabase)
@@ -87,6 +89,7 @@ supabase/
 - `truck_documents` (id, truck_id FK CASCADE, doc_type [license_plate/cab_card/truck_picture/vin_picture/other], label, file_name, file_path, file_size, mime_type)
 - `trailers` (id, name, number, type, truck_id FK nullable, status [active/inactive])
 - `trailer_documents` (id, trailer_id FK CASCADE, doc_type, label, file_name, file_path, file_size, mime_type)
+- `recurring_expenses` (id, truck_id FK CASCADE, description, amount, day_of_month [1-31], active [default true], last_applied_month [text], created_at)
 - `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
@@ -124,6 +127,13 @@ All tables have RLS enabled with open policies (no auth yet).
 - **Switches**: cada destinatario tiene toggle on/off. Por defecto todos habilitados. El usuario puede deshabilitar cualquiera antes de enviar
 - **API**: Vercel serverless function → Resend API. Soporta `to`, `cc`, adjunto PDF base64
 - **Requiere**: RESEND_KEY env var en Vercel
+
+### Recurring Expenses (Gastos Recurrentes)
+- Se configuran por truck en el modal de crear/editar camion (Dashboard)
+- Cada gasto tiene: descripcion, monto ($), dia del mes (1-31) via DayPicker
+- Al abrir un nuevo ciclo, se auto-aplican como expenses si el dia ya paso en el mes actual
+- Tracking via `last_applied_month` para evitar duplicados (ej: '2026-07')
+- CRUD integrado en el truck modal con botones agregar/eliminar
 
 ### Drivers ↔ Trucks Connection
 - Choferes se crean en Compania > Choferes (CRUD completo con documentos)
@@ -176,7 +186,7 @@ RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 ```
 
 ## Modules
-- **Dashboard** (`/`) — Grid de camiones, resumen por ciclo, quick-add, CRUD trucks con asignacion de chofer
+- **Dashboard** (`/`) — Grid de camiones, resumen por ciclo, quick-add, CRUD trucks con asignacion de chofer y gastos recurrentes
 - **TruckView** (`/truck/:id`) — Vista individual de camion: ciclo nav, semanas, tabs (orders, gastos, contabilidad), CashBox
 - **Orders/Loads** (`/orders`, `/orders/:id`) — Modulo TMS completo: lista con filter tabs + drawer lateral, TONU con precio editable, rate/mi en tabla, ref# auto-generado, invoice con cache + email directo con CC y switches
 - **Compania** (`/company`) — Company info, billing (bill from + remit to + logo), company docs, choferes (CRUD + docs), camiones (docs), trailers (CRUD + docs)
@@ -190,6 +200,7 @@ RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 - **Fase 3.5 (done):** Drawer lateral, TONU $150 auto, POD requerido para facturar, invoice unificado, broker auto-save, broker search hibrido, DH auto
 - **Fase 4 (done):** Modulo Compania (choferes, camiones, trailers, company info, billing, docs), tema light/dark, configuracion, TONU precio editable, ref# auto-generado, rate/mi en tabla, invoice cache + regenerar, email con CC y switches, logo dinamico, sidebar dinamico, drivers conectados a trucks
 - **Fase 4.5 (done):** Status "Pagado" (8vo estado, violeta), company settings migrado de localStorage a Supabase (company_settings table + lib/company.js), DatePicker custom, filtros avanzados en OrdersView (truck/dispatcher/broker/fechas), cache en memoria (Dashboard + OrdersView, 30s TTL), OrderDocuments drag & drop + visor fullscreen PDF progresivo, stops con schedule_type (appointment/range) + time_end, queries por cycle_id FK (TruckView/Dashboard), unique active cycle constraint, Dashboard queries paralelas (Promise.all), HERE Maps error logging, RC drag & drop en OrderDetail, dispatcher requerido en nuevas ordenes
+- **Fase 4.6 (done):** Gastos recurrentes por truck (recurring_expenses table, CRUD en truck modal, auto-aplicacion al abrir ciclo), DayPicker component con portal dropdown, mejoras UX modal truck
 - **Fase 5 (next):** Reports, Excel/PDF export, auth/usuarios
 
 ## Commands
