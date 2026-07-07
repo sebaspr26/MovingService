@@ -49,16 +49,17 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
   const toast = useToast()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [activeType, setActiveType] = useState(null) // filter
+  const [uploading, setUploading] = useState(null) // which type is uploading
   const [preview, setPreview] = useState(null) // doc being previewed
-  const fileRef = useRef()
-  const [uploadType, setUploadType] = useState('RC')
+  const rcFileRef = useRef()
+  const bolFileRef = useRef()
+  const podFileRef = useRef()
+  const fileRefs = { RC: rcFileRef, BOL: bolFileRef, POD: podFileRef }
   const [fullscreen, setFullscreen] = useState(null)
   const [viewerImages, setViewerImages] = useState([])
   const [viewerLoading, setViewerLoading] = useState(false)
-  const [dragging, setDragging] = useState(false)
-  const dragCounter = useRef(0)
+  const [draggingType, setDraggingType] = useState(null)
+  const dragCounters = useRef({ RC: 0, BOL: 0, POD: 0 })
 
   useEffect(() => {
     if (orderId) fetchDocs()
@@ -78,12 +79,12 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
     return data?.publicUrl
   }
 
-  async function handleUpload(file) {
+  async function handleUpload(file, docType) {
     if (!file) return
-    setUploading(true)
+    setUploading(docType)
     try {
       const ext = file.name.split('.').pop()
-      const filePath = `${orderId}/${uploadType}_${Date.now()}.${ext}`
+      const filePath = `${orderId}/${docType}_${Date.now()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from('order-docs')
@@ -92,7 +93,7 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
 
       const { error: dbError } = await supabase.from('order_documents').insert({
         order_id: orderId,
-        doc_type: uploadType,
+        doc_type: docType,
         file_name: file.name,
         file_path: filePath,
         file_size: file.size,
@@ -100,14 +101,15 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
       })
       if (dbError) throw dbError
 
-      toast.success(`${uploadType} subido correctamente`)
+      toast.success(`${docType} subido correctamente`)
       fetchDocs()
       onDocsChange?.()
     } catch (err) {
       toast.error(friendlyError(err.message))
     } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
+      setUploading(null)
+      const ref = fileRefs[docType]
+      if (ref?.current) ref.current.value = ''
     }
   }
 
