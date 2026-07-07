@@ -118,11 +118,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
 
     // Auto-generate ref_number for new orders
     if (isNew) {
-      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(50)
+      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(200)
         .then(({ data }) => {
           let maxNum = 0
           ;(data || []).forEach(o => {
-            const n = parseInt((o.ref_number || '').replace(/\D/g, ''), 10)
+            const raw = (o.ref_number || '').trim()
+            if (!/^\d+$/.test(raw)) return // skip non-numeric refs (broker refs, etc)
+            const n = parseInt(raw, 10)
             if (n > maxNum) maxNum = n
           })
           setRefNumber(String(maxNum + 1).padStart(5, '0'))
@@ -605,10 +607,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       const filePath = `${id}/POD_${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('order-docs').upload(filePath, file)
       if (upErr) throw upErr
-      await supabase.from('order_documents').insert({
+      const { error: dbErr } = await supabase.from('order_documents').insert({
         order_id: id, doc_type: 'POD', file_name: file.name,
         file_path: filePath, file_size: file.size, mime_type: file.type,
       })
+      if (dbErr) throw dbErr
       await fetchDocs()
       toast.success('POD subido correctamente')
     } catch (err) {
