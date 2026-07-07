@@ -600,22 +600,31 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const hasPod = orderDocs.some(d => d.doc_type === 'POD')
 
   async function handlePodUpload(file) {
-    if (!file || !id || isNew) return
+    if (!file) return
+    if (!id || isNew) { toast.error('Guarda la orden primero'); return }
     setShowPodUpload(false)
+    toast.info('Subiendo POD...')
     try {
       const ext = file.name.split('.').pop()
       const filePath = `${id}/POD_${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('order-docs').upload(filePath, file)
-      if (upErr) throw upErr
+      if (upErr) {
+        console.error('POD storage upload error:', upErr)
+        throw upErr
+      }
       const { error: dbErr } = await supabase.from('order_documents').insert({
         order_id: id, doc_type: 'POD', file_name: file.name,
         file_path: filePath, file_size: file.size, mime_type: file.type,
       })
-      if (dbErr) throw dbErr
+      if (dbErr) {
+        console.error('POD db insert error:', dbErr)
+        throw dbErr
+      }
       await fetchDocs()
       toast.success('POD subido correctamente')
     } catch (err) {
-      toast.error(friendlyError(err.message || err))
+      console.error('POD upload failed:', err)
+      toast.error('Error subiendo POD: ' + (err.message || err.statusCode || 'Error desconocido'))
     }
   }
 
@@ -828,20 +837,17 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           </div>
           <p className="text-xs text-gray-400">Sube el Proof of Delivery para poder marcar esta orden como facturada.</p>
           <div className="flex gap-2">
-            <button
-              onClick={() => podFileRef.current?.click()}
-              className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors flex items-center gap-1.5"
-            >
+            <label className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors flex items-center gap-1.5 cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
               </svg>
               Subir POD
-            </button>
+              <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { if (e.target.files[0]) handlePodUpload(e.target.files[0]) }} />
+            </label>
             <button onClick={() => setShowPodUpload(false)} className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs hover:text-white transition-colors">
               Cancelar
             </button>
           </div>
-          <input ref={podFileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handlePodUpload(e.target.files[0])} />
         </div>
       )}
 

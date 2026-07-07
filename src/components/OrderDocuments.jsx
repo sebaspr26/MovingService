@@ -50,7 +50,6 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(null) // which type is uploading
-  const [preview, setPreview] = useState(null) // doc being previewed
   const rcFileRef = useRef()
   const bolFileRef = useRef()
   const podFileRef = useRef()
@@ -118,15 +117,10 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
     if (!ok) return
     await supabase.storage.from('order-docs').remove([doc.file_path])
     await supabase.from('order_documents').delete().eq('id', doc.id)
-    if (preview?.id === doc.id) setPreview(null)
     toast.success('Documento eliminado')
     fetchDocs()
     onDocsChange?.()
   }
-
-  const filtered = activeType ? docs.filter(d => d.doc_type === activeType) : docs
-  const counts = {}
-  DOC_TYPES.forEach(t => { counts[t.key] = docs.filter(d => d.doc_type === t.key).length })
 
   const isImage = (mime) => mime && mime.startsWith('image/')
   const isPdf = (mime) => mime === 'application/pdf'
@@ -150,117 +144,75 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
     }
   }
 
-  return (
-    <div
-      className={`bg-gray-900 border rounded-xl overflow-hidden transition-colors ${dragging ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-gray-800'}`}
-      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); dragCounter.current++; setDragging(true) }}
-      onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
-      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); dragCounter.current--; if (dragCounter.current === 0) setDragging(false) }}
-      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dragCounter.current = 0; setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleUpload(f) }}
-    >
-      {/* Header with unified type tabs */}
-      <div className="px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center justify-between mb-2">
+  function DocSection({ type }) {
+    const typeDocs = docs.filter(d => d.doc_type === type.key)
+    const ref = fileRefs[type.key]
+    const isUploading = uploading === type.key
+    const isDragging = draggingType === type.key
+
+    return (
+      <div
+        className={`border-b border-gray-800 last:border-b-0 transition-colors ${isDragging ? 'bg-gray-800/30' : ''}`}
+        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); dragCounters.current[type.key]++; setDraggingType(type.key) }}
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); dragCounters.current[type.key]--; if (dragCounters.current[type.key] === 0) setDraggingType(null) }}
+        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dragCounters.current[type.key] = 0; setDraggingType(null); const f = e.dataTransfer.files[0]; if (f) handleUpload(f, type.key) }}
+      >
+        {/* Section header with upload button */}
+        <div className="px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documentos</h3>
-            <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{docs.length}</span>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              type.key === 'RC' ? 'bg-blue-400' : type.key === 'BOL' ? 'bg-emerald-400' : 'bg-orange-400'
+            }`} />
+            <span className={`text-xs font-semibold ${type.color.split(' ')[0]}`}>{type.full}</span>
+            {typeDocs.length > 0 && (
+              <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{typeDocs.length}</span>
+            )}
           </div>
+          <button
+            onClick={() => ref.current?.click()}
+            disabled={isUploading}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors border ${
+              isDragging
+                ? 'border-blue-500 bg-blue-600/20 text-blue-300'
+                : `${type.color} hover:opacity-80`
+            }`}
+          >
+            {isUploading ? (
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+            )}
+            {isUploading ? 'Subiendo...' : isDragging ? 'Soltar aqui' : `Subir ${type.key}`}
+          </button>
+          <input
+            ref={ref}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => { handleUpload(e.target.files[0], type.key) }}
+          />
         </div>
 
-        <div className="flex gap-1.5">
-          {DOC_TYPES.map(t => (
-            <button
-              key={t.key}
-              onClick={() => { setUploadType(t.key); setActiveType(activeType === t.key ? null : t.key) }}
-              className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-colors ${
-                activeType === t.key || (!activeType && counts[t.key] > 0)
-                  ? t.color
-                  : 'text-gray-600 bg-gray-800/50 border-gray-700/50'
-              }`}
-            >
-              {t.key}
-              {counts[t.key] > 0 && (
-                <span className="ml-1 text-[9px] opacity-70">{counts[t.key]}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Upload zone — large drag & drop */}
-      <div className="p-4 border-b border-gray-800">
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className={`w-full py-6 border-2 border-dashed rounded-lg flex flex-col items-center gap-2 transition-colors ${
-            dragging
-              ? 'border-blue-500 bg-blue-600/10 text-blue-300'
-              : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500'
-          }`}
-        >
-          {uploading ? (
-            <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-          )}
-          <span className="text-xs font-medium">
-            {uploading ? 'Subiendo...' : dragging ? 'Soltar archivo aqui' : `Subir ${uploadType}`}
-          </span>
-          <span className="text-[10px] text-gray-600">Arrastra o haz click — Imagen o PDF</span>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(e) => handleUpload(e.target.files[0])}
-        />
-      </div>
-
-      {/* Document list */}
-      <div className="max-h-[300px] overflow-y-auto">
-        {loading ? (
-          <div className="p-4 space-y-2">
-            <div className="h-10 bg-gray-800 rounded animate-pulse" />
-            <div className="h-10 bg-gray-800 rounded animate-pulse" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-6 text-center text-gray-600 text-xs">
-            {docs.length === 0 ? 'Sin documentos' : 'Sin documentos de este tipo'}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800/50">
-            {filtered.map(doc => {
-              const typeConfig = DOC_TYPES.find(t => t.key === doc.doc_type) || DOC_TYPES[0]
-              const isActive = preview?.id === doc.id
+        {/* Documents for this type */}
+        {typeDocs.length > 0 && (
+          <div className="px-4 pb-2.5 space-y-1">
+            {typeDocs.map(doc => {
               return (
                 <div
                   key={doc.id}
-                  className={`px-4 py-2 flex items-center gap-2 hover:bg-gray-800/30 transition-colors cursor-pointer ${isActive ? 'bg-gray-800/40' : ''}`}
-                  onClick={() => setPreview(isActive ? null : doc)}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-gray-800/40 transition-colors cursor-pointer bg-gray-800/20`}
+                  onClick={() => openViewer(doc)}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    doc.doc_type === 'RC' ? 'bg-blue-400' : doc.doc_type === 'BOL' ? 'bg-emerald-400' : 'bg-orange-400'
-                  }`} />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[11px] font-semibold uppercase ${typeConfig.color.split(' ')[0]}`}>{doc.doc_type}</p>
-                    <p className="text-[10px] text-gray-500 truncate">{doc.file_name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{doc.file_name}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openViewer(doc) }}
-                      className="p-1 text-gray-600 hover:text-blue-400 transition-colors"
-                      title="Ver en grande"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                      </svg>
-                    </button>
                     <a
                       href={getPublicUrl(doc.file_path)}
                       target="_blank"
@@ -289,54 +241,30 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
           </div>
         )}
       </div>
+    )
+  }
 
-      {/* Preview panel */}
-      {preview && (
-        <div className="border-t border-gray-800">
-          <div className="px-4 py-2 flex items-center justify-between bg-gray-800/30">
-            <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-              </svg>
-              <span className="text-[11px] text-gray-400 font-medium">{preview.doc_type}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={() => openViewer(preview)} className="p-1 text-gray-500 hover:text-blue-400 transition-colors" title="Ver en grande">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                </svg>
-              </button>
-              <button onClick={() => setPreview(null)} className="p-1 text-gray-600 hover:text-white transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="p-2 bg-gray-950">
-            {isImage(preview.mime_type) ? (
-              <img
-                src={getPublicUrl(preview.file_path)}
-                alt={preview.file_name}
-                className="w-full rounded border border-gray-800"
-              />
-            ) : isPdf(preview.mime_type) ? (
-              <iframe
-                src={getPublicUrl(preview.file_path)}
-                className="w-full h-[400px] rounded border border-gray-800"
-                title={preview.file_name}
-              />
-            ) : (
-              <div className="py-8 text-center text-gray-600 text-xs">
-                Vista previa no disponible.{' '}
-                <a href={getPublicUrl(preview.file_path)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                  Descargar
-                </a>
-              </div>
-            )}
-          </div>
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documentos</h3>
+          <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{docs.length}</span>
         </div>
+      </div>
+
+      {/* Sections per doc type */}
+      {loading ? (
+        <div className="p-4 space-y-2">
+          <div className="h-10 bg-gray-800 rounded animate-pulse" />
+          <div className="h-10 bg-gray-800 rounded animate-pulse" />
+          <div className="h-10 bg-gray-800 rounded animate-pulse" />
+        </div>
+      ) : (
+        DOC_TYPES.map(t => <DocSection key={t.key} type={t} />)
       )}
+
       {/* Document viewer (invoice-style modal with pdf.js rendering) */}
       {fullscreen && (
         <div className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-auto">
