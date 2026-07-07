@@ -118,12 +118,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
 
     // Auto-generate ref_number for new orders
     if (isNew) {
-      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(200)
+      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(500)
         .then(({ data }) => {
           let maxNum = 0
           ;(data || []).forEach(o => {
             const raw = (o.ref_number || '').trim()
-            if (!/^\d+$/.test(raw)) return // skip non-numeric refs (broker refs, etc)
+            if (!/^\d{1,5}$/.test(raw)) return // only consider 1-5 digit sequential refs
             const n = parseInt(raw, 10)
             if (n > maxNum) maxNum = n
           })
@@ -600,7 +600,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const hasPod = orderDocs.some(d => d.doc_type === 'POD')
 
   async function handlePodUpload(file) {
-    if (!file || !id) return
+    if (!file || !id || isNew) return
     setShowPodUpload(false)
     try {
       const ext = file.name.split('.').pop()
