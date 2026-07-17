@@ -214,7 +214,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   async function handleSendEmail() {
     const remitEmail = remitInfo.remit_email || ''
     const billFromEmail = billingInfo.billing_email || ''
-    const billToEmail = broker?.email || ''
+    const billToEmail = order?.broker_email || broker?.email || ''
 
     // Build recipients based on toggles
     const toList = []
@@ -327,7 +327,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   }
 
   async function handleSendPod() {
-    const billToEmail = broker?.email || ''
+    const billToEmail = order?.broker_email || broker?.email || ''
     const billFromEmail = billingInfo.billing_email || ''
 
     const toList = []
@@ -543,9 +543,9 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                     <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
                       {[broker.address, broker.mc_number ? `MC: ${broker.mc_number}` : ''].filter(Boolean).join(' | ')}
                     </p>
-                    {(broker.phone || broker.email) && (
+                    {(broker.phone || order?.broker_email || broker.email) && (
                       <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
-                        {[broker.phone, broker.email].filter(Boolean).join(' | ')}
+                        {[broker.phone, order?.broker_email || broker.email].filter(Boolean).join(' | ')}
                       </p>
                     )}
                   </>
@@ -674,7 +674,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       {showEmailConfirm && (() => {
         const remitEmail = remitInfo.remit_email || ''
         const billFromEmail = billingInfo.billing_email || ''
-        const billToEmail = broker?.email || ''
+        const billToEmail = order?.broker_email || broker?.email || ''
         const hasAnyTo = emailToggles.remit && remitEmail
 
         const EmailRow = ({ label, type, email, tag }) => (
@@ -746,7 +746,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
       {/* POD email confirmation modal */}
       {showPodEmailConfirm && (() => {
-        const billToEmail = broker?.email || ''
+        const billToEmail = order?.broker_email || broker?.email || ''
         const billFromEmail = billingInfo.billing_email || ''
         const hasAnyTo = podEmailToggles.broker && billToEmail
 

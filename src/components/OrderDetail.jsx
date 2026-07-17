@@ -40,6 +40,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [orderNumber, setOrderNumber] = useState('')
   const [truckId, setTruckId] = useState('')
   const [brokerId, setBrokerId] = useState('')
+  const [brokerEmail, setBrokerEmail] = useState('')
   const [brokerType, setBrokerType] = useState('broker')
   const [equipmentType, setEquipmentType] = useState('')
   const [loadType, setLoadType] = useState('')
@@ -153,6 +154,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       setOrderNumber(o.order_number || '')
       setTruckId(o.truck_id || '')
       setBrokerId(o.broker_id || '')
+      setBrokerEmail(o.broker_email || '')
       setEquipmentType(o.equipment_type || '')
       setLoadType(o.load_type || '')
       setDispatcher(o.dispatcher || '')
@@ -358,6 +360,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
 
         // Auto-fill broker — auto-save if new
         if (d.broker && d.broker.name) {
+          // Email del RC va a la orden, no al broker
+          if (d.broker.email) setBrokerEmail(d.broker.email)
           const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
           if (existing) {
             setBrokerId(existing.id)
@@ -499,6 +503,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
         order_number: orderNumber.trim(),
         truck_id: truckId || null,
         broker_id: brokerId || null,
+        broker_email: brokerEmail.trim() || null,
         cycle_id: finalCycleId,
         status,
         equipment_type: equipmentType || null,
@@ -1361,14 +1366,24 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                         {selectedBroker.mc_number && <div>MC# <span className="text-gray-300">{selectedBroker.mc_number}</span></div>}
                         {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
                         {selectedBroker.phone && <div>Tel: <span className="text-gray-300">{selectedBroker.phone}</span></div>}
-                        {selectedBroker.email && <div>{selectedBroker.email}</div>}
                       </div>
                     </div>
-                    <button onClick={() => { setBrokerId(''); setShowNewBroker(true) }} className="text-gray-600 hover:text-red-400 transition-colors p-0.5" title="Cambiar broker">
+                    <button onClick={() => { setBrokerId(''); setBrokerEmail(''); setShowNewBroker(true) }} className="text-gray-600 hover:text-red-400 transition-colors p-0.5" title="Cambiar broker">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>
                     </button>
+                  </div>
+                  {/* Email de contacto para esta orden */}
+                  <div className="mt-2 pt-2 border-t border-gray-700/50">
+                    <label className="text-[10px] text-gray-500 uppercase font-semibold">Email contacto (esta orden)</label>
+                    <input
+                      type="email"
+                      value={brokerEmail}
+                      onChange={e => { setBrokerEmail(e.target.value); setDirty(true) }}
+                      placeholder={selectedBroker.email || 'Email del broker para esta orden'}
+                      className="w-full mt-1 bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:border-blue-500 focus:outline-none placeholder-gray-600"
+                    />
                   </div>
                 </div>
               ) : !showNewBroker ? (

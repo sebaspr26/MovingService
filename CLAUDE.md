@@ -69,11 +69,12 @@ supabase/
   013_unique_active_cycle.sql - Partial unique index: un solo ciclo abierto por truck
   014_stop_schedule.sql    - time_end y schedule_type en order_stops (appointment vs range)
   015_recurring_expenses.sql - Tabla recurring_expenses (gastos recurrentes por truck: description, amount, day_of_month)
+  016_order_broker_email.sql - broker_email en orders (email contacto por orden, extraido del RC)
 ```
 
 ## Database Tables (Supabase)
 - `trucks` (id, name, number, discount_percent [default 13])
-- `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
+- `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, broker_email [email contacto por orden, del RC], equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email)
 - `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, time_end, schedule_type [appointment/range], ref_number, sequence, notes)
 - `order_documents` (id, order_id FK CASCADE, doc_type [RC/BOL/POD], file_name, file_path, file_size, mime_type)
