@@ -13,7 +13,7 @@ const FILTERS = [
   { key: 'expense', label: 'Otros Gastos' },
 ]
 
-export default function ExpensesTab({ truckId, period, cycle, onDataChange, readOnly }) {
+export default function ExpensesTab({ truckId, period, cycle, onDataChange, readOnly, isLis }) {
   const toast = useToast()
   const [filter, setFilter] = useState('all')
   const [dieselRows, setDieselRows] = useState([])
@@ -103,6 +103,33 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
     setEditRow(null)
     fetchAll()
     if (onDataChange) onDataChange()
+  }
+
+  async function handleTransferToOwner(row) {
+    const typeLabel = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'DEF' : row._type === 'chofer' ? 'pago chofer' : 'gasto'
+    const ok = await toast.confirm(`Transferir este ${typeLabel} a gastos del propietario?`)
+    if (!ok) return
+    // Insert into owner_expenses
+    const ownerRecord = {
+      truck_id: truckId,
+      cycle_id: cycle?.id || null,
+      category: row._type === 'diesel' ? 'Diesel' : row._type === 'def' ? 'DEF' : (row.category || 'Otros'),
+      invoice_number: row.invoice_number || null,
+      description: row._desc || row.description || `${typeLabel} transferido`,
+      amount: row._amount,
+      date: row.date,
+      period_start: row.period_start || period.start,
+      period_end: row.period_end || period.end,
+    }
+    const { error: insertErr } = await supabase.from('owner_expenses').insert(ownerRecord)
+    if (insertErr) { toast.error(friendlyError(insertErr.message)); return }
+    // Delete from original table
+    const table = (row._type === 'expense' || row._type === 'chofer') ? 'expenses' : row._type
+    const { error: delErr } = await supabase.from(table).delete().eq('id', row.id)
+    if (delErr) { toast.error(friendlyError(delErr.message)); return }
+    fetchAll()
+    if (onDataChange) onDataChange()
+    toast.success(`${typeLabel} transferido a gastos del propietario`)
   }
 
   const typeBadge = (type) => {
@@ -218,6 +245,13 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
                 {!readOnly && (
                   <td className="py-2.5">
                     <div className="flex gap-1 justify-end">
+                      {isLis && (
+                        <button onClick={() => handleTransferToOwner(row)} className="p-1 text-gray-500 hover:text-amber-400" title="Transferir a propietario">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                          </svg>
+                        </button>
+                      )}
                       <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-blue-400">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />

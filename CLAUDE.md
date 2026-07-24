@@ -30,6 +30,7 @@ src/
     DayPicker.jsx       - Selector de dia del mes (1-31) con dropdown portal (createPortal), posicion auto arriba/abajo. Usado en gastos recurrentes del truck modal
     DieselTable.jsx     - CRUD diesel con AddModal
     ExpensesTable.jsx   - CRUD gastos con 11 categorias + AddModal
+    OwnerExpensesTable.jsx - CRUD gastos del propietario (trucks LIS). No afecta balance del ciclo. Misma estructura que ExpensesTable
     AccountingTable.jsx - Ledger debito/credito con 3 auto-rows (neto, diesel, gastos) + manuales
     AddModal.jsx        - Modal reutilizable con soporte scanner inline (image/PDF -> AI -> autofill)
     CashBox.jsx         - Cierre/reapertura de ciclo + dividendos por socio
@@ -70,10 +71,11 @@ supabase/
   014_stop_schedule.sql    - time_end y schedule_type en order_stops (appointment vs range)
   015_recurring_expenses.sql - Tabla recurring_expenses (gastos recurrentes por truck: description, amount, day_of_month)
   016_order_broker_email.sql - broker_email en orders (email contacto por orden, extraido del RC)
+  017_lis_owner_expenses.sql - is_lis y owner_name en trucks + tabla owner_expenses para gastos propietario
 ```
 
 ## Database Tables (Supabase)
-- `trucks` (id, name, number, discount_percent [default 13])
+- `trucks` (id, name, number, discount_percent [default 13], is_lis [default false], owner_name)
 - `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, broker_email [email contacto por orden, del RC], equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email)
 - `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, time_end, schedule_type [appointment/range], ref_number, sequence, notes)
@@ -91,6 +93,7 @@ supabase/
 - `trailers` (id, name, number, type, truck_id FK nullable, status [active/inactive])
 - `trailer_documents` (id, trailer_id FK CASCADE, doc_type, label, file_name, file_path, file_size, mime_type)
 - `recurring_expenses` (id, truck_id FK CASCADE, description, amount, day_of_month [1-31], active [default true], last_applied_month [text], created_at)
+- `owner_expenses` (id, truck_id FK, cycle_id FK, category, invoice_number, description, amount, date, period_start, period_end, created_at) — gastos del propietario para trucks LIS, no afectan balance
 - `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
@@ -128,6 +131,13 @@ All tables have RLS enabled with open policies (no auth yet).
 - **Switches**: cada destinatario tiene toggle on/off. Por defecto todos habilitados. El usuario puede deshabilitar cualquiera antes de enviar
 - **API**: Vercel serverless function → Resend API. Soporta `to`, `cc`, adjunto PDF base64
 - **Requiere**: RESEND_KEY env var en Vercel
+
+### LIS Trucks (Propietario Externo)
+- Toggle LIS en truck modal (Dashboard). Cuando activo, requiere nombre del propietario
+- Trucks LIS tienen tab adicional "Gastos Propietario" en TruckView
+- Gastos del propietario se almacenan en `owner_expenses` (NO afectan balance/caja del ciclo)
+- En tab Gastos, cada fila tiene boton "transferir a propietario" que mueve el registro de `expenses`/`diesel`/`def` a `owner_expenses`
+- Al eliminar un truck, se eliminan tambien sus `owner_expenses`
 
 ### Recurring Expenses (Gastos Recurrentes)
 - Se configuran por truck en el modal de crear/editar camion (Dashboard)
@@ -202,6 +212,7 @@ RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 - **Fase 4 (done):** Modulo Compania (choferes, camiones, trailers, company info, billing, docs), tema light/dark, configuracion, TONU precio editable, ref# auto-generado, rate/mi en tabla, invoice cache + regenerar, email con CC y switches, logo dinamico, sidebar dinamico, drivers conectados a trucks
 - **Fase 4.5 (done):** Status "Pagado" (8vo estado, violeta), company settings migrado de localStorage a Supabase (company_settings table + lib/company.js), DatePicker custom, filtros avanzados en OrdersView (truck/dispatcher/broker/fechas), cache en memoria (Dashboard + OrdersView, 30s TTL), OrderDocuments drag & drop + visor fullscreen PDF progresivo, stops con schedule_type (appointment/range) + time_end, queries por cycle_id FK (TruckView/Dashboard), unique active cycle constraint, Dashboard queries paralelas (Promise.all), HERE Maps error logging, RC drag & drop en OrderDetail, dispatcher requerido en nuevas ordenes
 - **Fase 4.6 (done):** Gastos recurrentes por truck (recurring_expenses table, CRUD en truck modal, auto-aplicacion al abrir ciclo), DayPicker component con portal dropdown, mejoras UX modal truck
+- **Fase 4.7 (done):** Sistema LIS — trucks con propietario externo (is_lis + owner_name en trucks), tabla owner_expenses, tab "Gastos Propietario" condicional en TruckView, boton transferir gastos a propietario en ExpensesTab
 - **Fase 5 (next):** Reports, Excel/PDF export, auth/usuarios
 
 ## Commands

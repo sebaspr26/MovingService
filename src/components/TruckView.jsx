@@ -6,10 +6,11 @@ import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
 import CashBox from './CashBox'
+import OwnerExpensesTable from './OwnerExpensesTable'
 
 function fmt_d(d) { return d.toISOString().split('T')[0] }
 
-const TABS = [
+const BASE_TABS = [
   { key: 'orders', label: 'Orders' },
   { key: 'expenses', label: 'Gastos' },
   { key: 'accounting', label: 'Contabilidad' },
@@ -34,6 +35,9 @@ export default function TruckView() {
   const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
   const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
   const hasActiveCycle = cycles.some(c => !c.closed)
+  const TABS = truck?.is_lis
+    ? [...BASE_TABS, { key: 'owner_expenses', label: 'Gastos Propietario' }]
+    : BASE_TABS
 
   useEffect(() => {
     supabase.from('trucks').select('*').eq('id', id).single()
@@ -373,8 +377,9 @@ export default function TruckView() {
           {/* Tab content */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
-            {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} />}
+            {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
+            {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} readOnly={readOnly} ownerName={truck?.owner_name} />}
           </div>
 
           {/* Cash Box & Dividends */}

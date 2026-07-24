@@ -76,6 +76,8 @@ export default function Dashboard() {
   const [truckDiscountCustom, setTruckDiscountCustom] = useState('')
   const [truckError, setTruckError] = useState('')
   const [truckRecurring, setTruckRecurring] = useState([])
+  const [truckIsLis, setTruckIsLis] = useState(false)
+  const [truckOwnerName, setTruckOwnerName] = useState('')
 
   // Recurring expenses banner
   const [pendingRecurring, setPendingRecurring] = useState([])
@@ -251,6 +253,8 @@ export default function Dashboard() {
       setEditingTruck(truck)
       setTruckName(truck.name)
       setTruckNumber(truck.number)
+      setTruckIsLis(truck.is_lis || false)
+      setTruckOwnerName(truck.owner_name || '')
       setTruckDiscount(String(truck.discount_percent || 13))
       setTruckDiscountCustom('')
       if (!['13', '11'].includes(String(truck.discount_percent))) {
@@ -273,6 +277,8 @@ export default function Dashboard() {
       setTruckName('')
       setTruckNumber('')
       setTruckDriverId('')
+      setTruckIsLis(false)
+      setTruckOwnerName('')
       setTruckPartners([{ name: '', percentage: '' }])
       setTruckRecurring([])
       setTruckDiscount('13')
@@ -335,11 +341,16 @@ export default function Dashboard() {
       }
     }
 
+    if (truckIsLis && !truckOwnerName.trim()) {
+      setTruckError('El nombre del propietario es requerido para trucks LIS')
+      return
+    }
+
     const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
 
     if (editingTruck) {
       const { error } = await supabase.from('trucks')
-        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
+        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null })
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
@@ -365,7 +376,7 @@ export default function Dashboard() {
       await saveRecurringExpenses(editingTruck.id)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
-        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue })
+        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null })
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
@@ -411,6 +422,7 @@ export default function Dashboard() {
       supabase.from('diesel').delete().eq('truck_id', tid),
       supabase.from('def').delete().eq('truck_id', tid),
       supabase.from('expenses').delete().eq('truck_id', tid),
+      supabase.from('owner_expenses').delete().eq('truck_id', tid),
       supabase.from('accounting').delete().eq('truck_id', tid),
       supabase.from('cycles').delete().eq('truck_id', tid),
       supabase.from('partners').delete().eq('truck_id', tid),
@@ -848,6 +860,29 @@ export default function Dashboard() {
                   }
                 </select>
                 <p className="text-[10px] text-gray-600 mt-1">Los choferes se crean en Compania → Choferes</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-400">Truck LIS (propietario externo)</label>
+                  <button
+                    type="button"
+                    onClick={() => setTruckIsLis(!truckIsLis)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${truckIsLis ? 'bg-amber-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${truckIsLis ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {truckIsLis && (
+                  <input
+                    type="text"
+                    value={truckOwnerName}
+                    onChange={(e) => setTruckOwnerName(e.target.value)}
+                    className="mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-amber-500"
+                    placeholder="Nombre del propietario"
+                    required
+                  />
+                )}
               </div>
 
               <div>
