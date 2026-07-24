@@ -6,8 +6,6 @@ import { useToast, friendlyError } from './Toast'
 import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
 
-const PAGE_SIZE = 5
-
 export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
@@ -15,7 +13,6 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  const [expanded, setExpanded] = useState(false)
 
   // Form state
   const [fOrderNumber, setFOrderNumber] = useState('')
@@ -31,7 +28,6 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
   const scanFileRef = useRef()
 
   useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
-  useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchRows() {
     if (!cycle?.id) return
@@ -177,8 +173,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
       )
     : rows
 
-  const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
-  const hasMore = !q && filtered.length > PAGE_SIZE
+  const visible = filtered
 
   const paidRows = rows.filter(r => r.paid)
   const total = paidRows.reduce((s, r) => {
@@ -347,19 +342,6 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           </tbody>
         </table>
       </div>
-
-      {hasMore && (
-        <div className="flex justify-center mt-2">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="px-4 py-1 bg-gray-800 border border-gray-700 border-t-0 rounded-b-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-          >
-            <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-        </div>
-      )}
 
       {/* Modal */}
       {showModal && (

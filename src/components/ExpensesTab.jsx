@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import AddReceiptModal from './AddReceiptModal'
 
-const PAGE_SIZE = 5
 
 const FILTERS = [
   { key: 'all', label: 'Todos' },
@@ -23,10 +22,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-
   useEffect(() => { fetchAll() }, [truckId, cycle?.id, period])
-  useEffect(() => { setExpanded(false) }, [period])
 
   async function fetchAll() {
     if (!cycle?.id) return
@@ -70,8 +66,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
       )
     : filteredByType
 
-  const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
-  const hasMore = !q && filtered.length > PAGE_SIZE
+  const visible = filtered
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -150,7 +145,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
         {FILTERS.map(f => (
           <button
             key={f.key}
-            onClick={() => { setFilter(f.key); setExpanded(false) }}
+            onClick={() => setFilter(f.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
               filter === f.key
                 ? f.key === 'diesel' ? 'bg-orange-600/20 text-orange-400 border border-orange-600/40'
@@ -273,19 +268,6 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
           </tbody>
         </table>
       </div>
-
-      {hasMore && (
-        <div className="flex justify-center mt-2">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="px-4 py-1 bg-gray-800 border border-gray-700 border-t-0 rounded-b-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-          >
-            <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-        </div>
-      )}
 
       <AddReceiptModal
         isOpen={showModal}
