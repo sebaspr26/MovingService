@@ -17,11 +17,19 @@ const fields = [
   { name: 'date', label: 'Fecha', type: 'date', required: true },
 ]
 
+const FILTERS = [
+  { key: 'all', label: 'Todos' },
+  { key: 'diesel', label: 'Diesel' },
+  { key: 'def', label: 'DEF' },
+  { key: 'expense', label: 'Otros Gastos' },
+]
+
 const PAGE_SIZE = 5
 
 export default function OwnerExpensesTable({ truckId, period, cycle, onDataChange, readOnly, ownerName }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
+  const [filter, setFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
@@ -84,22 +92,57 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
     toast.success('Gasto eliminado')
   }
 
+  // Classify rows by type
+  const classifyType = (cat) => {
+    if (cat === 'Diesel') return 'diesel'
+    if (cat === 'DEF') return 'def'
+    return 'expense'
+  }
+
+  const allRows = rows.map(r => ({ ...r, _type: classifyType(r.category), _amount: Number(r.amount) || 0 }))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+
+  const filteredByType = filter === 'all' ? allRows : allRows.filter(r => r._type === filter)
+
+  // Counts per type
+  const counts = {
+    all: allRows.length,
+    diesel: allRows.filter(r => r._type === 'diesel').length,
+    def: allRows.filter(r => r._type === 'def').length,
+    expense: allRows.filter(r => r._type === 'expense').length,
+  }
+
+  // Totals per type
+  const dieselTotal = allRows.filter(r => r._type === 'diesel').reduce((s, r) => s + r._amount, 0)
+  const defTotal = allRows.filter(r => r._type === 'def').reduce((s, r) => s + r._amount, 0)
+  const expenseTotal = allRows.filter(r => r._type === 'expense').reduce((s, r) => s + r._amount, 0)
+  const grandTotal = dieselTotal + defTotal + expenseTotal
+
   const q = search.toLowerCase()
   const filtered = q
-    ? rows.filter(r =>
+    ? filteredByType.filter(r =>
         (r.category || '').toLowerCase().includes(q) ||
-        String(r.invoice_number).toLowerCase().includes(q) ||
+        String(r.invoice_number || '').toLowerCase().includes(q) ||
         (r.description || '').toLowerCase().includes(q) ||
         (r.date || '').includes(q) ||
-        String(r.amount).includes(q)
+        String(r._amount).includes(q)
       )
-    : rows
+    : filteredByType
 
   const visible = expanded || q ? filtered : filtered.slice(0, PAGE_SIZE)
   const hasMore = !q && filtered.length > PAGE_SIZE
 
-  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+
+  const typeBadge = (type) => {
+    const styles = {
+      diesel: 'bg-orange-900/40 text-orange-400',
+      def: 'bg-cyan-900/40 text-cyan-400',
+      expense: 'bg-amber-900/40 text-amber-400',
+    }
+    const labels = { diesel: 'Diesel', def: 'DEF', expense: 'Gasto' }
+    return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[type]}`}>{labels[type]}</span>
+  }
 
   return (
     <div>
@@ -107,13 +150,43 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
         <div className="mb-4 flex items-center gap-2">
           <span className="px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded text-xs font-medium">LIS</span>
           <span className="text-sm text-gray-300">Propietario: <span className="text-white font-medium">{ownerName}</span></span>
+          <span className="text-gray-600 text-[10px]">(no afecta balance)</span>
         </div>
       )}
 
+      {/* Filters */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => { setFilter(f.key); setExpanded(false) }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              filter === f.key
+                ? f.key === 'diesel' ? 'bg-orange-600/20 text-orange-400 border border-orange-600/40'
+                  : f.key === 'def' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-600/40'
+                  : f.key === 'expense' ? 'bg-amber-600/20 text-amber-400 border border-amber-600/40'
+                  : 'bg-gray-700 text-white border border-gray-600'
+                : 'bg-gray-800/50 text-gray-500 border border-transparent hover:text-gray-300'
+            }`}
+          >
+            {f.label}
+            <span className={`text-[10px] px-1 py-0.5 rounded ${filter === f.key ? 'bg-white/10' : 'bg-gray-800'}`}>
+              {counts[f.key]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="text-xs sm:text-sm text-gray-400">
-          {rows.length} gastos | Total: <span className="text-amber-400 font-semibold">{fmt(total)}</span>
-          <span className="text-gray-600 text-[10px] ml-2">(no afecta balance)</span>
+        <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap gap-x-2">
+          <span className="text-orange-400">Diesel: {fmt(dieselTotal)}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-cyan-400">DEF: {fmt(defTotal)}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-amber-400">Gastos: {fmt(expenseTotal)}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-white font-semibold">Total: {fmt(grandTotal)}</span>
         </div>
         <div className="flex gap-2 items-center">
           {showSearch && (
@@ -121,7 +194,7 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar categoria, descripcion..."
+              placeholder="Buscar..."
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 w-48 sm:w-56"
               autoFocus
             />
@@ -139,34 +212,40 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
               onClick={() => { setEditRow(null); setShowModal(true) }}
               className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-500 transition-colors"
             >
-              + Agregar Gasto Propietario
+              + Agregar
             </button>
           )}
         </div>
       </div>
 
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
-              <th className="pb-2 pr-4">Categoria</th>
-              <th className="pb-2 pr-4">Invoice #</th>
-              <th className="pb-2 pr-4">Descripcion</th>
-              <th className="pb-2 pr-4">Fecha</th>
-              <th className="pb-2 pr-4 text-right">Monto</th>
+              <th className="pb-2 pr-3">Tipo</th>
+              <th className="pb-2 pr-3">Invoice #</th>
+              <th className="pb-2 pr-3">Fecha</th>
+              <th className="pb-2 pr-3">Descripcion</th>
+              <th className="pb-2 pr-3 text-right">Monto</th>
               {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
           <tbody>
             {visible.map(row => (
               <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="py-2.5 pr-4">
-                  <span className="px-2 py-0.5 bg-gray-800 rounded text-xs text-gray-300">{row.category}</span>
+                <td className="py-2.5 pr-3">{typeBadge(row._type)}</td>
+                <td className="py-2.5 pr-3 text-white font-medium">{row.invoice_number || '-'}</td>
+                <td className="py-2.5 pr-3">{row.date}</td>
+                <td className="py-2.5 pr-3 text-gray-300">
+                  {row._type === 'expense' ? (
+                    <span>
+                      <span className="text-[10px] bg-gray-800 rounded px-1.5 py-0.5 mr-1.5 text-gray-400">{row.category}</span>
+                      {row.description}
+                    </span>
+                  ) : row.description}
                 </td>
-                <td className="py-2.5 pr-4 text-gray-400">{row.invoice_number || '-'}</td>
-                <td className="py-2.5 pr-4 text-white">{row.description}</td>
-                <td className="py-2.5 pr-4">{row.date}</td>
-                <td className="py-2.5 pr-4 text-right text-amber-400">{fmt(row.amount)}</td>
+                <td className="py-2.5 pr-3 text-right text-amber-400 font-medium">{fmt(row._amount)}</td>
                 {!readOnly && (
                   <td className="py-2.5">
                     <div className="flex gap-1 justify-end">
