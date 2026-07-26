@@ -415,8 +415,48 @@ export default function Dashboard() {
   }
 
   async function handleDeleteTruck() {
-    if (!deleteTarget || deleteInput !== deleteTarget.name) return
+    if (!deleteTarget || deleteInput !== 'SimoN.2004') return
     const tid = deleteTarget.id
+
+    // Audit log: registrar quien elimino y desde donde
+    try {
+      let ipData = {}
+      try {
+        const ipRes = await fetch('https://ipapi.co/json/')
+        ipData = await ipRes.json()
+      } catch (e) { /* si falla, continuar sin IP */ }
+
+      await supabase.from('audit_log').insert({
+        action: 'delete_truck',
+        entity_type: 'truck',
+        entity_id: tid,
+        entity_name: deleteTarget.name,
+        user_agent: navigator.userAgent,
+        ip_address: ipData.ip || null,
+        extra_info: {
+          truck_number: deleteTarget.number,
+          truck_discount: deleteTarget.discount_percent,
+          is_lis: deleteTarget.is_lis,
+          owner_name: deleteTarget.owner_name,
+          screen: `${screen.width}x${screen.height}`,
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          language: navigator.language,
+          languages: navigator.languages,
+          platform: navigator.platform,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          cpu_cores: navigator.hardwareConcurrency,
+          ram_gb: navigator.deviceMemory || null,
+          touch_points: navigator.maxTouchPoints,
+          connection: navigator.connection?.effectiveType || null,
+          timestamp_local: new Date().toString(),
+          ip_city: ipData.city || null,
+          ip_region: ipData.region || null,
+          ip_country: ipData.country_name || null,
+          ip_isp: ipData.org || null,
+        }
+      })
+    } catch (e) { /* no bloquear eliminacion si falla el log */ }
+
     await Promise.all([
       supabase.from('orders').delete().eq('truck_id', tid),
       supabase.from('diesel').delete().eq('truck_id', tid),
@@ -776,14 +816,14 @@ export default function Dashboard() {
             </div>
             <div className="p-5">
               <p className="text-sm text-gray-400 mb-2">
-                Escribe <span className="text-white font-mono bg-gray-800 px-1.5 py-0.5 rounded">{deleteTarget.name}</span> para confirmar:
+                Ingresa la <span className="text-red-400 font-medium">contrasena de administrador</span> para confirmar:
               </p>
               <input
-                type="text"
+                type="password"
                 value={deleteInput}
                 onChange={(e) => setDeleteInput(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-red-500"
-                placeholder={deleteTarget.name}
+                placeholder="Contrasena"
                 autoFocus
               />
             </div>
@@ -796,7 +836,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={handleDeleteTruck}
-                disabled={deleteInput !== deleteTarget.name}
+                disabled={deleteInput !== 'SimoN.2004'}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Eliminar

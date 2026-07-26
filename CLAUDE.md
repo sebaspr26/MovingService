@@ -72,6 +72,7 @@ supabase/
   015_recurring_expenses.sql - Tabla recurring_expenses (gastos recurrentes por truck: description, amount, day_of_month)
   016_order_broker_email.sql - broker_email en orders (email contacto por orden, extraido del RC)
   017_lis_owner_expenses.sql - is_lis y owner_name en trucks + tabla owner_expenses para gastos propietario
+  018_audit_log.sql          - Tabla audit_log para registrar acciones destructivas (delete truck, etc.)
 ```
 
 ## Database Tables (Supabase)
@@ -95,6 +96,8 @@ supabase/
 - `recurring_expenses` (id, truck_id FK CASCADE, description, amount, day_of_month [1-31], active [default true], last_applied_month [text], created_at)
 - `owner_expenses` (id, truck_id FK, cycle_id FK, category, invoice_number, description, amount, date, period_start, period_end, created_at) — gastos del propietario para trucks LIS, no afectan balance
 - `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
+
+- `audit_log` (id, action, entity_type, entity_id, entity_name, user_agent, ip_address, extra_info [jsonb], created_at) — log de acciones destructivas
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
 
