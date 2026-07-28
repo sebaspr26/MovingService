@@ -54,102 +54,174 @@ export default function Layout() {
     },
   ]
 
-  const navLinkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-      isActive
-        ? 'bg-blue-600/20 text-blue-400'
-        : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-    } ${collapsed ? 'justify-center' : ''}`
-
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex">
       {/* Sidebar — desktop */}
-      <aside className={`hidden lg:flex fixed inset-y-0 left-0 z-30 bg-gray-900 border-r border-gray-800 flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
-        <div className={`border-b border-gray-800 flex items-center ${collapsed ? 'p-3 justify-center' : 'p-6 justify-between'}`}>
-          {!collapsed && (
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">{companyName}</h1>
-              <p className="text-xs text-gray-500 mt-1">{companyDba}</p>
-            </div>
-          )}
+      <aside
+        className={`hidden lg:flex fixed inset-y-0 left-0 z-30 bg-gray-900 border-r border-gray-800 flex-col ${collapsed ? 'w-16' : 'w-64'}`}
+        style={{ transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
+      >
+        <div
+          className="border-b border-gray-800 flex items-center overflow-hidden"
+          style={{
+            padding: collapsed ? '12px' : '24px',
+            justifyContent: collapsed ? 'center' : 'space-between',
+            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <div
+            className="overflow-hidden whitespace-nowrap"
+            style={{
+              width: collapsed ? 0 : 180,
+              opacity: collapsed ? 0 : 1,
+              transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+            }}
+          >
+            <h1 className="text-xl font-bold text-white tracking-tight">{companyName}</h1>
+            <p className="text-xs text-gray-500 mt-1">{companyDba}</p>
+          </div>
           <button
             onClick={toggleCollapsed}
-            className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
+            className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 shrink-0"
+            style={{ transition: 'color 0.2s, background 0.2s' }}
             title={collapsed ? 'Expandir' : 'Colapsar'}
           >
-            <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-4 h-4"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              style={{
+                transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
           </button>
         </div>
 
-        <nav className={`flex-1 space-y-1 ${collapsed ? 'p-2' : 'p-4'}`}>
+        <nav
+          className="flex-1 space-y-1"
+          style={{
+            padding: collapsed ? '8px' : '16px',
+            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
           {navItems.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass} title={collapsed ? item.label : undefined}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
+                  isActive
+                    ? 'bg-blue-600/20 text-blue-400'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                } ${collapsed ? 'justify-center' : ''}`
+              }
+              style={{ transition: 'color 0.2s, background 0.2s' }}
+            >
               <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 {item.icon}
               </svg>
-              {!collapsed && item.label}
+              <span
+                style={{
+                  width: collapsed ? 0 : 'auto',
+                  opacity: collapsed ? 0 : 1,
+                  transition: 'opacity 0.2s ease',
+                  overflow: 'hidden',
+                }}
+              >
+                {item.label}
+              </span>
             </NavLink>
           ))}
         </nav>
 
-        <div className={`border-t border-gray-800 ${collapsed ? 'p-2 text-center' : 'p-4'}`}>
-          <p className="text-xs text-gray-600">{collapsed ? 'v1.3' : 'v1.3.1 - Fase 3.5'}</p>
+        <div
+          className="border-t border-gray-800 overflow-hidden"
+          style={{
+            padding: collapsed ? '8px' : '16px',
+            textAlign: collapsed ? 'center' : 'left',
+            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <p
+            className="text-xs text-gray-600 whitespace-nowrap"
+            style={{
+              opacity: collapsed ? 0.7 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            {collapsed ? 'v1.3' : 'v1.3.1 - Fase 3.5'}
+          </p>
         </div>
       </aside>
 
       {/* Mobile sidebar overlay */}
-      {menuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <aside
-            className="absolute inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'slideIn 0.2s ease-out' }}
-          >
-            <div className="p-5 border-b border-gray-800 flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">{companyName}</h1>
-                <p className="text-xs text-gray-500 mt-0.5">{companyDba}</p>
-              </div>
-              <button onClick={() => setMenuOpen(false)} className="text-gray-500 hover:text-white transition-colors p-1">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+      <div
+        className={`lg:hidden fixed inset-0 z-40 ${menuOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        onClick={() => setMenuOpen(false)}
+      >
+        <div
+          className="absolute inset-0 bg-black/60"
+          style={{
+            opacity: menuOpen ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+          }}
+        />
+        <aside
+          className="absolute inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            transform: menuOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <div className="p-5 border-b border-gray-800 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-white tracking-tight">{companyName}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{companyDba}</p>
+            </div>
+            <button onClick={() => setMenuOpen(false)} className="text-gray-500 hover:text-white transition-colors p-1">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <nav className="flex-1 p-4 space-y-1">
+            {navItems.map(item => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                  }`
+                }
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  {item.icon}
                 </svg>
-              </button>
-            </div>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
 
-            <nav className="flex-1 p-4 space-y-1">
-              {navItems.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`
-                  }
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    {item.icon}
-                  </svg>
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-
-            <div className="p-4 border-t border-gray-800">
-              <p className="text-xs text-gray-600">v1.3.1 - Fase 3.5</p>
-            </div>
-          </aside>
-        </div>
-      )}
+          <div className="p-4 border-t border-gray-800">
+            <p className="text-xs text-gray-600">v1.3.1 - Fase 3.5</p>
+          </div>
+        </aside>
+      </div>
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+      <div
+        className={`flex-1 flex flex-col min-w-0 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
+        style={{ transition: 'margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
+      >
         {/* Mobile header */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-800 bg-gray-900">
           {isSubPage ? (
@@ -178,13 +250,6 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-
-      <style>{`
-        @keyframes slideIn {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
     </div>
   )
 }
