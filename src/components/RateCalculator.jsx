@@ -12,7 +12,6 @@ export default function RateCalculator() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
-  // Load historical rate stats on mount
   useEffect(() => {
     async function loadStats() {
       const { data } = await supabase
@@ -60,7 +59,6 @@ export default function RateCalculator() {
 
       const miles = route.distanceMiles
 
-      // Find similar routes (same origin or destination city, case insensitive)
       const originLower = origin.trim().toLowerCase()
       const destLower = destination.trim().toLowerCase()
       const similar = stats.orders.filter(o => {
@@ -98,31 +96,33 @@ export default function RateCalculator() {
 
   return (
     <div className="space-y-4">
-      {/* Stats summary */}
+      {/* Historical stats */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-            <p className="text-xs text-gray-500">Ordenes analizadas</p>
-            <p className="text-lg font-bold text-white">{stats.totalOrders}</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Ordenes analizadas</span>
+            <span className="text-xs font-semibold text-white">{stats.totalOrders}</span>
           </div>
-          <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-            <p className="text-xs text-gray-500">Promedio/mi</p>
-            <p className="text-lg font-bold text-green-400">{fmt(stats.avgPerMile)}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Promedio/mi</span>
+            <span className="text-xs font-semibold text-green-400">{fmt(stats.avgPerMile)}</span>
           </div>
-          <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-            <p className="text-xs text-gray-500">Mediana/mi</p>
-            <p className="text-lg font-bold text-blue-400">{fmt(stats.medianPerMile)}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Mediana/mi</span>
+            <span className="text-xs font-semibold text-blue-400">{fmt(stats.medianPerMile)}</span>
           </div>
-          <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-            <p className="text-xs text-gray-500">Rango/mi</p>
-            <p className="text-lg font-bold text-gray-300">{fmt(stats.minPerMile)} - {fmt(stats.maxPerMile)}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Rango/mi</span>
+            <span className="text-xs font-semibold text-gray-400">{fmt(stats.minPerMile)} — {fmt(stats.maxPerMile)}</span>
           </div>
         </div>
       )}
 
-      {/* Input */}
-      <div className="flex flex-wrap gap-2 items-end">
-        <div className="flex-1 min-w-[140px]">
+      <div className="border-t border-gray-800" />
+
+      {/* Inputs */}
+      <div className="space-y-2">
+        <div>
           <label className="block text-xs text-gray-500 mb-1">Origen</label>
           <input
             type="text"
@@ -133,7 +133,7 @@ export default function RateCalculator() {
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
           />
         </div>
-        <div className="flex-1 min-w-[140px]">
+        <div>
           <label className="block text-xs text-gray-500 mb-1">Destino</label>
           <input
             type="text"
@@ -147,7 +147,7 @@ export default function RateCalculator() {
         <button
           onClick={calculate}
           disabled={loading || !origin.trim() || !destination.trim() || !stats}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Calculando...' : 'Calcular'}
         </button>
@@ -158,54 +158,67 @@ export default function RateCalculator() {
       {/* Result */}
       {result && (
         <div className="space-y-3">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-            <div className="flex items-center justify-between mb-3">
+          <div className="border-t border-gray-800" />
+
+          {/* Route info */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide">Distancia</p>
+              <p className="text-lg font-bold text-white">{result.miles.toLocaleString()} mi</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide">Tiempo</p>
+              <p className="text-sm font-medium text-gray-300">
+                {Math.floor(result.duration / 60)}h {result.duration % 60}m
+              </p>
+            </div>
+          </div>
+
+          {/* Prices */}
+          <div className="space-y-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Precio sugerido</p>
+
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Distancia (truck route)</p>
-                <p className="text-xl font-bold text-white">{result.miles.toLocaleString()} mi</p>
+                <p className="text-[10px] text-green-400/70">Promedio</p>
+                <p className="text-lg font-bold text-green-400">{fmt(result.suggested)}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Tiempo estimado</p>
-                <p className="text-sm text-gray-300">
-                  {Math.floor(result.duration / 60)}h {result.duration % 60}min
-                </p>
-              </div>
+              <span className="text-[10px] text-gray-500">{fmt(stats.avgPerMile)}/mi</span>
             </div>
 
-            <div className="border-t border-gray-700 pt-3 space-y-2">
-              <p className="text-xs text-gray-500 font-medium">Precio sugerido</p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-green-600/10 border border-green-600/30 rounded-lg p-3">
-                  <p className="text-xs text-green-400">Promedio historico</p>
-                  <p className="text-xl font-bold text-green-400">{fmt(result.suggested)}</p>
-                  <p className="text-xs text-gray-500">{fmt(stats.avgPerMile)}/mi</p>
-                </div>
-                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3">
-                  <p className="text-xs text-blue-400">Mediana historica</p>
-                  <p className="text-xl font-bold text-blue-400">{fmt(result.suggestedMedian)}</p>
-                  <p className="text-xs text-gray-500">{fmt(stats.medianPerMile)}/mi</p>
-                </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-blue-400/70">Mediana</p>
+                <p className="text-lg font-bold text-blue-400">{fmt(result.suggestedMedian)}</p>
               </div>
+              <span className="text-[10px] text-gray-500">{fmt(stats.medianPerMile)}/mi</span>
+            </div>
 
-              {result.suggestedSimilar && (
-                <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-3">
-                  <p className="text-xs text-purple-400">Rutas similares ({result.similarCount} ordenes)</p>
-                  <p className="text-xl font-bold text-purple-400">{fmt(result.suggestedSimilar)}</p>
-                  <p className="text-xs text-gray-500">{fmt(result.similarRpm)}/mi</p>
+            {result.suggestedSimilar && (
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-purple-400/70">Rutas similares ({result.similarCount})</p>
+                  <p className="text-lg font-bold text-purple-400">{fmt(result.suggestedSimilar)}</p>
                 </div>
-              )}
-
-              <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
-                <span>Rango: {fmt(result.suggestedLow)} - {fmt(result.suggestedHigh)}</span>
+                <span className="text-[10px] text-gray-500">{fmt(result.similarRpm)}/mi</span>
               </div>
+            )}
+
+            <div className="text-center text-[10px] text-gray-600 pt-1">
+              Rango: {fmt(result.suggestedLow)} — {fmt(result.suggestedHigh)}
             </div>
           </div>
         </div>
       )}
 
       {!stats && (
-        <p className="text-sm text-gray-500">Cargando datos historicos...</p>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Cargando historico...
+        </div>
       )}
     </div>
   )
