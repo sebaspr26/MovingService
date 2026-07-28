@@ -105,12 +105,14 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
     const ok = await toast.confirm(`Transferir este ${typeLabel} a gastos del propietario?`, { confirmText: 'Transferir', confirmClass: 'bg-amber-600 hover:bg-amber-500' })
     if (!ok) return
     // Insert into owner_expenses
+    const desc = row._desc || row.description || `${typeLabel} transferido`
+    const cityPart = row.city ? ` - ${row.city}` : ''
     const ownerRecord = {
       truck_id: truckId,
       cycle_id: cycle?.id || null,
       category: row._type === 'diesel' ? 'Diesel' : row._type === 'def' ? 'DEF' : (row.category || 'Otros'),
       invoice_number: row.invoice_number || null,
-      description: row._desc || row.description || `${typeLabel} transferido`,
+      description: (row._type === 'diesel' || row._type === 'def') ? `${desc}${cityPart}` : desc,
       amount: row._amount,
       date: row.date,
       period_start: row.period_start || period.start,

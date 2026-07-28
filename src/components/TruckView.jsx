@@ -379,7 +379,7 @@ export default function TruckView() {
             {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
-            {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} readOnly={readOnly} ownerName={truck?.owner_name} />}
+            {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} ownerName={truck?.owner_name} />}
           </div>
 
           {/* Cash Box & Dividends */}
