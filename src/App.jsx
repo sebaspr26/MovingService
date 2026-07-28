@@ -6,6 +6,7 @@ import OrdersView from './components/OrdersView'
 import OrderDetail from './components/OrderDetail'
 import CompanyInfo from './components/CompanyInfo'
 import Settings from './components/Settings'
+import Statistics from './components/Statistics'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="orders" element={<OrdersView />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="company" element={<CompanyInfo />} />
+          <Route path="statistics" element={<Statistics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
