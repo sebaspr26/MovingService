@@ -170,25 +170,26 @@ export default function StatisticsMap() {
         if (results[j]) cityCoords[city.trim()] = results[j]
       })
       setProgress(`Geocodificando ${Math.min(i + 5, uniqueCities.length)}/${uniqueCities.length} ciudades...`)
+
+      // Build connections progressively with what we have so far
+      const partial = valid
+        .map(o => {
+          const from = cityCoords[o.pu_city.trim()]
+          const to = cityCoords[o.do_city.trim()]
+          if (!from || !to) return null
+          return {
+            id: o.id,
+            orderNumber: o.order_number,
+            miles: o.miles,
+            rate: o.rate,
+            from: { name: o.pu_city.trim(), lat: from.lat, lng: from.lng },
+            to: { name: o.do_city.trim(), lat: to.lat, lng: to.lng },
+          }
+        })
+        .filter(Boolean)
+      setConnections(partial)
     }
 
-    const conns = valid
-      .map(o => {
-        const from = cityCoords[o.pu_city.trim()]
-        const to = cityCoords[o.do_city.trim()]
-        if (!from || !to) return null
-        return {
-          id: o.id,
-          orderNumber: o.order_number,
-          miles: o.miles,
-          rate: o.rate,
-          from: { name: o.pu_city.trim(), lat: from.lat, lng: from.lng },
-          to: { name: o.do_city.trim(), lat: to.lat, lng: to.lng },
-        }
-      })
-      .filter(Boolean)
-
-    setConnections(conns)
     setProgress('')
     setLoading(false)
   }, [dateFrom, dateTo, driverFilter])
