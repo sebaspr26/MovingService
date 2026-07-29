@@ -1,5 +1,6 @@
 import StatisticsMap from './StatisticsMap'
 import RateCalculator from './RateCalculator'
+import CityStats from './CityStats'
 
 export default function Statistics() {
   return (
@@ -21,14 +22,26 @@ export default function Statistics() {
           </div>
         </div>
 
-        {/* Calculator - 1/3 */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden h-fit">
-          <div className="px-5 py-4 border-b border-gray-800">
-            <h2 className="text-sm font-semibold text-white">Calculadora de Precios</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Basada en el historico</p>
+        {/* Calculator + City Stats - 1/3 */}
+        <div className="space-y-6">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden h-fit">
+            <div className="px-5 py-4 border-b border-gray-800">
+              <h2 className="text-sm font-semibold text-white">Calculadora de Precios</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Basada en el historico</p>
+            </div>
+            <div className="p-5">
+              <RateCalculator />
+            </div>
           </div>
-          <div className="p-5">
-            <RateCalculator />
+
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800">
+              <h2 className="text-sm font-semibold text-white">Ciudades Frecuentes</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Recogidas y entregas por ciudad</p>
+            </div>
+            <div className="p-5">
+              <CityStats />
+            </div>
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ export default function RateCalculator() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [extraMiles, setExtraMiles] = useState('')
 
   useEffect(() => {
     async function loadStats() {
@@ -57,7 +58,8 @@ export default function RateCalculator() {
         return
       }
 
-      const miles = route.distanceMiles
+      const extra = parseFloat(extraMiles) || 0
+      const miles = route.distanceMiles + extra
 
       const originLower = origin.trim().toLowerCase()
       const destLower = destination.trim().toLowerCase()
@@ -88,7 +90,7 @@ export default function RateCalculator() {
     } finally {
       setLoading(false)
     }
-  }, [origin, destination, stats])
+  }, [origin, destination, stats, extraMiles])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') calculate()
@@ -114,6 +116,10 @@ export default function RateCalculator() {
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">Rango/mi</span>
             <span className="text-xs font-semibold text-gray-400">{fmt(stats.minPerMile)} — {fmt(stats.maxPerMile)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Minimo empresa</span>
+            <span className="text-xs font-semibold text-yellow-400">{fmt(2.00)}/mi</span>
           </div>
         </div>
       )}
@@ -141,6 +147,18 @@ export default function RateCalculator() {
             onChange={e => setDestination(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ej: Chicago, IL"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Millas extra <span className="text-gray-600">(opcional)</span></label>
+          <input
+            type="number"
+            value={extraMiles}
+            onChange={e => setExtraMiles(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="0"
+            min="0"
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -192,6 +210,14 @@ export default function RateCalculator() {
                 <p className="text-lg font-bold text-blue-400">{fmt(result.suggestedMedian)}</p>
               </div>
               <span className="text-[10px] text-gray-500">{fmt(stats.medianPerMile)}/mi</span>
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-yellow-400/70">Minimo empresa</p>
+                <p className="text-lg font-bold text-yellow-400">{fmt(result.miles * 2)}</p>
+              </div>
+              <span className="text-[10px] text-gray-500">$2.00/mi</span>
             </div>
 
             {result.suggestedSimilar && (
