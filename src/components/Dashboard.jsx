@@ -571,6 +571,17 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-white">Dashboard</h2>
           <p className="text-sm text-gray-500 mt-1">Resumen de camiones — ciclo activo</p>
         </div>
+        {trucks.length > 0 && !loading && (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl px-6 py-3 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Balance Total</p>
+            <p className={`text-xl font-bold ${
+              Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0) >= 0
+                ? 'text-blue-400' : 'text-red-400'
+            }`}>
+              {fmt(Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0))}
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 self-start">
           {trucksWithCycles.length > 0 && (
             <>

@@ -299,6 +299,30 @@ export default function OrdersView() {
         </div>
       </div>
 
+      {/* Pagination (top) */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
+            >
+              Anterior
+            </button>
+            <span className="px-3 py-1 text-gray-400">{page + 1} / {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -415,30 +439,6 @@ export default function OrdersView() {
           </tbody>
         </table>
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Anterior
-            </button>
-            <span className="px-3 py-1 text-gray-400">{page + 1} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Floating totals bar */}
       {filtered.length > 0 && !drawerId && (
