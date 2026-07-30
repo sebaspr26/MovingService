@@ -26,7 +26,7 @@ export default function DEFTable({ truckId, period, cycle, onDataChange, readOnl
     const { data } = await supabase.from('def').select('*')
       .eq('truck_id', truckId)
       .eq('cycle_id', cycle.id)
-      .order('date')
+      .order('created_at')
     let filtered = data || []
     if (period.start !== cycle.start_date) {
       filtered = filtered.filter(r => r.date >= period.start && r.date <= period.end)

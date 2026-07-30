@@ -28,11 +28,11 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
     if (!cycle?.id) return
     const [diesel, def, expenses] = await Promise.all([
       supabase.from('diesel').select('*').eq('truck_id', truckId)
-        .eq('cycle_id', cycle.id).order('date'),
+        .eq('cycle_id', cycle.id).order('created_at'),
       supabase.from('def').select('*').eq('truck_id', truckId)
-        .eq('cycle_id', cycle.id).order('date'),
+        .eq('cycle_id', cycle.id).order('created_at'),
       supabase.from('expenses').select('*').eq('truck_id', truckId)
-        .eq('cycle_id', cycle.id).order('date'),
+        .eq('cycle_id', cycle.id).order('created_at'),
     ])
     // Sub-filter by week if a week is selected
     const weekFilter = (arr) => {
@@ -50,7 +50,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
     ...defRows.map(r => ({ ...r, _type: 'def', _amount: Number(r.value) || 0, _desc: `${Number(r.gallons).toFixed(1)} gal` })),
     ...expenseRows.filter(r => r.category === 'Pago Chofer').map(r => ({ ...r, _type: 'chofer', _amount: Number(r.amount) || 0, _desc: r.description })),
     ...expenseRows.filter(r => r.category !== 'Pago Chofer').map(r => ({ ...r, _type: 'expense', _amount: Number(r.amount) || 0, _desc: r.description })),
-  ].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+  ].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
 
   const filteredByType = filter === 'all' ? allRows : allRows.filter(r => r._type === filter)
 

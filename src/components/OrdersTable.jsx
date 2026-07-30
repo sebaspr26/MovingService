@@ -34,7 +34,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     const { data } = await supabase.from('orders').select('*')
       .eq('truck_id', truckId)
       .eq('cycle_id', cycle.id)
-      .order('pu_date')
+      .order('created_at')
     // Sub-filter by week if a week is selected (period narrower than full cycle)
     let filtered = data || []
     if (period.start !== cycle.start_date) {

@@ -40,7 +40,7 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
     const { data } = await supabase.from('owner_expenses').select('*')
       .eq('truck_id', truckId)
       .eq('cycle_id', cycle.id)
-      .order('date')
+      .order('created_at')
     let filtered = data || []
     if (period.start !== cycle.start_date) {
       filtered = filtered.filter(r => r.date >= period.start && r.date <= period.end)
@@ -96,7 +96,7 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
   }
 
   const allRows = rows.map(r => ({ ...r, _type: classifyType(r.category), _amount: Number(r.amount) || 0 }))
-    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
 
   const filteredByType = filter === 'all' ? allRows : allRows.filter(r => r._type === filter)
 
