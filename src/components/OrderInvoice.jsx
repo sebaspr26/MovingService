@@ -7,6 +7,16 @@ import { getCompanySettings, getLogoUrl } from '../lib/company'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
+function friendlyEmailError(status, message) {
+  if (status === 413) return 'El archivo adjunto es demasiado grande para enviar por email. Intenta usar "Imprimir / PDF" y enviarlo manualmente.'
+  if (status === 429) return 'Demasiados emails enviados. Espera un momento e intenta de nuevo.'
+  if (status === 401 || status === 403) return 'Error de autenticacion del servidor de correo. Contacta al administrador.'
+  if (status === 500) return 'Error interno del servidor. Intenta de nuevo en unos minutos.'
+  if (status === 0 || !status) return 'No se pudo conectar al servidor. Verifica tu conexion a internet.'
+  if (message) return message
+  return `Error del servidor (${status}). Intenta de nuevo.`
+}
+
 // Load pdf.js from CDN (avoids bundler compatibility issues)
 let pdfjsPromise = null
 function loadPdfJs() {
@@ -237,7 +247,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
         pdfBase64 = await generatePDF()
       } catch (pdfErr) {
         console.error('PDF generation error:', pdfErr)
-        toast.error('Error generando PDF: ' + (pdfErr.message || String(pdfErr)))
+        toast.error('No se pudo generar el PDF. Intenta regenerar el invoice e intenta de nuevo.')
         setSendingEmail(false)
         return
       }
@@ -274,18 +284,18 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
         }),
       })
 
-      let data
-      try {
-        data = await res.json()
-      } catch {
-        throw new Error(`Server error (${res.status}): ${res.statusText}`)
+      if (!res.ok) {
+        let serverMsg = ''
+        try { const d = await res.json(); serverMsg = d.error } catch {}
+        toast.error(friendlyEmailError(res.status, serverMsg))
+        setSendingEmail(false)
+        return
       }
-      if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
       toast.success(`Invoice enviado a ${toList.join(', ')}${ccList.length ? ` (CC: ${ccList.join(', ')})` : ''}`)
       onEmailSent?.()
     } catch (err) {
       console.error('Send email error:', err)
-      toast.error('Error enviando email: ' + (err.message || String(err)))
+      toast.error(friendlyEmailError(0))
     } finally {
       setSendingEmail(false)
     }
@@ -377,13 +387,17 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
         }),
       })
 
-      let data
-      try { data = await res.json() } catch { throw new Error(`Server error (${res.status}): ${res.statusText}`) }
-      if (!res.ok) throw new Error(data.error || `Error del servidor (${res.status})`)
+      if (!res.ok) {
+        let serverMsg = ''
+        try { const d = await res.json(); serverMsg = d.error } catch {}
+        toast.error(friendlyEmailError(res.status, serverMsg))
+        setSendingPod(false)
+        return
+      }
       toast.success(`POD enviado a ${toList.join(', ')}${ccList.length ? ` (CC: ${ccList.join(', ')})` : ''}`)
     } catch (err) {
       console.error('Send POD error:', err)
-      toast.error('Error enviando POD: ' + (err.message || String(err)))
+      toast.error(friendlyEmailError(0))
     } finally {
       setSendingPod(false)
     }
