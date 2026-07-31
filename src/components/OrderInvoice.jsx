@@ -197,8 +197,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
     for (let i = 0; i < sections.length; i++) {
       if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(sections[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-      const imgData = canvas.toDataURL('image/jpeg', 0.85)
+      const canvas = await html2canvas(sections[i], { scale: 1.5, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.6)
       const imgW = pageW - margin * 2
       const imgH = (canvas.height * imgW) / canvas.width
       // If image is taller than page, scale down to fit
@@ -243,9 +243,9 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       }
 
       const fileName = `Invoice_${order.order_number || 'ETG'}.pdf`
-      const sizeMB = (pdfBase64.length * 0.75 / 1024 / 1024).toFixed(1)
+      const sizeMB = (pdfBase64.length / 1024 / 1024).toFixed(1)
 
-      if (pdfBase64.length * 0.75 > 4 * 1024 * 1024) {
+      if (pdfBase64.length > 3 * 1024 * 1024) {
         toast.warning(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
         setSendingEmail(false)
         return
@@ -313,8 +313,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
     for (let i = 0; i < container.children.length; i++) {
       if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(container.children[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-      const imgData = canvas.toDataURL('image/jpeg', 0.85)
+      const canvas = await html2canvas(container.children[i], { scale: 1.5, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.6)
       const imgW = pageW - margin * 2
       const imgH = (canvas.height * imgW) / canvas.width
       const finalH = imgH > pageH - margin * 2 ? pageH - margin * 2 : imgH
@@ -349,7 +349,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
       const fileName = `POD_${order.order_number || 'ETG'}.pdf`
 
-      if (pdfBase64.length * 0.75 > 4 * 1024 * 1024) {
+      if (pdfBase64.length > 3 * 1024 * 1024) {
         toast.warning('El PDF es muy grande. Intenta con menos documentos.')
         setSendingPod(false)
         return
