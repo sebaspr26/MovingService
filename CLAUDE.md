@@ -1,7 +1,7 @@
 # MovingService - ETG Moving Services
 
 ## Overview
-App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel con una app que organiza datos por camion y ciclo, con escaneo de recibos via IA (Gemini Vision), calculo de millas truck via HERE Maps, lookup de brokers via FMCSA, gestion de documentos (RC/BOL/POD), generacion de invoices, envio de emails, modulo de compania (choferes, camiones, trailers, billing), y tema light/dark.
+App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel con una app que organiza datos por camion y ciclo, con escaneo de recibos via IA (Gemini Vision), calculo de millas truck via HERE Maps, lookup de brokers via FMCSA, gestion de documentos (RC/BOL/POD), generacion de invoices, envio de emails, modulo de compania (choferes, camiones, trailers, billing), tema light/dark, y sistema de usuarios con roles y permisos.
 
 ## Tech Stack
 - **Frontend:** React 19 + Vite 8 + Tailwind CSS v4 (via @tailwindcss/vite plugin) + React Router
@@ -10,22 +10,23 @@ App web tipo TMS para gestionar camiones de mudanza. Reemplaza hojas de Excel co
 - **Geolocation:** HERE Maps REST API (truck routing + geocoding)
 - **FMCSA:** Federal Motor Carrier Safety Administration API (broker/carrier lookup by MC#/DOT#/name)
 - **PDF Generation:** jsPDF + html2canvas (genera PDF para email), pdf.js v3.11 via CDN (renderiza PDFs como imagenes)
-- **Email:** Resend API (envio de invoices con CC, adjuntos PDF)
+- **Email:** Resend API (envio de invoices con CC, adjuntos PDF + invitaciones de usuario)
 - **Deploy:** Vercel (auto-deploy on push to main, serverless functions en /api)
-- **URL:** moving-service-one.vercel.app
+- **URL:** etg-tms.com (alias de moving-service-one.vercel.app)
 
 ## Project Structure
 ```
 src/
   components/
-    Layout.jsx          - Sidebar (desktop) + header mobile. Company name/DBA dinamico desde Supabase (company_settings)
-    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks (con gastos recurrentes + DayPicker), quick-add, abrir ciclos, asignacion de chofer, auto-aplicacion de gastos recurrentes al abrir ciclo. Cache en memoria (30s TTL), queries paralelas con Promise.all
+    Layout.jsx          - Sidebar (desktop) + header mobile. Company name/DBA dinamico desde Supabase. Avatar usuario abajo con tamaño animado (28px expandido / 36px colapsado)
+    Dashboard.jsx       - Grid de camiones con resumen por ciclo, CRUD trucks (con gastos recurrentes + DayPicker), quick-add, abrir ciclos, asignacion de chofer, auto-aplicacion de gastos recurrentes al abrir ciclo. Cache en memoria (30s TTL), queries paralelas con Promise.all. Filtra trucks/ordenes por getAllowedTruckIds(session)
     TruckView.jsx       - Vista individual: ciclo nav, filtro semanas, summary cards, 4 tabs, CashBox. Queries por cycle_id FK (sub-filtro JS por semana)
-    OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs (incl. Pagadas), drawer lateral, TONU modal con precio editable, rate/mi en tabla, filtros avanzados (truck/dispatcher/broker/fechas), cache en memoria (30s TTL), PAGE_SIZE=30
-    OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops con schedule_type (appointment/range), invoicing, commodities, route calc, docs, RC viewer con drag & drop, company info sidebar, ref# auto-generado, dispatcher requerido en nuevas ordenes
+    OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs (incl. Pagadas), drawer lateral, TONU modal con precio editable, rate/mi en tabla, filtros avanzados MultiSelect (truck/dispatcher/broker/fechas). Cache por usuario (30s TTL, separado por user ID para evitar contaminacion cross-user). Status con siglas (R/A/ET/E/F/P/T/C) + select overlay. Columna Dispatcher. PAGE_SIZE=30. Auto-migra dispatcher nombre→email al cargar. Filtra ordenes por rol: dispatchers solo ven sus ordenes (o todas si tienen permiso ver_todas_ordenes)
+    OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops con schedule_type (appointment/range), invoicing, commodities, route calc, docs, RC viewer con drag & drop, company info sidebar, ref# auto-generado, dispatcher requerido en nuevas ordenes. DispatcherAutocomplete fetches Auth users (admin/dispatcher/super_admin), muestra nombre pero guarda EMAIL en campo dispatcher
     OrderDocuments.jsx  - Panel de documentos (RC/BOL/POD): upload Supabase Storage + drag & drop, visor fullscreen con render progresivo de PDFs (pdf.js), tabs por tipo
     OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo desde Supabase Storage
     OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, badge TONU con rate real (TruckView)
+    MultiSelect.jsx     - Componente multi-select custom con createPortal (z-index 9999). Dropdown fuera del DOM para evitar clipping. triggerRef + dropdownRef separados para evitar cierre al clickear opciones. Opciones con checkboxes naranja, botones Todos/Limpiar
     DatePicker.jsx      - Calendario custom en espanol, reemplaza inputs nativos de fecha
     DayPicker.jsx       - Selector de dia del mes (1-31) con dropdown portal (createPortal), posicion auto arriba/abajo. Usado en gastos recurrentes del truck modal
     DieselTable.jsx     - CRUD diesel con AddModal
@@ -35,6 +36,7 @@ src/
     AddModal.jsx        - Modal reutilizable con soporte scanner inline (image/PDF -> AI -> autofill)
     CashBox.jsx         - Cierre/reapertura de ciclo + dividendos por socio
     CompanyInfo.jsx     - Modulo compania: choferes, camiones, trailers, company info, billing (bill from + remit to + logo), company docs. Datos en Supabase (company_settings) en vez de localStorage
+    Profiles.jsx        - Gestion de usuarios Auth agrupados por rol (Administradores/Dispatchers/Conductores). Muestra drivers DB sin cuenta y dispatchers legacy sin cuenta. Modal permisos 2 columnas: izquierda=modulos en grid 2col compacto, derecha=camiones+comision+empresas. Comision dispatcher con historial mensual. Auto-migra dispatcher nombre→email al cargar. Reenviar invitacion abre modal pre-llenado (permite corregir email); si email cambia elimina usuario viejo antes de crear nuevo
     Settings.jsx        - Configuracion: tema light/dark con cards de preview
     Toast.jsx           - Toast system (success/error/warning/info/confirm)
   lib/
@@ -45,12 +47,14 @@ src/
     fmcsa.js            - FMCSA API: lookupByMc, lookupByDot, searchByName (autocomplete brokers)
     gemini.js           - API OpenRouter -> Gemini 2.5 Flash, extrae RC completo (broker, stops, rate items, commodity)
     company.js          - CRUD company_settings en Supabase (getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl). Cache en memoria
+    permissions.js      - MODULES array, defaultPermissions(), isSuperAdmin(), canAccess(), getAllowedTruckIds(). getAllowedTruckIds retorna null (super_admin=sin filtro) o [] (sin trucks asignados = no ve nada) o array de IDs
     theme.jsx           - ThemeProvider + useTheme hook. Persiste en localStorage. Aplica clase 'light' en html
-  App.jsx               - Router: / = Dashboard, /truck/:id, /orders, /orders/:id, /company, /settings
+  App.jsx               - Router: / = Dashboard, /truck/:id, /orders, /orders/:id, /company, /settings, /profiles
   main.jsx              - Entry point (ThemeProvider + ToastProvider + App)
-  index.css             - Tailwind import + light mode CSS variable overrides (grays invertidos, accent colors ajustados)
+  index.css             - Tailwind import + light mode CSS variable overrides (grays invertidos, accent colors ajustados). Scrollbar naranja (#ea580c) en dark mode, azul claro en light mode
 api/
   send-invoice.js       - Serverless function (Vercel): envia email via Resend con to, cc, adjunto PDF
+  invite-user.js        - Serverless function (Vercel): gestiona usuarios Auth via supabaseAdmin. Acciones: create, invite, list, delete, resend, update_permissions, update_role, migrate_dispatchers. invite usa generateLink(type:'invite'), fallback a generateLink(type:'recovery') si email ya existe. update_permissions guarda permissions + allowed_companies + allowed_trucks + name + dispatcher_rates en user_metadata
 public/
   logo-invoice.png      - Logo por defecto para invoices (override via Supabase Storage company-docs)
 supabase/
@@ -77,7 +81,7 @@ supabase/
 
 ## Database Tables (Supabase)
 - `trucks` (id, name, number, discount_percent [default 13], is_lis [default false], owner_name)
-- `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, broker_email [email contacto por orden, del RC], equipment_type, load_type, dispatcher, invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
+- `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, broker_email, equipment_type, load_type, dispatcher [almacena EMAIL del dispatcher, no nombre], invoice_notes, dead_miles, ref_number, driver_name, commodity, weight, special_instructions, driver_pay_total)
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email)
 - `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, time_end, schedule_type [appointment/range], ref_number, sequence, notes)
 - `order_documents` (id, order_id FK CASCADE, doc_type [RC/BOL/POD], file_name, file_path, file_size, mime_type)
@@ -96,12 +100,66 @@ supabase/
 - `recurring_expenses` (id, truck_id FK CASCADE, description, amount, day_of_month [1-31], active [default true], last_applied_month [text], created_at)
 - `owner_expenses` (id, truck_id FK, cycle_id FK, category, invoice_number, description, amount, date, period_start, period_end, created_at) — gastos del propietario para trucks LIS, no afectan balance
 - `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
-
 - `audit_log` (id, action, entity_type, entity_id, entity_name, user_agent, ip_address, extra_info [jsonb], created_at) — log de acciones destructivas
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
 
 All tables have RLS enabled with open policies (no auth yet).
+
+## Auth / Usuarios (Supabase Auth + api/invite-user.js)
+
+### Roles
+- `super_admin` — acceso total, ve todo, no filtrado por trucks ni dispatcher
+- `admin` — acceso casi total, ve todas las ordenes
+- `dispatcher` — solo ve sus propias ordenes (filtro por email) salvo permiso `ver_todas_ordenes`
+- `driver` / `driver_lease` — conductores
+
+### user_metadata estructura
+```json
+{
+  "name": "SEBASTIAN",
+  "role": "dispatcher",
+  "permissions": { "dashboard": { "enabled": true, "ver_camiones": true, ... }, ... },
+  "allowed_trucks": ["uuid1", "uuid2"],
+  "allowed_companies": ["uuid1"],
+  "dispatcher_rates": [
+    { "month": "2026-08", "pct": 4 },
+    { "month": "2026-09", "pct": 5 }
+  ]
+}
+```
+
+### dispatcher_rates (comision mensual)
+- Se guarda en `user_metadata.dispatcher_rates` como array `[{month: "YYYY-MM", pct: number}]`
+- Al guardar permisos: si existe entrada para el mes actual se sobreescribe, sino se agrega nueva
+- Los meses anteriores NUNCA se modifican — historial inmutable
+- Se edita desde Profiles > modal permisos > columna derecha (solo visible para rol dispatcher)
+
+### Dispatcher field en orders
+- **Siempre almacena EMAIL**, nunca nombre en texto
+- `DispatcherAutocomplete` en OrderDetail fetches Auth users (roles: super_admin/admin/dispatcher), muestra nombre en dropdown, guarda email
+- Al cargar OrdersView se auto-migra nombre→email para ordenes legacy (si existe Auth user con ese nombre)
+- `dispatcherName(email)` resuelve email→nombre para display en tabla y filtros
+- Ordenes legacy con nombres sin Auth user coincidente quedan como estan
+
+### Filtros de acceso por rol
+- `getAllowedTruckIds(session)`: null=super_admin (sin filtro), []=sin trucks asignados (no ve nada), [ids]=solo esos trucks
+- Dispatchers: `filteredOrders.filter(o => o.dispatcher === userEmail || o.dispatcher.toLowerCase() === userName)` — segundo caso cubre ordenes legacy no migradas
+- Permiso `orders.ver_todas_ordenes === true` en user_metadata.permissions permite al dispatcher ver todas las ordenes
+
+### Invitaciones
+- **Nuevo usuario**: accion `invite` → generateLink(type:'invite'). Si email ya existe, fallback a generateLink(type:'recovery')
+- **Reenviar**: boton en Profiles abre modal pre-llenado con datos del usuario para corregir email si hubo error
+- **Al reenviar con email distinto**: elimina usuario viejo automaticamente antes de crear el nuevo
+- **Activacion**: link redirige a https://www.etg-tms.com/set-password
+
+### Profiles (/profiles) — solo super_admin
+- Usuarios agrupados: Administradores / Dispatchers / Conductores
+- Status: Activo (verde) / Solicitud enviada (amarillo, pulsante) / Expirado (rojo)
+- Pendiente y Expirado muestran boton "Reenviar" que abre modal pre-llenado
+- Usuarios sin cuenta: drivers de tabla `drivers` sin email en Auth, dispatchers de ordenes sin Auth user coincidente
+- Auto-migra dispatcher nombre→email al cargar (fetchUsers)
+- Modal permisos: 2 columnas, max-w-5xl, 90vh. Izq: modulos en grid 2col compacto. Der: comision+trucks+empresas
 
 ## Key Business Logic
 
@@ -115,6 +173,10 @@ All tables have RLS enabled with open policies (no auth yet).
 6. **Pagado** (paid, violeta) — pago recibido. Este pone `paid=true`
 7. **TONU** (tonu, rojo) — Truck Order Not Used, terminal. Modal con precio editable (default $150), apply_discount=false, paid=true. Badge muestra rate real. Boton "Reactivar" vuelve a booked
 8. **Cancelada** (canceled, gris) — terminal. Boton "Reactivar" vuelve a booked
+
+### Status en tabla OrdersView
+- Badge con sigla: R=Reservada, A=Asignada, ET=En Transito, E=Entregada, F=Facturada, P=Pagado, T=TONU, C=Cancelada
+- Select transparente overlay sobre el badge — click en badge abre dropdown nativo del select
 
 ### Invoice Generation (OrderInvoice.jsx)
 - Disponible cuando status = `invoiced` (boton verde "Invoice" en header)
@@ -166,19 +228,36 @@ All tables have RLS enabled with open policies (no auth yet).
 ### Light/Dark Theme
 - **ThemeProvider** en `lib/theme.jsx`: persiste en localStorage, aplica clase `light` en `<html>`
 - **CSS overrides** en `index.css`: invierte paleta de grays de Tailwind v4 via CSS variables. Todos los componentes se adaptan automaticamente
-- **Accent colors**: shade 400→600 (texto), 900→100 (badges), 700→300 (borders), 800→200 (accent borders), 300→700 (text on badges) en light mode
+- **Scrollbar**: dark mode = naranja (#ea580c), light mode = azul claro (#93c5fd)
 - **Configuracion** en `/settings`: dos cards de preview (Dark/Light) para seleccionar tema
-- `text-white` se overridea a oscuro en light mode. Se preserva blanco en botones con bg solido (blue-600, red-600, etc.)
+- `text-white` se overridea a oscuro en light mode. Se preserva blanco en botones con bg solido
 
 ### Sidebar Layout
 - Company Name y DBA dinamicos desde Supabase (company_settings, cargados al montar)
-- Navegacion: Dashboard, Ordenes, Compania, Configuracion
+- Avatar usuario abajo: 28px expandido / 36px colapsado, transicion animada
+- Navegacion: Dashboard, Ordenes, Compania, Configuracion, Perfiles (solo super_admin)
 
 ### Toast System (Toast.jsx)
 - ToastProvider wrappea la app en main.jsx. Hook: `useToast()`
 - Tipos: `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()` — top-right, auto-dismiss 3.5s
 - `toast.confirm(msg)` — dialogo modal personalizado. Retorna Promise<boolean>
 - CERO `alert()` o `confirm()` nativos en toda la app
+
+## Permissions System (lib/permissions.js)
+
+### MODULES
+Cada modulo tiene `key`, `label`, `icon` (SVG path), `subs[]`:
+- `dashboard`: ver_camiones, crear_editar_camiones, eliminar_camiones, ver_ciclos, gastos_recurrentes, cashbox
+- `orders`: ver_lista, **ver_todas_ordenes** (ver ordenes de todos no solo las propias), crear_ordenes, editar_ordenes, documentos, invoice, enviar_email, marcar_pagado, eliminar_ordenes, tonu
+- `statistics`: (sin subs)
+- `company`: choferes, camiones_docs, trailers, documentos_empresa
+- `informacion`: empresa, billing
+- `settings`: (sin subs)
+
+### Funciones clave
+- `isSuperAdmin(session)`: role === 'super_admin'
+- `canAccess(session, moduleKey, subKey)`: super_admin siempre true; sin perms = todo visible (retrocompatible); chequea mod.enabled y sub !== false
+- `getAllowedTruckIds(session)`: null=super_admin, []=nuevo usuario sin trucks (NO VE NADA), [ids]=trucks permitidos
 
 ## Conventions
 - UI en espanol (labels, buttons, messages)
@@ -188,23 +267,26 @@ All tables have RLS enabled with open policies (no auth yet).
 - Datos de compania/billing almacenados en Supabase (tabla company_settings: company_info, billing_info, remit_info como JSONB + logo_path en Storage)
 - Formularios con dirty state: boton guardar deshabilitado sin cambios, toast warning a los 5s con cambios pendientes
 - Invoice cacheado en memoria por orderId, boton Regenerar para forzar recarga
+- **dispatcher en orders.dispatcher = siempre email, nunca nombre**
 
 ## Environment Variables
 ```
-VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_URL=https://mxbtyvnfunoaqjupmmdy.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
 VITE_HERE_API_KEY=xxx (HERE Maps - truck routing + geocoding)
 VITE_OPENROUTER_KEY=xxx (OpenRouter - Gemini AI scanner)
 VITE_FMCSA_KEY=xxx (FMCSA - broker/carrier lookup, solo funciona desde EEUU)
 RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
+SUPABASE_SERVICE_ROLE_KEY=xxx (solo en Vercel, para api/invite-user.js)
 ```
 
 ## Modules
 - **Dashboard** (`/`) — Grid de camiones, resumen por ciclo, quick-add, CRUD trucks con asignacion de chofer y gastos recurrentes
 - **TruckView** (`/truck/:id`) — Vista individual de camion: ciclo nav, semanas, tabs (orders, gastos, contabilidad), CashBox
-- **Orders/Loads** (`/orders`, `/orders/:id`) — Modulo TMS completo: lista con filter tabs + drawer lateral, TONU con precio editable, rate/mi en tabla, ref# auto-generado, invoice con cache + email directo con CC y switches
+- **Orders/Loads** (`/orders`, `/orders/:id`) — Modulo TMS completo: lista con filter tabs + drawer lateral, TONU con precio editable, rate/mi en tabla, ref# auto-generado, invoice con cache + email directo con CC y switches. Filtros MultiSelect (truck/dispatcher/broker). Status siglas. Columna Dispatcher
 - **Compania** (`/company`) — Company info, billing (bill from + remit to + logo), company docs, choferes (CRUD + docs), camiones (docs), trailers (CRUD + docs)
 - **Configuracion** (`/settings`) — Tema light/dark
+- **Perfiles** (`/profiles`) — Solo super_admin. Gestion de usuarios Auth: crear, invitar, reenviar, permisos, roles, camiones asignados, comision mensual dispatcher
 
 ## Phases
 - **Fase 1 (done):** Setup + Dashboard + CRUD tables + Vercel deploy
@@ -213,10 +295,11 @@ RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 - **Fase 3 (done):** Modulo Orders/Loads completo — lista + detalle, 7 status, brokers con FMCSA, stops mejorados, invoicing + commodities, HERE truck routing, documentos RC/BOL/POD, scanner AI, invoice generation
 - **Fase 3.5 (done):** Drawer lateral, TONU $150 auto, POD requerido para facturar, invoice unificado, broker auto-save, broker search hibrido, DH auto
 - **Fase 4 (done):** Modulo Compania (choferes, camiones, trailers, company info, billing, docs), tema light/dark, configuracion, TONU precio editable, ref# auto-generado, rate/mi en tabla, invoice cache + regenerar, email con CC y switches, logo dinamico, sidebar dinamico, drivers conectados a trucks
-- **Fase 4.5 (done):** Status "Pagado" (8vo estado, violeta), company settings migrado de localStorage a Supabase (company_settings table + lib/company.js), DatePicker custom, filtros avanzados en OrdersView (truck/dispatcher/broker/fechas), cache en memoria (Dashboard + OrdersView, 30s TTL), OrderDocuments drag & drop + visor fullscreen PDF progresivo, stops con schedule_type (appointment/range) + time_end, queries por cycle_id FK (TruckView/Dashboard), unique active cycle constraint, Dashboard queries paralelas (Promise.all), HERE Maps error logging, RC drag & drop en OrderDetail, dispatcher requerido en nuevas ordenes
-- **Fase 4.6 (done):** Gastos recurrentes por truck (recurring_expenses table, CRUD en truck modal, auto-aplicacion al abrir ciclo), DayPicker component con portal dropdown, mejoras UX modal truck
-- **Fase 4.7 (done):** Sistema LIS — trucks con propietario externo (is_lis + owner_name en trucks), tabla owner_expenses, tab "Gastos Propietario" condicional en TruckView, boton transferir gastos a propietario en ExpensesTab
-- **Fase 5 (next):** Reports, Excel/PDF export, auth/usuarios
+- **Fase 4.5 (done):** Status "Pagado" (8vo estado, violeta), company settings migrado de localStorage a Supabase, DatePicker custom, filtros avanzados en OrdersView, cache en memoria, OrderDocuments drag & drop + visor fullscreen PDF, stops con schedule_type + time_end, queries por cycle_id FK, unique active cycle constraint, Dashboard queries paralelas, RC drag & drop en OrderDetail, dispatcher requerido en nuevas ordenes
+- **Fase 4.6 (done):** Gastos recurrentes por truck (recurring_expenses table, CRUD en truck modal, auto-aplicacion al abrir ciclo), DayPicker component con portal dropdown
+- **Fase 4.7 (done):** Sistema LIS — trucks con propietario externo, tabla owner_expenses, tab "Gastos Propietario" en TruckView, boton transferir gastos a propietario
+- **Fase 5 (done):** Auth y usuarios — Profiles page con roles/grupos, invitaciones por email (Resend), permisos granulares por modulo, asignacion de trucks por usuario, cache por usuario en OrdersView, dispatcher identificado por email, comision mensual con historial, filtros MultiSelect en ordenes, status siglas en tabla, scrollbar naranja, modal permisos 2 columnas rediseñado
+- **Fase 6 (next):** Reports, Excel/PDF export, estadisticas por dispatcher/periodo
 
 ## Commands
 ```bash
