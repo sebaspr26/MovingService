@@ -89,8 +89,29 @@ export default function Profiles() {
       setUsers(sorted)
       setDbDrivers(driversRes.data || [])
       setDbTrucks(trucksRes.data || [])
-      // Unique dispatcher names from orders
-      const uniqueDispatchers = [...new Set((dispatchersRes.data || []).map(o => o.dispatcher).filter(Boolean))].sort()
+
+      // Build name → email map from Auth users
+      const nameToEmail = {}
+      sorted.forEach(u => {
+        const name = (u.user_metadata?.name || '').trim().toLowerCase()
+        if (name && u.email) nameToEmail[name] = u.email
+      })
+
+      // Unique dispatcher values from orders
+      const allDispatchers = [...new Set((dispatchersRes.data || []).map(o => o.dispatcher).filter(Boolean))]
+
+      // Auto-migrate name-based dispatchers → email if we have a match
+      const toMigrate = allDispatchers.filter(d => !d.includes('@') && nameToEmail[d.trim().toLowerCase()])
+      for (const name of toMigrate) {
+        const email = nameToEmail[name.trim().toLowerCase()]
+        await supabase.from('orders').update({ dispatcher: email }).eq('dispatcher', name)
+      }
+
+      // Reload dispatcher list after migration
+      const finalDispatchers = toMigrate.length > 0
+        ? allDispatchers.map(d => (!d.includes('@') && nameToEmail[d.trim().toLowerCase()]) ? nameToEmail[d.trim().toLowerCase()] : d)
+        : allDispatchers
+      const uniqueDispatchers = [...new Set(finalDispatchers)].sort()
       setDbDispatchers(uniqueDispatchers)
     } catch (err) {
       toast.error('Error al cargar usuarios: ' + err.message)
