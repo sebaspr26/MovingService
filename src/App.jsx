@@ -13,6 +13,7 @@ import Profiles from './components/Profiles'
 import SetPassword from './components/SetPassword'
 import ComingSoon from './components/ComingSoon'
 import Welcome from './components/Welcome'
+import UserProfile from './components/UserProfile'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess } from './lib/permissions'
 
@@ -68,6 +69,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="profiles" element={<Profiles />} />
           <Route path="informacion" element={<Informacion />} />
+          <Route path="profile" element={<UserProfile />} />
         </Route>
 
         {/* Welcome — pantalla sin sidebar para usuarios con acceso limitado */}

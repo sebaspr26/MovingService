@@ -4,6 +4,13 @@ import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { getLogoUrl } from '../lib/company'
 import { accessibleModules } from '../lib/permissions'
+import { supabase } from '../lib/supabase'
+
+function getAvatarUrl(path) {
+  if (!path) return null
+  const { data } = supabase.storage.from('company-docs').getPublicUrl(path)
+  return data?.publicUrl || null
+}
 
 const MODULE_ROUTES = {
   dashboard: '/',
@@ -33,6 +40,7 @@ export default function Welcome() {
   const initials = name
     ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : session?.user?.email?.slice(0, 2).toUpperCase() || '?'
+  const userAvatarUrl = getAvatarUrl(session?.user?.user_metadata?.avatar_path)
 
   const companyName = activeCompany?.company_info?.company_name || activeCompany?.display_name || ''
   const logoUrl = activeCompany?.logo_path ? getLogoUrl(activeCompany.logo_path) : null
@@ -61,10 +69,10 @@ export default function Welcome() {
         {/* Avatar + cerrar sesión */}
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+            className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0"
             style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
           >
-            {initials}
+            {userAvatarUrl ? <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
           </div>
           <button
             onClick={handleSignOut}
@@ -84,10 +92,10 @@ export default function Welcome() {
         {/* Saludo */}
         <div className="text-center mb-12">
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mx-auto mb-6"
+            className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-2xl font-bold text-white mx-auto mb-6"
             style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 8px 32px rgba(234,88,12,0.35)' }}
           >
-            {initials}
+            {userAvatarUrl ? <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3" style={{ letterSpacing: '-0.03em' }}>
             Bienvenido, <span style={{ background: 'linear-gradient(135deg, #ea580c, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{firstName}</span>
@@ -99,7 +107,8 @@ export default function Welcome() {
         <div className={`grid gap-4 w-full max-w-3xl ${
           modules.length === 1 ? 'grid-cols-1 max-w-xs' :
           modules.length === 2 ? 'grid-cols-2 max-w-lg' :
-          modules.length <= 4 ? 'grid-cols-2' :
+          modules.length === 3 ? 'grid-cols-3' :
+          modules.length === 4 ? 'grid-cols-2 max-w-2xl' :
           'grid-cols-2 sm:grid-cols-3'
         }`}>
           {modules.map(mod => (

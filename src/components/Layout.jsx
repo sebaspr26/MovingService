@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getLogoUrl, setActiveCompanyId } from '../lib/company'
+import { supabase } from '../lib/supabase'
 import { signOut } from '../lib/auth'
 import { useToast } from './Toast'
 import { useCompany } from '../context/CompanyContext'
@@ -18,6 +19,22 @@ export default function Layout() {
   const companyDba = activeCompany?.company_info?.dba || ''
   const logoUrl = activeCompany?.logo_path ? getLogoUrl(activeCompany.logo_path) : null
 
+  // User profile info
+  const userMeta = session?.user?.user_metadata || {}
+  const userName = userMeta.name || session?.user?.email || ''
+  const userInitials = userMeta.name
+    ? userMeta.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : session?.user?.email?.slice(0, 2).toUpperCase() || '?'
+  const userAvatarUrl = userMeta.avatar_path
+    ? supabase.storage.from('company-docs').getPublicUrl(userMeta.avatar_path).data?.publicUrl
+    : null
+
+  // Filter companies by allowed_companies for non-super-admins
+  const allowedIds = userMeta.allowed_companies
+  const visibleCompanies = isSuperAdmin(session)
+    ? companies
+    : (allowedIds ? companies.filter(c => allowedIds.includes(c.id)) : companies)
+
   async function handleSwitchCompany(id) {
     setShowSwitcher(false)
     setActiveCompanyId(id)
@@ -34,7 +51,7 @@ export default function Layout() {
   }
   const location = useLocation()
   const navigate = useNavigate()
-  const isSubPage = location.pathname !== '/' && location.pathname !== '/orders' && location.pathname !== '/company' && location.pathname !== '/statistics' && location.pathname !== '/settings' && location.pathname !== '/informacion' && location.pathname !== '/profiles'
+  const isSubPage = location.pathname !== '/' && location.pathname !== '/orders' && location.pathname !== '/company' && location.pathname !== '/statistics' && location.pathname !== '/settings' && location.pathname !== '/informacion' && location.pathname !== '/profiles' && location.pathname !== '/profile'
   const [menuOpen, setMenuOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
 
@@ -106,8 +123,8 @@ export default function Layout() {
         {/* Company switcher header */}
         <div className="border-b border-gray-800 relative">
           <button
-            onClick={() => setShowSwitcher(v => !v)}
-            className="w-full flex items-center gap-3 hover:bg-gray-800/60 transition-colors"
+            onClick={visibleCompanies.length > 1 ? () => setShowSwitcher(v => !v) : undefined}
+            className={`w-full flex items-center gap-3 transition-colors ${visibleCompanies.length > 1 ? 'hover:bg-gray-800/60 cursor-pointer' : 'cursor-default'}`}
             style={{ padding: collapsed ? '12px' : '14px 16px' }}
             title={collapsed ? companyName : undefined}
           >
@@ -134,7 +151,7 @@ export default function Layout() {
               {companyDba && <p className="text-xs text-gray-500 truncate">{companyDba}</p>}
             </div>
 
-            {!collapsed && (
+            {!collapsed && visibleCompanies.length > 1 && (
               <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
               </svg>
@@ -148,7 +165,7 @@ export default function Layout() {
               <div className="absolute left-0 top-full mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
                 <div className="p-2">
                   <p className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5 font-semibold">Empresas</p>
-                  {companies.map(c => {
+                  {visibleCompanies.map(c => {
                     const name = c.company_info?.company_name || c.display_name || 'Sin nombre'
                     const logo = c.logo_path ? getLogoUrl(c.logo_path) : null
                     const isActive = c.id === activeCompany?.id
@@ -177,6 +194,7 @@ export default function Layout() {
                     )
                   })}
                 </div>
+                {isSuperAdmin(session) && (
                 <div className="border-t border-gray-800 p-2">
                   <button
                     onClick={() => { setShowSwitcher(false); setShowWizard(true) }}
@@ -188,6 +206,7 @@ export default function Layout() {
                     Nueva Empresa
                   </button>
                 </div>
+                )}
               </div>
             </>
           )}
@@ -260,6 +279,37 @@ export default function Layout() {
             transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
+          <button
+            onClick={handleSignOut}
+            title="Cerrar sesión"
+            {/* User profile link */}
+          <button
+            onClick={() => navigate('/profile')}
+            title={collapsed ? userName : undefined}
+            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors mb-1 ${collapsed ? 'justify-center' : ''}`}
+          >
+            <div
+              className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shrink-0"
+              style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : userInitials}
+            </div>
+            <span
+              className="text-sm text-gray-400 truncate flex-1 text-left"
+              style={{
+                width: collapsed ? 0 : 'auto',
+                opacity: collapsed ? 0 : 1,
+                transition: 'opacity 0.2s ease',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {userName}
+            </span>
+          </button>
+
           <button
             onClick={handleSignOut}
             title="Cerrar sesión"
@@ -347,6 +397,20 @@ export default function Layout() {
           </nav>
 
           <div className="p-4 border-t border-gray-800 space-y-2">
+            <button
+              onClick={() => { setMenuOpen(false); navigate('/profile') }}
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <div
+                className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+              >
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : userInitials}
+              </div>
+              <span className="text-sm text-gray-400 truncate">{userName}</span>
+            </button>
             <button
               onClick={handleSignOut}
               className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors"

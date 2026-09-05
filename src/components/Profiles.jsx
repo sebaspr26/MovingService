@@ -3,6 +3,7 @@ import { useToast } from './Toast'
 import { MODULES, defaultPermissions } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
+import { useCompany } from '../context/CompanyContext'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' },
@@ -40,9 +41,11 @@ export default function Profiles() {
   const [submitting, setSubmitting] = useState(false)
   const [permUser, setPermUser] = useState(null)
   const [perms, setPerms] = useState({})
+  const [allowedCompanies, setAllowedCompanies] = useState([])
   const [savingPerms, setSavingPerms] = useState(false)
   const toast = useToast()
   const { refreshSession } = useAuth()
+  const { companies } = useCompany()
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -163,7 +166,6 @@ export default function Profiles() {
   function openPermissions(user) {
     const defaults = defaultPermissions()
     const existing = user.user_metadata?.permissions || {}
-    // Merge: defaults como base, existing sobreescribe
     const merged = {}
     for (const mod of MODULES) {
       merged[mod.key] = {
@@ -172,6 +174,9 @@ export default function Profiles() {
       }
     }
     setPerms(merged)
+    // allowed_companies: si no está definido, default = todas las empresas
+    const existingAllowed = user.user_metadata?.allowed_companies
+    setAllowedCompanies(existingAllowed ?? companies.map(c => c.id))
     setPermUser(user)
   }
 
@@ -195,7 +200,7 @@ export default function Profiles() {
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms }),
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
@@ -381,6 +386,32 @@ export default function Profiles() {
 
             {/* Body */}
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+              {/* Empresas con acceso */}
+              {companies.length > 1 && (
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 px-4 py-3">
+                  <p className="text-sm font-semibold text-white mb-3">Empresas con acceso</p>
+                  <div className="space-y-2">
+                    {companies.map(c => {
+                      const cName = c.company_info?.company_name || c.display_name || 'Sin nombre'
+                      const checked = allowedCompanies.includes(c.id)
+                      return (
+                        <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
+                          <div
+                            onClick={() => setAllowedCompanies(prev =>
+                              checked ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                            )}
+                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}
+                          >
+                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
+                          </div>
+                          <span className={`text-sm ${checked ? 'text-gray-200' : 'text-gray-600'}`}>{cName}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {MODULES.map(mod => {
                 const modEnabled = perms[mod.key]?.enabled !== false
                 return (
