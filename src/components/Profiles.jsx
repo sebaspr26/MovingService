@@ -661,9 +661,12 @@ export default function Profiles() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                <div className="w-11 h-11 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                   style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
                   {getInitials(permUser.user_metadata?.name, permUser.email)}
+                  {getUserAvatarUrl(permUser) && (
+                    <img src={getUserAvatarUrl(permUser)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
                 </div>
                 <div>
                   <p className="text-base font-bold text-white leading-tight">{permUser.user_metadata?.name || permUser.email}</p>
@@ -744,22 +747,32 @@ export default function Profiles() {
                     <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-3">
                       <div className="flex items-center gap-3 mb-3">
                         <button type="button" onClick={() => setAllowedTrucks(dbTrucks.map(t => t.id))}
-                          className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors">Todos</button>
+                          className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors font-semibold">Todos</button>
                         <span className="text-gray-700 text-[10px]">·</span>
                         <button type="button" onClick={() => setAllowedTrucks([])}
-                          className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors">Ninguno</button>
+                          className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors font-semibold">Ninguno</button>
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
                         {dbTrucks.map(t => {
                           const checked = allowedTrucks.includes(t.id)
                           return (
-                            <label key={t.id} className="flex items-center gap-3 cursor-pointer">
-                              <div onClick={() => setAllowedTrucks(prev => checked ? prev.filter(id => id !== t.id) : [...prev, t.id])}
-                                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}>
-                                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
-                              </div>
-                              <span className={`text-xs ${checked ? 'text-gray-200' : 'text-gray-600'}`}>#{t.number} — {t.name}</span>
-                            </label>
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setAllowedTrucks(prev => checked ? prev.filter(id => id !== t.id) : [...prev, t.id])}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
+                                checked
+                                  ? 'bg-orange-500/20 border-orange-500/40 text-orange-300'
+                                  : 'bg-gray-800 border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-400'
+                              }`}
+                            >
+                              {checked && (
+                                <svg className="w-3 h-3 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                              )}
+                              #{t.number} {t.name}
+                            </button>
                           )
                         })}
                       </div>
