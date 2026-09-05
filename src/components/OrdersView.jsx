@@ -9,6 +9,17 @@ import { getAllowedTruckIds } from '../lib/permissions'
 
 const PAGE_SIZE = 30
 
+const STATUS_ABBREV = {
+  booked: 'R',
+  assigned: 'A',
+  in_transit: 'ET',
+  delivered: 'E',
+  invoiced: 'F',
+  paid: 'P',
+  tonu: 'T',
+  canceled: 'C',
+}
+
 // Cache orders data to avoid re-fetching on every navigation
 let ordersCache = { orders: null, trucks: null, brokers: null, ts: 0 }
 const CACHE_TTL = 30000
@@ -343,9 +354,10 @@ export default function OrdersView() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
-              <th className="pb-2 pr-3">Status</th>
+              <th className="pb-2 pr-3">St.</th>
               <th className="pb-2 pr-3">Orden #</th>
               <th className="pb-2 pr-3">Truck</th>
+              <th className="pb-2 pr-3">Dispatcher</th>
               <th className="pb-2 pr-3">Origen</th>
               <th className="pb-2 pr-3">Destino</th>
               <th className="pb-2 pr-3 text-right">Miles</th>
@@ -384,15 +396,20 @@ export default function OrdersView() {
                   className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}
                 >
                   <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={row.status || 'booked'}
-                      onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                      className={`text-[11px] font-medium px-2 py-1 rounded-lg cursor-pointer focus:outline-none bg-gray-800 border border-gray-700 ${st.text}`}
-                    >
-                      {ALL_STATUSES.map(s => (
-                        <option key={s} value={s} className="bg-gray-800 text-gray-300">{STATUS_CONFIG[s].label}</option>
-                      ))}
-                    </select>
+                    <div className="relative inline-flex items-center" title={st.label}>
+                      <span className={`text-[11px] font-bold px-2 py-1 rounded-lg select-none ${st.text} bg-gray-800 border border-gray-700 min-w-[28px] text-center`}>
+                        {STATUS_ABBREV[row.status] || '?'}
+                      </span>
+                      <select
+                        value={row.status || 'booked'}
+                        onChange={(e) => handleStatusChange(row.id, e.target.value)}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                      >
+                        {ALL_STATUSES.map(s => (
+                          <option key={s} value={s} className="bg-gray-800 text-gray-300">{STATUS_CONFIG[s].label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                     <div className="font-semibold text-white">{row.order_number}</div>
@@ -406,6 +423,13 @@ export default function OrdersView() {
                         {truck.number}
                       </span>
                     ) : '-'}
+                  </td>
+                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                    {row.dispatcher ? (
+                      <span className="text-xs text-gray-300 font-medium">{row.dispatcher}</span>
+                    ) : (
+                      <span className="text-gray-700">—</span>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                     <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
@@ -446,7 +470,7 @@ export default function OrdersView() {
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-gray-600">
+                <td colSpan={10} className="py-12 text-center text-gray-600">
                   {q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}
                 </td>
               </tr>
