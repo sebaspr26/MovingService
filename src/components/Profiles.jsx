@@ -723,19 +723,6 @@ export default function Profiles() {
                         />
                         <span className="text-gray-400 text-sm">%</span>
                       </div>
-                      {rateHistory.length > 0 && (
-                        <>
-                          <p className="text-[10px] text-gray-600 uppercase tracking-wide mb-2">Historial</p>
-                          <div className="space-y-1">
-                            {[...rateHistory].reverse().slice(0, 8).map(r => (
-                              <div key={r.month} className="flex items-center justify-between">
-                                <span className="text-[11px] text-gray-500 capitalize">{formatMonth(r.month)}</span>
-                                <span className="text-[11px] font-semibold text-gray-300">{r.pct}%</span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
                     </div>
                   </div>
                 )}

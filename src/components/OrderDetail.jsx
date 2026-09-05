@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
@@ -24,6 +25,18 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const isNew = id === 'new'
   const navigate = useNavigate()
   const toast = useToast()
+  const { session } = useAuth()
+
+  const userMeta = session?.user?.user_metadata || {}
+  const userRole = userMeta.role || ''
+  const userEmail = session?.user?.email || ''
+  const userName = userMeta.name || userEmail
+  const isDispatcher = userRole === 'dispatcher'
+  const isAdminOrAbove = ['admin', 'super_admin'].includes(userRole)
+  // truck IDs this dispatcher is allowed to see (null = all)
+  const allowedTruckIds = isDispatcher
+    ? (Array.isArray(userMeta.allowed_trucks) ? userMeta.allowed_trucks : [])
+    : null
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -115,15 +128,22 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       supabase.from('brokers').select('*').order('name'),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()),
     ]).then(([tRes, bRes, usersRes]) => {
-      setTrucks(tRes.data || [])
+      const allTrucks = tRes.data || []
+      // Dispatchers only see their allowed trucks
+      setTrucks(allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
       setAllBrokers(bRes.data || [])
-      const dispatcherRoles = ['super_admin', 'admin', 'dispatcher']
+      // All users with a name, regardless of role or active status
       const dispatchers = (usersRes.users || [])
-        .filter(u => dispatcherRoles.includes(u.user_metadata?.role))
+        .filter(u => u.user_metadata?.name || u.email)
         .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
     })
+
+    // Auto-fill dispatcher for dispatcher role on new orders
+    if (isNew && isDispatcher) {
+      setDispatcher(userEmail)
+    }
 
     // Auto-generate ref_number for new orders
     if (isNew) {
@@ -919,6 +939,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 onChange={setDispatcher}
                 authDispatchers={authDispatchers}
                 required={isNew}
+                locked={isDispatcher}
               />
 
               <div>
@@ -1794,7 +1815,7 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
   )
 }
 
-function DispatcherAutocomplete({ label, value, onChange, authDispatchers, required }) {
+function DispatcherAutocomplete({ label, value, onChange, authDispatchers, required, locked }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef(null)
 
@@ -1829,6 +1850,21 @@ function DispatcherAutocomplete({ label, value, onChange, authDispatchers, requi
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [displayName])
+
+  // Locked: dispatcher sees only their own name, can't change
+  if (locked) {
+    return (
+      <div>
+        <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
+        <div className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 flex items-center gap-2">
+          <svg className="w-3.5 h-3.5 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+          </svg>
+          {displayName || value}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div ref={wrapperRef} className="relative">
