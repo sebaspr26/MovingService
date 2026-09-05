@@ -4,12 +4,12 @@ import { createPortal } from 'react-dom'
 export default function MultiSelect({ options, value = [], onChange, placeholder = 'Todos' }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
-  const ref = useRef()
+  const triggerRef = useRef()
+  const dropdownRef = useRef()
 
   useEffect(() => {
     if (!open) return
-    // Calculate position from trigger
-    const rect = ref.current?.getBoundingClientRect()
+    const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) {
       setPos({
         top: rect.bottom + window.scrollY + 4,
@@ -18,7 +18,9 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
       })
     }
     function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      const inTrigger = triggerRef.current?.contains(e.target)
+      const inDropdown = dropdownRef.current?.contains(e.target)
+      if (!inTrigger && !inDropdown) setOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -39,7 +41,7 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
   else label = `${value.length} seleccionados`
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={triggerRef}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -66,6 +68,7 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
 
       {open && createPortal(
         <div
+          ref={dropdownRef}
           style={{ position: 'absolute', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
           className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-max max-w-[240px]"
         >
