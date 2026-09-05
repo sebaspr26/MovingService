@@ -49,6 +49,7 @@ function getInitials(name, email) {
 export default function Profiles() {
   const [users, setUsers] = useState([])
   const [dbDrivers, setDbDrivers] = useState([])
+  const [dbDispatchers, setDbDispatchers] = useState([])
   const [dbTrucks, setDbTrucks] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -69,7 +70,7 @@ export default function Profiles() {
   async function fetchUsers() {
     setLoading(true)
     try {
-      const [usersRes, driversRes, trucksRes] = await Promise.all([
+      const [usersRes, driversRes, trucksRes, dispatchersRes] = await Promise.all([
         fetch('/api/invite-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -77,6 +78,7 @@ export default function Profiles() {
         }),
         supabase.from('drivers').select('id, name, email, phone, status').order('name'),
         supabase.from('trucks').select('id, name, number').order('number'),
+        supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''),
       ])
       const usersData = await usersRes.json().catch(() => ({}))
       if (!usersRes.ok) throw new Error(usersData?.error || `Error ${usersRes.status}`)
@@ -86,6 +88,9 @@ export default function Profiles() {
       setUsers(sorted)
       setDbDrivers(driversRes.data || [])
       setDbTrucks(trucksRes.data || [])
+      // Unique dispatcher names from orders
+      const uniqueDispatchers = [...new Set((dispatchersRes.data || []).map(o => o.dispatcher).filter(Boolean))].sort()
+      setDbDispatchers(uniqueDispatchers)
     } catch (err) {
       toast.error('Error al cargar usuarios: ' + err.message)
     } finally {
@@ -290,11 +295,16 @@ export default function Profiles() {
             const groupUsers = users.filter(u => group.roles.includes(u.user_metadata?.role || 'admin'))
             // For Conductores, add drivers from DB without Auth account
             const isDriverGroup = group.roles.includes('driver')
+            const isDispatcherGroup = group.roles.includes('dispatcher')
             const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
+            const authNames = new Set(groupUsers.map(u => u.user_metadata?.name?.toLowerCase()).filter(Boolean))
             const unlinkedDrivers = isDriverGroup
               ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
               : []
-            const totalCount = groupUsers.length + unlinkedDrivers.length
+            const unlinkedDispatchers = isDispatcherGroup
+              ? dbDispatchers.filter(name => !authNames.has(name.toLowerCase()))
+              : []
+            const totalCount = groupUsers.length + unlinkedDrivers.length + unlinkedDispatchers.length
             if (totalCount === 0) return null
             return (
               <div key={group.label}>
@@ -404,6 +414,50 @@ export default function Profiles() {
                       </div>
                     )
                   })}
+
+                  {/* Dispatchers from orders without Auth account */}
+                  {unlinkedDispatchers.map(name => (
+                    <div
+                      key={`dispatcher-${name}`}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                        style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
+                      >
+                        {getInitials(name, '')}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white truncate">{name}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.dispatcher.color}`}>
+                            {ROLE_LABELS.dispatcher.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">Registrado en órdenes</p>
+                      </div>
+                      <div className="hidden md:block text-right shrink-0">
+                        <p className="text-xs text-gray-600">Último acceso</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Nunca</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                          Sin cuenta
+                        </span>
+                        <button
+                          onClick={() => {
+                            setModalMode('invite')
+                            setForm({ name, email: '', password: '', role: 'dispatcher' })
+                            setShowModal(true)
+                          }}
+                          className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                        >
+                          Invitar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
 
                   {/* Drivers from DB without Auth account */}
                   {unlinkedDrivers.map(driver => (
