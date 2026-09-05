@@ -646,12 +646,14 @@ export default function Profiles() {
               {/* Columna izquierda: Permisos en grid */}
               <div className="flex-1 p-5 overflow-y-auto border-r border-gray-800">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2.5 items-start">
                   {MODULES.map(mod => {
                     const modEnabled = perms[mod.key]?.enabled !== false
+                    const hasSubs = mod.subs.length > 0
                     return (
                       <div key={mod.key} className={`rounded-xl border p-3 transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/50' : 'border-gray-800 bg-gray-800/20'}`}>
-                        <button onClick={() => toggleModule(mod.key)} className="w-full flex items-center justify-between mb-2">
+                        {/* Header del módulo */}
+                        <button onClick={() => toggleModule(mod.key)} className={`w-full flex items-center justify-between ${hasSubs ? 'mb-2' : ''}`}>
                           <div className="flex items-center gap-2">
                             <svg className={`w-3.5 h-3.5 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
@@ -662,8 +664,9 @@ export default function Profiles() {
                             <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-4' : 'left-0.5'}`} />
                           </div>
                         </button>
-                        {mod.subs.length > 0 && modEnabled && (
-                          <div className="border-t border-gray-700/40 pt-2 space-y-1">
+                        {/* Subs — siempre visibles, bloqueados si módulo deshabilitado */}
+                        {hasSubs && (
+                          <div className={`border-t border-gray-700/40 pt-2 space-y-1 ${!modEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                             {mod.subs.map(sub => {
                               const subEnabled = perms[mod.key]?.[sub.key] !== false
                               return (
