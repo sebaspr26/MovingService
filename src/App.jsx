@@ -12,7 +12,9 @@ import Login from './components/Login'
 import Profiles from './components/Profiles'
 import SetPassword from './components/SetPassword'
 import ComingSoon from './components/ComingSoon'
+import Welcome from './components/Welcome'
 import { useAuth } from './context/AuthContext'
+import { isSuperAdmin, canAccess } from './lib/permissions'
 
 
 function ProtectedRoute({ children }) {
@@ -28,7 +30,6 @@ function ProtectedRoute({ children }) {
 
   if (!session) return <Navigate to={import.meta.env.PROD ? '/maintenance' : '/login'} replace />
 
-  // Usuario invitado que aún no ha configurado su contraseña
   if (session.user?.user_metadata?.needs_password) {
     return <Navigate to="/set-password" replace />
   }
@@ -54,7 +55,11 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          <Route index element={
+          !isSuperAdmin(session) && !canAccess(session, 'dashboard')
+            ? <Navigate to="/welcome" replace />
+            : <Dashboard />
+        } />
           <Route path="truck/:id" element={<TruckView />} />
           <Route path="orders" element={<OrdersView />} />
           <Route path="orders/:id" element={<OrderDetail />} />
@@ -64,6 +69,13 @@ function App() {
           <Route path="profiles" element={<Profiles />} />
           <Route path="informacion" element={<Informacion />} />
         </Route>
+
+        {/* Welcome — pantalla sin sidebar para usuarios con acceso limitado */}
+        <Route path="/welcome" element={
+          <ProtectedRoute>
+            <Welcome />
+          </ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   )

@@ -6,6 +6,7 @@ export const MODULES = [
     subs: [
       { key: 'ver_camiones', label: 'Ver camiones' },
       { key: 'crear_editar_camiones', label: 'Crear / editar camiones' },
+      { key: 'eliminar_camiones', label: 'Eliminar camiones' },
       { key: 'ver_ciclos', label: 'Ver ciclos y balance' },
       { key: 'gastos_recurrentes', label: 'Gastos recurrentes' },
       { key: 'cashbox', label: 'Cierre de caja (CashBox)' },
@@ -23,6 +24,7 @@ export const MODULES = [
       { key: 'invoice', label: 'Generar invoice' },
       { key: 'enviar_email', label: 'Enviar email de invoice' },
       { key: 'marcar_pagado', label: 'Marcar como pagado' },
+      { key: 'eliminar_ordenes', label: 'Eliminar ordenes' },
       { key: 'tonu', label: 'TONU / Cancelar ordenes' },
     ],
   },
@@ -75,6 +77,11 @@ export function defaultPermissions() {
 // Super admin siempre tiene todo
 export function isSuperAdmin(session) {
   return session?.user?.user_metadata?.role === 'super_admin'
+}
+
+// Lista de módulos accesibles (excluye perfiles que es solo super_admin)
+export function accessibleModules(session) {
+  return MODULES.filter(m => canAccess(session, m.key))
 }
 
 // Chequea si un módulo está habilitado para el usuario actual
