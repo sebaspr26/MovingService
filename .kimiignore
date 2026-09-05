@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+coverage
+.git
+*.log
+.env
+.env.local
+.DS_Store
+.vscode
+.idea
+tmp
+temp
+*.min.js
+*.min.css
+public/assets

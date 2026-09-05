@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
@@ -34,6 +34,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [tonuPrice, setTonuPrice] = useState('150')
   const [trucks, setTrucks] = useState([])
   const [allBrokers, setAllBrokers] = useState([])
+  const [existingDispatchers, setExistingDispatchers] = useState([])
 
   // Order fields
   const [status, setStatus] = useState('booked')
@@ -112,9 +113,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
     Promise.all([
       supabase.from('trucks').select('id, name, number, discount_percent').order('number'),
       supabase.from('brokers').select('*').order('name'),
-    ]).then(([tRes, bRes]) => {
+      supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null),
+    ]).then(([tRes, bRes, dRes]) => {
       setTrucks(tRes.data || [])
       setAllBrokers(bRes.data || [])
+      const dispatchers = [...new Set((dRes.data || []).map(o => String(o.dispatcher).trim()).filter(Boolean))].sort()
+      setExistingDispatchers(dispatchers)
     })
 
     // Auto-generate ref_number for new orders
@@ -905,7 +909,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 </select>
               </div>
 
-              <Field label="Dispatcher" value={dispatcher} onChange={setDispatcher} />
+              <DispatcherAutocomplete
+                label="Dispatcher"
+                value={dispatcher}
+                onChange={setDispatcher}
+                existingDispatchers={existingDispatchers}
+                required={isNew}
+              />
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Tipo Equipo</label>
@@ -1776,6 +1786,53 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
       />
+    </div>
+  )
+}
+
+function DispatcherAutocomplete({ label, value, onChange, existingDispatchers, required }) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef(null)
+
+  const suggestions = useMemo(() => {
+    const term = (value || '').trim().toUpperCase()
+    if (!term) return existingDispatchers.slice(0, 8)
+    return existingDispatchers.filter(d => d.toUpperCase().includes(term)).slice(0, 8)
+  }, [value, existingDispatchers])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <label className="block text-xs font-medium text-gray-400 mb-1">{label}{required ? ' *' : ''}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+        required={required}
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+          {suggestions.map(d => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => { onChange(d); setOpen(false) }}
+              className="w-full text-left px-3 py-2 text-sm text-gray-100 hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg"
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

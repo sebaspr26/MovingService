@@ -69,6 +69,7 @@ Rules:
 - Cities MUST include US state abbreviation: "CITY, ST" format
 - Source documents use US date format: mm/dd/yyyy (MONTH first, then DAY, then YEAR). Example: "6/1/2026" means June 1st → output "2026-06-01", NOT "2026-01-06"
 - Output dates must be YYYY-MM-DD format
+- IMPORTANT: Receipts and load confirmations are always from the current operational year. Always use the current year for any date you extract. If the document appears to show a different year, treat it as an OCR error and use the current year instead.
 - For amounts, extract the total amount paid per item
 - If a fuel receipt has BOTH diesel AND DEF, include BOTH as separate items in the array
 - If a receipt has multiple services/repairs, include each as a separate expense item
@@ -149,7 +150,8 @@ export async function analyzeReceipt(imageFile) {
 
     if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
 
-    return JSON.parse(text)
+    const parsed = JSON.parse(text)
+    return normalizeScannedDates(parsed)
   } finally {
     isProcessing = false
   }
@@ -157,6 +159,36 @@ export async function analyzeReceipt(imageFile) {
 
 export function isScannerBusy() {
   return isProcessing
+}
+
+function forceCurrentYear(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return dateStr
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return dateStr
+  const currentYear = new Date().getFullYear()
+  return `${currentYear}-${match[2]}-${match[3]}`
+}
+
+function normalizeScannedDates(result) {
+  if (!result || typeof result !== 'object') return result
+
+  // Top-level receipt date (multi-item format)
+  if (result.date) result.date = forceCurrentYear(result.date)
+
+  // Legacy single-item data + orders
+  if (result.data) {
+    if (result.data.date) result.data.date = forceCurrentYear(result.data.date)
+    if (result.data.pu_date) result.data.pu_date = forceCurrentYear(result.data.pu_date)
+    if (result.data.do_date) result.data.do_date = forceCurrentYear(result.data.do_date)
+    if (Array.isArray(result.data.stops)) {
+      result.data.stops = result.data.stops.map(s => ({
+        ...s,
+        date: forceCurrentYear(s.date),
+      }))
+    }
+  }
+
+  return result
 }
 
 function fileToBase64(file) {

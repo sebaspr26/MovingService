@@ -122,7 +122,12 @@ export default function OrdersView() {
   trucks.forEach(t => { truckMap[t.id] = t })
 
   // Unique dispatchers and broker list for filter dropdowns
-  const dispatchers = [...new Set(orders.map(o => o.dispatcher).filter(Boolean))].sort()
+  const dispatchers = [...new Set(
+    orders.map(o => {
+      const d = String(o.dispatcher || '').trim().toUpperCase()
+      return d.split(/\s+/)[0]
+    }).filter(Boolean)
+  )].sort()
   const brokerList = Object.values(brokers).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   const hasActiveFilters = filterTruck || filterDispatcher || filterBroker || filterDateFrom || filterDateTo
 
