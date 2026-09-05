@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { signIn } from '../lib/auth'
 
 export default function Login() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,6 +28,7 @@ export default function Login() {
         const cred = new window.PasswordCredential({ id: email, password })
         await navigator.credentials.store(cred)
       }
+      navigate('/', { replace: true })
     } catch {
       setError('Email o contraseña incorrectos.')
     } finally {
