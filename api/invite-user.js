@@ -145,7 +145,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: `Resend error: ${err.message}` })
       }
 
-      return res.status(200).json({ success: true, user: data.user })
+      return res.status(200).json({ success: true, user: linkData.user })
     }
 
     if (action === 'list') {
