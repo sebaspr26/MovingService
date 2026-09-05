@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { useToast } from './Toast'
 import { MODULES, defaultPermissions } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
+import { supabase } from '../lib/supabase'
+
+function getUserAvatarUrl(user) {
+  const path = user.user_metadata?.avatar_path
+  if (!path) return null
+  const { data } = supabase.storage.from('company-docs').getPublicUrl(path)
+  return data?.publicUrl || null
+}
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 
@@ -276,10 +284,11 @@ export default function Profiles() {
               >
                 {/* Avatar */}
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                   style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
                 >
                   {getInitials(name, user.email)}
+                  {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                 </div>
 
                 {/* Info */}

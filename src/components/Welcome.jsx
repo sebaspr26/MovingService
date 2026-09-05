@@ -69,10 +69,11 @@ export default function Welcome() {
         {/* Avatar + cerrar sesión */}
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0"
+            className="w-9 h-9 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
             style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
           >
-            {userAvatarUrl ? <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+            {initials}
+            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
           </div>
           <button
             onClick={handleSignOut}
@@ -92,10 +93,11 @@ export default function Welcome() {
         {/* Saludo */}
         <div className="text-center mb-12">
           <div
-            className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-2xl font-bold text-white mx-auto mb-6"
+            className="w-20 h-20 rounded-full overflow-hidden relative flex items-center justify-center text-2xl font-bold text-white mx-auto mb-6"
             style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 8px 32px rgba(234,88,12,0.35)' }}
           >
-            {userAvatarUrl ? <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+            {initials}
+            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3" style={{ letterSpacing: '-0.03em' }}>
             Bienvenido, <span style={{ background: 'linear-gradient(135deg, #ea580c, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{firstName}</span>

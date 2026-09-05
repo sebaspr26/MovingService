@@ -114,12 +114,11 @@ export default function UserProfile() {
         <div className="flex items-center gap-5">
           <div className="relative shrink-0">
             <div
-              className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-2xl font-bold text-white"
+              className="w-20 h-20 rounded-full overflow-hidden relative flex items-center justify-center text-2xl font-bold text-white"
               style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              ) : initials}
+              {initials}
+              {avatarUrl && <img src={avatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
             </div>
             {uploading && (
               <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">

@@ -286,12 +286,11 @@ export default function Layout() {
             className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors mb-1 ${collapsed ? 'justify-center' : ''}`}
           >
             <div
-              className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shrink-0"
+              className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-xs font-bold text-white shrink-0"
               style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
             >
-              {userAvatarUrl ? (
-                <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
-              ) : userInitials}
+              {userInitials}
+              {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
             </div>
             <span
               className="text-sm text-gray-400 truncate flex-1 text-left"
