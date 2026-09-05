@@ -8,7 +8,7 @@ import AddReceiptModal from './AddReceiptModal'
 import DayPicker from './DayPicker'
 import { getActiveCompanyId } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
-import { canAccess, isSuperAdmin } from '../lib/permissions'
+import { canAccess, isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -108,8 +108,12 @@ export default function Dashboard() {
 
   async function fetchDrivers() {
     const { data } = await supabase.from('drivers').select('id, name, truck_id, status').order('name')
-    setDrivers(data || [])
-    dashboardCache.drivers = data || []
+    const allowedIds = getAllowedTruckIds(session)
+    const filtered = allowedIds
+      ? (data || []).filter(d => !d.truck_id || allowedIds.includes(d.truck_id))
+      : (data || [])
+    setDrivers(filtered)
+    dashboardCache.drivers = filtered
   }
 
   async function fetchPendingRecurring() {
@@ -178,7 +182,9 @@ export default function Dashboard() {
     const companyId = getActiveCompanyId()
     const query = supabase.from('trucks').select('*').order('number')
     const { data } = companyId ? await query.eq('company_id', companyId) : await query
-    setTrucks(data || [])
+    const allowedIds = getAllowedTruckIds(session)
+    const filtered = allowedIds ? (data || []).filter(t => allowedIds.includes(t.id)) : (data || [])
+    setTrucks(filtered)
     if (data && data.length > 0) {
       await fetchCyclesAndSummaries(data)
     }

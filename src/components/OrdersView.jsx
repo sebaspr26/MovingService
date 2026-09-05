@@ -4,6 +4,8 @@ import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/or
 import OrderDetail from './OrderDetail'
 import DateRangePicker from './DateRangePicker'
 import { useToast } from './Toast'
+import { useAuth } from '../context/AuthContext'
+import { getAllowedTruckIds } from '../lib/permissions'
 
 const PAGE_SIZE = 30
 
@@ -24,6 +26,7 @@ const TABS = [
 ]
 
 export default function OrdersView() {
+  const { session } = useAuth()
   const [orders, setOrders] = useState([])
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
@@ -73,13 +76,20 @@ export default function OrdersView() {
       supabase.from('trucks').select('id, name, number'),
       supabase.from('brokers').select('id, name, type'),
     ])
-    const advancedOrders = await autoAdvanceStatuses(ordersRes.data || [], supabase)
+    const allowedIds = getAllowedTruckIds(session)
+    const allTrucks = trucksRes.data || []
+    const filteredTrucks = allowedIds ? allTrucks.filter(t => allowedIds.includes(t.id)) : allTrucks
+    const allOrders = ordersRes.data || []
+    const filteredOrders = allowedIds
+      ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
+      : allOrders
+    const advancedOrders = await autoAdvanceStatuses(filteredOrders, supabase)
     setOrders(advancedOrders)
-    setTrucks(trucksRes.data || [])
+    setTrucks(filteredTrucks)
     const bMap = {}
     ;(brokersRes.data || []).forEach(b => { bMap[b.id] = b })
     setBrokers(bMap)
-    ordersCache = { orders: advancedOrders, trucks: trucksRes.data || [], brokers: bMap, ts: Date.now() }
+    ordersCache = { orders: advancedOrders, trucks: filteredTrucks, brokers: bMap, ts: Date.now() }
     setLoading(false)
   }
 

@@ -48,6 +48,8 @@ function getInitials(name, email) {
 
 export default function Profiles() {
   const [users, setUsers] = useState([])
+  const [dbDrivers, setDbDrivers] = useState([])
+  const [dbTrucks, setDbTrucks] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
@@ -56,6 +58,7 @@ export default function Profiles() {
   const [permUser, setPermUser] = useState(null)
   const [perms, setPerms] = useState({})
   const [allowedCompanies, setAllowedCompanies] = useState([])
+  const [allowedTrucks, setAllowedTrucks] = useState([])
   const [savingPerms, setSavingPerms] = useState(false)
   const toast = useToast()
   const { refreshSession } = useAuth()
@@ -66,17 +69,23 @@ export default function Profiles() {
   async function fetchUsers() {
     setLoading(true)
     try {
-      const res = await fetch('/api/invite-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list' }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
-      const sorted = (data.users || []).sort((a, b) =>
+      const [usersRes, driversRes, trucksRes] = await Promise.all([
+        fetch('/api/invite-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list' }),
+        }),
+        supabase.from('drivers').select('id, name, email, phone, status').order('name'),
+        supabase.from('trucks').select('id, name, number').order('number'),
+      ])
+      const usersData = await usersRes.json().catch(() => ({}))
+      if (!usersRes.ok) throw new Error(usersData?.error || `Error ${usersRes.status}`)
+      const sorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
       )
       setUsers(sorted)
+      setDbDrivers(driversRes.data || [])
+      setDbTrucks(trucksRes.data || [])
     } catch (err) {
       toast.error('Error al cargar usuarios: ' + err.message)
     } finally {
@@ -191,6 +200,8 @@ export default function Profiles() {
     // allowed_companies: si no está definido, default = todas las empresas
     const existingAllowed = user.user_metadata?.allowed_companies
     setAllowedCompanies(existingAllowed ?? companies.map(c => c.id))
+    const existingTrucks = user.user_metadata?.allowed_trucks
+    setAllowedTrucks(existingTrucks ?? dbTrucks.map(t => t.id))
     setPermUser(user)
   }
 
@@ -214,7 +225,7 @@ export default function Profiles() {
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies }),
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
@@ -277,15 +288,23 @@ export default function Profiles() {
         <div className="space-y-8">
           {ROLE_GROUPS.map(group => {
             const groupUsers = users.filter(u => group.roles.includes(u.user_metadata?.role || 'admin'))
-            if (groupUsers.length === 0) return null
+            // For Conductores, add drivers from DB without Auth account
+            const isDriverGroup = group.roles.includes('driver')
+            const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
+            const unlinkedDrivers = isDriverGroup
+              ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
+              : []
+            const totalCount = groupUsers.length + unlinkedDrivers.length
+            if (totalCount === 0) return null
             return (
               <div key={group.label}>
                 <div className="flex items-center gap-3 mb-3">
                   <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group.label}</h2>
                   <div className="flex-1 h-px bg-gray-800" />
-                  <span className="text-xs text-gray-700">{groupUsers.length}</span>
+                  <span className="text-xs text-gray-700">{totalCount}</span>
                 </div>
                 <div className="space-y-2">
+                  {/* Auth users */}
                   {groupUsers.map(user => {
                     const name = user.user_metadata?.name || ''
                     const role = user.user_metadata?.role || 'admin'
@@ -385,6 +404,59 @@ export default function Profiles() {
                       </div>
                     )
                   })}
+
+                  {/* Drivers from DB without Auth account */}
+                  {unlinkedDrivers.map(driver => (
+                    <div
+                      key={`driver-${driver.id}`}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
+                    >
+                      {/* Avatar */}
+                      <div
+                        className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                        style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
+                      >
+                        {getInitials(driver.name, driver.email)}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white truncate">{driver.name}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.driver.color}`}>
+                            {ROLE_LABELS.driver.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{driver.email || driver.phone || 'Sin contacto registrado'}</p>
+                      </div>
+
+                      {/* Último acceso */}
+                      <div className="hidden md:block text-right shrink-0">
+                        <p className="text-xs text-gray-600">Último acceso</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Nunca</p>
+                      </div>
+
+                      {/* Estado */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                          Sin cuenta
+                        </span>
+                        {driver.email && (
+                          <button
+                            onClick={() => {
+                              setModalMode('invite')
+                              setForm({ name: driver.name, email: driver.email, password: '', role: 'driver' })
+                              setShowModal(true)
+                            }}
+                            className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                          >
+                            Invitar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )
@@ -431,6 +503,52 @@ export default function Profiles() {
                             <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
                           </div>
                           <span className={`text-sm ${checked ? 'text-gray-200' : 'text-gray-600'}`}>{cName}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Camiones asignados (no aplica a super_admin) */}
+              {permUser?.user_metadata?.role !== 'super_admin' && dbTrucks.length > 0 && (
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 px-4 py-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-white">Camiones asignados</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAllowedTrucks(dbTrucks.map(t => t.id))}
+                        className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors"
+                      >
+                        Todos
+                      </button>
+                      <span className="text-gray-700 text-[10px]">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setAllowedTrucks([])}
+                        className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors"
+                      >
+                        Ninguno
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {dbTrucks.map(t => {
+                      const checked = allowedTrucks.includes(t.id)
+                      return (
+                        <label key={t.id} className="flex items-center gap-3 cursor-pointer py-0.5">
+                          <div
+                            onClick={() => setAllowedTrucks(prev =>
+                              checked ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                            )}
+                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}
+                          >
+                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
+                          </div>
+                          <span className={`text-sm ${checked ? 'text-gray-200' : 'text-gray-600'}`}>
+                            #{t.number} — {t.name}
+                          </span>
                         </label>
                       )
                     })}

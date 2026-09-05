@@ -290,8 +290,14 @@ export default function Layout() {
             className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors mb-1 ${collapsed ? 'justify-center' : ''}`}
           >
             <div
-              className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+              className="rounded-full overflow-hidden relative flex items-center justify-center font-bold text-white shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #ea580c, #c2410c)',
+                width: collapsed ? '36px' : '28px',
+                height: collapsed ? '36px' : '28px',
+                fontSize: collapsed ? '13px' : '11px',
+                transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1), height 0.35s cubic-bezier(0.4,0,0.2,1)',
+              }}
             >
               {userInitials}
               {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
