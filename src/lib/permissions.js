@@ -95,9 +95,10 @@ export function canAccess(session, moduleKey, subKey = null) {
   return true
 }
 
-// Retorna array de truck IDs permitidos, o null si el usuario puede ver todos
+// Retorna array de truck IDs permitidos, o null si el usuario puede ver todos.
+// Super admin → null (sin filtro). Otros → solo los asignados; si nunca se asignaron → [] (ninguno).
 export function getAllowedTruckIds(session) {
   if (isSuperAdmin(session)) return null
   const ids = session?.user?.user_metadata?.allowed_trucks
-  return Array.isArray(ids) ? ids : null
+  return Array.isArray(ids) ? ids : []
 }
