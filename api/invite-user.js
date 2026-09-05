@@ -30,12 +30,87 @@ export default async function handler(req, res) {
     }
 
     if (action === 'invite') {
-      // Enviar link de invitación por email
-      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: { name, role: role || 'user' },
-        redirectTo: 'https://www.etg-tms.com/set-password',
+      // Generar el link sin que Supabase envíe el correo
+      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: {
+          data: { name, role: role || 'user' },
+          redirectTo: 'https://www.etg-tms.com/set-password',
+        },
       })
       if (error) return res.status(400).json({ error: error.message })
+
+      const inviteUrl = data.properties?.action_link
+      if (!inviteUrl) return res.status(500).json({ error: 'No se pudo generar el link' })
+
+      // Enviar por Resend con diseño personalizado
+      const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
+
+    <!-- Logo / Icon -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:rgba(234,88,12,0.15);border:1px solid rgba(234,88,12,0.3);border-radius:14px;margin-bottom:14px;">
+        <span style="font-size:26px;">🚛</span>
+      </div>
+      <p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">ETG Moving Services</p>
+    </div>
+
+    <!-- Card -->
+    <div style="background:#111118;border:1px solid #1f1f2e;border-radius:20px;padding:36px;">
+      <h1 style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">
+        ${name ? `Hola ${name},` : 'Hola,'} te han invitado
+      </h1>
+      <p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">
+        Has sido agregado como <strong style="color:#9ca3af;">${role || 'usuario'}</strong> en el Sistema de Gestión de Transportes de ETG Moving Services.<br><br>
+        Haz clic en el botón para crear tu contraseña y acceder al sistema.
+      </p>
+
+      <!-- Button -->
+      <a href="${inviteUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#ea580c,#c2410c);color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:12px;font-size:15px;font-weight:700;letter-spacing:-0.2px;box-shadow:0 4px 24px rgba(234,88,12,0.35);">
+        Activar mi cuenta &rarr;
+      </a>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid #1f1f2e;margin:28px 0;"></div>
+
+      <p style="margin:0 0 8px;color:#4b5563;font-size:12px;">Si el botón no funciona, copia este enlace:</p>
+      <p style="margin:0;color:#ea580c;font-size:11px;word-break:break-all;">${inviteUrl}</p>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;margin-top:24px;">
+      <p style="margin:0;color:#374151;font-size:11px;">ETG TMS &mdash; Sistema de Gestión de Transporte</p>
+      <p style="margin:6px 0 0;color:#1f2937;font-size:10px;">Este enlace expira en 1 hora. Si no esperabas esta invitación, ignora este correo.</p>
+    </div>
+
+  </div>
+</body>
+</html>`
+
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.RESEND_KEY}`,
+        },
+        body: JSON.stringify({
+          from: 'ETG Moving Services <noreply@etg-tms.com>',
+          to: [email],
+          subject: 'Invitación al Sistema ETG Moving Services',
+          html,
+        }),
+      })
+
+      if (!resendRes.ok) {
+        const err = await resendRes.json()
+        return res.status(500).json({ error: `Resend error: ${err.message}` })
+      }
+
       return res.status(200).json({ success: true, user: data.user })
     }
 
