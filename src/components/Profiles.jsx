@@ -46,6 +46,46 @@ function getInitials(name, email) {
   return email?.slice(0, 2).toUpperCase() || '??'
 }
 
+function ModuleCard({ mod, perms, toggleModule, toggleSub }) {
+  const modEnabled = perms[mod.key]?.enabled !== false
+  const hasSubs = mod.subs.length > 0
+  return (
+    <div className={`rounded-xl border p-3 transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/50' : 'border-gray-800 bg-gray-800/20'}`}>
+      <button onClick={() => toggleModule(mod.key)} className={`w-full flex items-center justify-between ${hasSubs ? 'mb-2' : ''}`}>
+        <div className="flex items-center gap-2">
+          <svg className={`w-3.5 h-3.5 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
+          </svg>
+          <span className={`text-xs font-bold ${modEnabled ? 'text-white' : 'text-gray-600'}`}>{mod.label}</span>
+        </div>
+        <div className={`w-9 h-5 rounded-full relative shrink-0 transition-colors ${modEnabled ? 'bg-orange-500' : 'bg-gray-700'}`}>
+          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-4' : 'left-0.5'}`} />
+        </div>
+      </button>
+      {hasSubs && (
+        <div className="border-t border-gray-700/40 pt-2 space-y-1">
+          {mod.subs.map(sub => {
+            const subEnabled = perms[mod.key]?.[sub.key] !== false
+            return (
+              <button
+                key={sub.key}
+                onClick={() => modEnabled && toggleSub(mod.key, sub.key)}
+                disabled={!modEnabled}
+                className="w-full flex items-center justify-between py-0.5 gap-2"
+              >
+                <span className={`text-[11px] text-left leading-tight ${modEnabled && subEnabled ? 'text-gray-300' : 'text-gray-600'}`}>{sub.label}</span>
+                <div className={`w-7 h-3.5 rounded-full relative shrink-0 transition-colors ${modEnabled && subEnabled ? 'bg-orange-500/80' : 'bg-gray-700'}`}>
+                  <span className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-all ${modEnabled && subEnabled ? 'left-3.5' : 'left-0.5'}`} />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Profiles() {
   const [users, setUsers] = useState([])
   const [dbDrivers, setDbDrivers] = useState([])
@@ -643,57 +683,18 @@ export default function Profiles() {
             {/* Body — 2 cols */}
             <div className="flex flex-1 overflow-hidden min-h-0">
 
-              {/* Columna izquierda: Permisos en grid */}
+              {/* Columna izquierda: Permisos en 2 sub-columnas independientes */}
               <div className="flex-1 p-5 overflow-y-auto border-r border-gray-800">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
-                <div className="grid grid-cols-2 gap-2.5 items-start">
-                  {MODULES.map(mod => {
-                    const modEnabled = perms[mod.key]?.enabled !== false
-                    const hasSubs = mod.subs.length > 0
-                    return (
-                      <div key={mod.key} className={`rounded-xl border p-3 transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/50' : 'border-gray-800 bg-gray-800/20'}`}>
-                        {/* Header del módulo */}
-                        <button onClick={() => toggleModule(mod.key)} className={`w-full flex items-center justify-between ${hasSubs ? 'mb-2' : ''}`}>
-                          <div className="flex items-center gap-2">
-                            <svg className={`w-3.5 h-3.5 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
-                            </svg>
-                            <span className={`text-xs font-bold ${modEnabled ? 'text-white' : 'text-gray-600'}`}>{mod.label}</span>
-                          </div>
-                          <div className={`w-9 h-5 rounded-full relative shrink-0 transition-colors ${modEnabled ? 'bg-orange-500' : 'bg-gray-700'}`}>
-                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-4' : 'left-0.5'}`} />
-                          </div>
-                        </button>
-                        {/* Subs — solo visibles si módulo habilitado; si no, indicador compacto */}
-                        {hasSubs && !modEnabled && (
-                          <div className="border-t border-gray-800 pt-2">
-                            <p className="text-[10px] text-gray-700 flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                              </svg>
-                              {mod.subs.length} permisos bloqueados
-                            </p>
-                          </div>
-                        )}
-                        {hasSubs && modEnabled && (
-                          <div className="border-t border-gray-700/40 pt-2 space-y-1">
-                            {mod.subs.map(sub => {
-                              const subEnabled = perms[mod.key]?.[sub.key] !== false
-                              return (
-                                <button key={sub.key} onClick={() => toggleSub(mod.key, sub.key)}
-                                  className="w-full flex items-center justify-between py-0.5 gap-2">
-                                  <span className={`text-[11px] text-left leading-tight ${subEnabled ? 'text-gray-300' : 'text-gray-600'}`}>{sub.label}</span>
-                                  <div className={`w-7 h-3.5 rounded-full relative shrink-0 transition-colors ${subEnabled ? 'bg-orange-500/80' : 'bg-gray-700'}`}>
-                                    <span className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-all ${subEnabled ? 'left-3.5' : 'left-0.5'}`} />
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                <div className="flex gap-2.5">
+                  {/* Sub-col izquierda: dashboard, statistics, informacion */}
+                  <div className="flex-1 flex flex-col gap-2.5">
+                    {MODULES.filter((_, i) => i % 2 === 0).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                  </div>
+                  {/* Sub-col derecha: orders, company, settings */}
+                  <div className="flex-1 flex flex-col gap-2.5">
+                    {MODULES.filter((_, i) => i % 2 === 1).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                  </div>
                 </div>
               </div>
 
