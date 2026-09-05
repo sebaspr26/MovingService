@@ -1,11 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function MultiSelect({ options, value = [], onChange, placeholder = 'Todos' }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
   const ref = useRef()
 
   useEffect(() => {
     if (!open) return
+    // Calculate position from trigger
+    const rect = ref.current?.getBoundingClientRect()
+    if (rect) {
+      setPos({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      })
+    }
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
@@ -53,8 +64,11 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
         </div>
       </button>
 
-      {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-max min-w-full max-w-[240px]">
+      {open && createPortal(
+        <div
+          style={{ position: 'absolute', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
+          className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-max max-w-[240px]"
+        >
           {/* Actions */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
             <button type="button" onClick={selectAll} className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors">Todos</button>
@@ -83,7 +97,8 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
               )
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
