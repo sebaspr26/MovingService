@@ -123,8 +123,8 @@ export default function Layout() {
         {/* Company switcher header */}
         <div className="border-b border-gray-800 relative">
           <button
-            onClick={visibleCompanies.length > 1 ? () => setShowSwitcher(v => !v) : undefined}
-            className={`w-full flex items-center gap-3 transition-colors ${visibleCompanies.length > 1 ? 'hover:bg-gray-800/60 cursor-pointer' : 'cursor-default'}`}
+            onClick={() => setShowSwitcher(v => !v)}
+            className="w-full flex items-center gap-3 hover:bg-gray-800/60 transition-colors"
             style={{ padding: collapsed ? '12px' : '14px 16px' }}
             title={collapsed ? companyName : undefined}
           >
@@ -151,7 +151,7 @@ export default function Layout() {
               {companyDba && <p className="text-xs text-gray-500 truncate">{companyDba}</p>}
             </div>
 
-            {!collapsed && visibleCompanies.length > 1 && (
+            {!collapsed && (
               <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
               </svg>
