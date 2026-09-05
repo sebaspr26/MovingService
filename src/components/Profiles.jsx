@@ -385,10 +385,23 @@ export default function Profiles() {
                               Activo
                             </span>
                           ) : status === 'pending' ? (
-                            <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                              Solicitud enviada
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                                Solicitud enviada
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setModalMode('invite')
+                                  setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
+                                  setShowModal(true)
+                                }}
+                                className="px-2 py-0.5 text-xs rounded-md bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30 transition-colors font-medium"
+                                title="Reenviar invitación"
+                              >
+                                Reenviar
+                              </button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-1.5">
                               <span className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
@@ -396,7 +409,11 @@ export default function Profiles() {
                                 Expirado
                               </span>
                               <button
-                                onClick={() => handleResend(user)}
+                                onClick={() => {
+                                  setModalMode('invite')
+                                  setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
+                                  setShowModal(true)
+                                }}
                                 className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
                                 title="Reenviar invitación"
                               >
