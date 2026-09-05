@@ -12,8 +12,11 @@ export default async function handler(req, res) {
 
   const { action, email, password, name, role } = req.body
 
-  if (!action || !email) {
-    return res.status(400).json({ error: 'Faltan campos requeridos' })
+  if (!action) {
+    return res.status(400).json({ error: 'Falta el campo action' })
+  }
+  if (!email && action !== 'list') {
+    return res.status(400).json({ error: 'Falta el campo email' })
   }
 
   try {

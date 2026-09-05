@@ -34,8 +34,8 @@ export default function Profiles() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list' }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
       setUsers(data.users || [])
     } catch (err) {
       toast.error('Error al cargar usuarios: ' + err.message)
@@ -62,8 +62,8 @@ export default function Profiles() {
           role: form.role,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
 
       toast.success(modalMode === 'invite'
         ? `Invitación enviada a ${form.email}`
@@ -88,8 +88,8 @@ export default function Profiles() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete', email, userId }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
       toast.success('Usuario eliminado')
       fetchUsers()
     } catch (err) {
