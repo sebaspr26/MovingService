@@ -28,4 +28,3 @@ dist-ssr
 
 # Videos grandes
 public/truck.mp4
-public/*.mp4

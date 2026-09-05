@@ -92,7 +92,7 @@ export default function SetPassword() {
     <div className="min-h-screen relative overflow-hidden flex">
       {/* Video de fondo */}
       <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-        <source src="/truck.mp4" type="video/mp4" />
+        <source src="/truck-bg.mp4" type="video/mp4" />
       </video>
       <div className="absolute inset-0 bg-black/65" />
 
