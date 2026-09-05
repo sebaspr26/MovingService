@@ -7,8 +7,14 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = cargando
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+    // Refrescar sesión al montar para obtener user_metadata actualizado
+    supabase.auth.refreshSession().then(({ data }) => {
+      if (data.session) {
+        setSession(data.session)
+      } else {
+        // Si no hay sesión activa, getSession confirma el estado
+        supabase.auth.getSession().then(({ data: d }) => setSession(d.session ?? null))
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

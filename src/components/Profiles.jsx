@@ -35,6 +35,12 @@ function rolePriority(role) {
   return order[role] ?? 99
 }
 
+const ROLE_GROUPS = [
+  { label: 'Administradores', roles: ['super_admin', 'admin'] },
+  { label: 'Dispatchers', roles: ['dispatcher'] },
+  { label: 'Conductores', roles: ['driver', 'driver_lease'] },
+]
+
 function getInitials(name, email) {
   if (name) return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
   return email?.slice(0, 2).toUpperCase() || '??'
@@ -268,106 +274,117 @@ export default function Profiles() {
       ) : users.length === 0 ? (
         <div className="text-center py-24 text-gray-500">No hay usuarios registrados</div>
       ) : (
-        <div className="space-y-3">
-          {users.map(user => {
-            const name = user.user_metadata?.name || ''
-            const role = user.user_metadata?.role || 'admin'
-            const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.admin
-            const lastSignIn = user.last_sign_in_at
-              ? new Date(user.last_sign_in_at).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' })
-              : 'Nunca'
-
+        <div className="space-y-8">
+          {ROLE_GROUPS.map(group => {
+            const groupUsers = users.filter(u => group.roles.includes(u.user_metadata?.role || 'admin'))
+            if (groupUsers.length === 0) return null
             return (
-              <div
-                key={user.id}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 bg-gray-900 hover:border-gray-700 transition-colors"
-              >
-                {/* Avatar */}
-                <div
-                  className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                >
-                  {getInitials(name, user.email)}
-                  {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+              <div key={group.label}>
+                <div className="flex items-center gap-3 mb-3">
+                  <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group.label}</h2>
+                  <div className="flex-1 h-px bg-gray-800" />
+                  <span className="text-xs text-gray-700">{groupUsers.length}</span>
                 </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white truncate">{name || user.email}</p>
-                    <select
-                      value={role}
-                      onChange={e => handleUpdateRole(user.id, e.target.value)}
-                      className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
-                    >
-                      {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
-                        <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
-                </div>
-
-                {/* Último acceso */}
-                <div className="hidden md:block text-right shrink-0">
-                  <p className="text-xs text-gray-600">Último acceso</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{lastSignIn}</p>
-                </div>
-
-                {/* Estado + Acciones */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {(() => {
+                <div className="space-y-2">
+                  {groupUsers.map(user => {
+                    const name = user.user_metadata?.name || ''
+                    const role = user.user_metadata?.role || 'admin'
+                    const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.admin
                     const status = getInviteStatus(user)
-                    if (status === 'active') return (
-                      <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                        Activo
-                      </span>
-                    )
-                    if (status === 'pending') return (
-                      <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                        Solicitud enviada
-                      </span>
-                    )
-                    // expired
+                    const inactive = status !== 'active'
+                    const lastSignIn = user.last_sign_in_at
+                      ? new Date(user.last_sign_in_at).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : 'Nunca'
+
                     return (
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                          Expirado
-                        </span>
-                        <button
-                          onClick={() => handleResend(user)}
-                          className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
-                          title="Reenviar invitación"
+                      <div
+                        key={user.id}
+                        className={`flex items-center gap-4 p-4 rounded-xl border bg-gray-900 hover:border-gray-700 transition-colors ${inactive ? 'border-gray-800/60 opacity-50 grayscale' : 'border-gray-800'}`}
+                      >
+                        {/* Avatar */}
+                        <div
+                          className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
                         >
-                          Reenviar
-                        </button>
+                          {getInitials(name, user.email)}
+                          {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white truncate">{name || user.email}</p>
+                            <select
+                              value={role}
+                              onChange={e => handleUpdateRole(user.id, e.target.value)}
+                              className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
+                            >
+                              {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
+                                <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
+                        </div>
+
+                        {/* Último acceso */}
+                        <div className="hidden md:block text-right shrink-0">
+                          <p className="text-xs text-gray-600">Último acceso</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{lastSignIn}</p>
+                        </div>
+
+                        {/* Estado + Acciones */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {status === 'active' ? (
+                            <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                              Activo
+                            </span>
+                          ) : status === 'pending' ? (
+                            <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                              Solicitud enviada
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                Expirado
+                              </span>
+                              <button
+                                onClick={() => handleResend(user)}
+                                className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                                title="Reenviar invitación"
+                              >
+                                Reenviar
+                              </button>
+                            </div>
+                          )}
+
+                          {role !== 'super_admin' && (
+                            <button
+                              onClick={() => openPermissions(user)}
+                              className="p-2 rounded-lg text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
+                              title="Configurar permisos"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(user.id, user.email)}
+                            className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                            title="Eliminar usuario"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     )
-                  })()}
-
-                  {role !== 'super_admin' && (
-                    <button
-                      onClick={() => openPermissions(user)}
-                      className="p-2 rounded-lg text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
-                      title="Configurar permisos"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                      </svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(user.id, user.email)}
-                    className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                    title="Eliminar usuario"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                  </button>
+                  })}
                 </div>
               </div>
             )
