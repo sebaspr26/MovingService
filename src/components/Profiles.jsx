@@ -309,7 +309,8 @@ export default function Profiles() {
             const isDriverGroup = group.roles.includes('driver')
             const isDispatcherGroup = group.roles.includes('dispatcher')
             const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
-            // Compare dispatcher names against ALL auth users — name tokens + email prefix
+            // Compare dispatcher names against ALL auth users — full name + tokens + email prefix
+            const allAuthNames = new Set(users.map(u => (u.user_metadata?.name || '').toLowerCase()).filter(Boolean))
             const allAuthTokens = new Set(
               users.flatMap(u => [
                 ...(u.user_metadata?.name || '').toLowerCase().split(/\s+/),
@@ -326,7 +327,8 @@ export default function Profiles() {
                     // Email-based dispatcher: linked if an auth user has this email
                     return !allAuthEmails.has(val.toLowerCase())
                   }
-                  // Legacy name-based: exclude if any token matches any auth user token
+                  // Legacy name-based: exclude if full name or any token matches any auth user
+                  if (allAuthNames.has(val.toLowerCase())) return false
                   const tokens = val.toLowerCase().split(/\s+/)
                   return !tokens.some(t => allAuthTokens.has(t))
                 })

@@ -170,8 +170,14 @@ export default function OrdersView() {
 
   // Build dispatcher options for filter (from authDispatchers + any legacy name-based values)
   const dispatcherEmails = new Set(authDispatchers.map(d => d.email))
+  const authNames = new Set(authDispatchers.map(d => d.name.toLowerCase()))
   const legacyDispatchers = [...new Set(
-    orders.map(o => o.dispatcher).filter(d => d && !dispatcherEmails.has(d))
+    orders.map(o => o.dispatcher).filter(d => {
+      if (!d) return false
+      if (dispatcherEmails.has(d)) return false // ya está como auth user (email)
+      if (!d.includes('@') && authNames.has(d.toLowerCase())) return false // nombre coincide con auth user
+      return true
+    })
   )].sort()
   const dispatcherOptions = [
     ...authDispatchers.map(d => ({ value: d.email, label: d.name })),
