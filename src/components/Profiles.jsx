@@ -22,7 +22,7 @@ export default function Profiles() {
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' })
   const [submitting, setSubmitting] = useState(false)
-  const { toast } = useToast()
+  const toast = useToast()
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -76,6 +76,22 @@ export default function Profiles() {
       toast.error(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleUpdateRole(userId, newRole) {
+    try {
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_role', email: 'x', userId, role: newRole }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      toast.success('Rol actualizado')
+      fetchUsers()
+    } catch (err) {
+      toast.error(err.message)
     }
   }
 
@@ -168,9 +184,15 @@ export default function Profiles() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-white truncate">{name || user.email}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${roleConfig.color}`}>
-                      {roleConfig.label}
-                    </span>
+                    <select
+                      value={role}
+                      onChange={e => handleUpdateRole(user.id, e.target.value)}
+                      className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
+                    >
+                      {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
+                        <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
+                      ))}
+                    </select>
                   </div>
                   <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
                 </div>

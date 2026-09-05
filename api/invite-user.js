@@ -130,6 +130,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    if (action === 'update_role') {
+      const { userId, role: newRole } = req.body
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: { role: newRole },
+      })
+      if (error) return res.status(400).json({ error: error.message })
+      return res.status(200).json({ success: true })
+    }
+
     return res.status(400).json({ error: 'Acción no válida' })
   } catch (err) {
     return res.status(500).json({ error: err.message })
