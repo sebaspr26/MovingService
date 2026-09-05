@@ -37,7 +37,7 @@ export default function Layout() {
 
   // Drivers no pueden cambiar de empresa
   const isDriver = ['driver', 'driver_lease'].includes(userMeta.role)
-  const canSwitchCompany = !isDriver && visibleCompanies.length > 1
+  const canSwitchCompany = !isDriver && (visibleCompanies.length > 1 || isSuperAdmin(session))
 
   async function handleSwitchCompany(id) {
     setShowSwitcher(false)
