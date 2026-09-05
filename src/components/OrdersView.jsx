@@ -69,15 +69,32 @@ export default function OrdersView() {
       return
     }
     fetchData()
-    // Fetch auth users for dispatcher display
+    // Fetch auth users for dispatcher display + migrate legacy names → emails
     fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
       .then(r => r.json())
-      .then(data => {
+      .then(async data => {
         const roles = ['super_admin', 'admin', 'dispatcher']
-        setAuthDispatchers((data.users || [])
+        const dispatchers = (data.users || [])
           .filter(u => roles.includes(u.user_metadata?.role))
           .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
-        )
+        setAuthDispatchers(dispatchers)
+
+        // Migrate orders with name-based dispatcher → email
+        const nameToEmail = {}
+        dispatchers.forEach(d => {
+          if (d.name && d.name !== d.email) nameToEmail[d.name.toLowerCase()] = d.email
+        })
+        const { data: legacyOrders } = await supabase
+          .from('orders').select('id, dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
+        const toMigrate = (legacyOrders || []).filter(o => !o.dispatcher.includes('@') && nameToEmail[o.dispatcher.trim().toLowerCase()])
+        for (const order of toMigrate) {
+          const email = nameToEmail[order.dispatcher.trim().toLowerCase()]
+          await supabase.from('orders').update({ dispatcher: email }).eq('id', order.id)
+        }
+        if (toMigrate.length > 0) {
+          ordersCache = {} // invalidar cache para que recargue con emails actualizados
+          fetchData()
+        }
       })
       .catch(() => {})
   }, [])
