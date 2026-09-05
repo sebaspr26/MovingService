@@ -62,6 +62,8 @@ export default function Profiles() {
   const [allowedCompanies, setAllowedCompanies] = useState([])
   const [allowedTrucks, setAllowedTrucks] = useState([])
   const [savingPerms, setSavingPerms] = useState(false)
+  const [dispatcherRate, setDispatcherRate] = useState('')
+  const [rateHistory, setRateHistory] = useState([])
   const toast = useToast()
   const { refreshSession } = useAuth()
   const { companies } = useCompany()
@@ -239,7 +241,20 @@ export default function Profiles() {
     setAllowedCompanies(existingAllowed ?? companies.map(c => c.id))
     const existingTrucks = user.user_metadata?.allowed_trucks
     setAllowedTrucks(existingTrucks ?? dbTrucks.map(t => t.id))
+    // Dispatcher rate history
+    const rates = user.user_metadata?.dispatcher_rates || []
+    setRateHistory(rates)
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const monthEntry = rates.find(r => r.month === currentMonth)
+    const lastEntry = rates[rates.length - 1]
+    setDispatcherRate(monthEntry ? String(monthEntry.pct) : lastEntry ? String(lastEntry.pct) : '')
     setPermUser(user)
+  }
+
+  function formatMonth(monthStr) {
+    const [year, month] = monthStr.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+    return date.toLocaleDateString('es-US', { month: 'short', year: 'numeric' })
   }
 
   function toggleModule(modKey) {
@@ -259,10 +274,20 @@ export default function Profiles() {
   async function savePermissions() {
     setSavingPerms(true)
     try {
+      // Build rate history — only update current month, preserve past months
+      let newRates = [...rateHistory]
+      if (dispatcherRate !== '' && !isNaN(parseFloat(dispatcherRate))) {
+        const pct = parseFloat(dispatcherRate)
+        const currentMonth = new Date().toISOString().slice(0, 7)
+        const idx = newRates.findIndex(r => r.month === currentMonth)
+        if (idx >= 0) newRates[idx] = { month: currentMonth, pct }
+        else newRates.push({ month: currentMonth, pct })
+      }
+
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks }),
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks, dispatcher_rates: newRates }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
@@ -587,156 +612,180 @@ export default function Profiles() {
         </div>
       )}
 
-      {/* Modal Permisos */}
+      {/* Modal Permisos — 2 columnas */}
       {permUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPermUser(null)} />
-          <div className="relative w-full max-w-lg bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+          <div className="relative w-full max-w-5xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
+
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-white">Permisos de acceso</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{permUser.user_metadata?.name || permUser.email}</p>
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                  {getInitials(permUser.user_metadata?.name, permUser.email)}
+                </div>
+                <div>
+                  <p className="text-base font-bold text-white leading-tight">{permUser.user_metadata?.name || permUser.email}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{permUser.email}</p>
+                </div>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${ROLE_LABELS[permUser.user_metadata?.role]?.color || 'text-gray-400 bg-gray-400/10 border-gray-400/20'}`}>
+                  {ROLE_LABELS[permUser.user_metadata?.role]?.label || permUser.user_metadata?.role}
+                </span>
               </div>
-              <button onClick={() => setPermUser(null)} className="text-gray-500 hover:text-white transition-colors p-1">
+              <button onClick={() => setPermUser(null)} className="text-gray-500 hover:text-white transition-colors p-1.5">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Body */}
-            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
-              {/* Empresas con acceso */}
-              {companies.length > 1 && (
-                <div className="rounded-xl border border-gray-700 bg-gray-800/40 px-4 py-3">
-                  <p className="text-sm font-semibold text-white mb-3">Empresas con acceso</p>
-                  <div className="space-y-2">
-                    {companies.map(c => {
-                      const cName = c.company_info?.company_name || c.display_name || 'Sin nombre'
-                      const checked = allowedCompanies.includes(c.id)
-                      return (
-                        <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
-                          <div
-                            onClick={() => setAllowedCompanies(prev =>
-                              checked ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                            )}
-                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}
-                          >
-                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
-                          </div>
-                          <span className={`text-sm ${checked ? 'text-gray-200' : 'text-gray-600'}`}>{cName}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+            {/* Body — 2 cols */}
+            <div className="flex flex-1 overflow-hidden min-h-0">
 
-              {/* Camiones asignados (no aplica a super_admin) */}
-              {permUser?.user_metadata?.role !== 'super_admin' && dbTrucks.length > 0 && (
-                <div className="rounded-xl border border-gray-700 bg-gray-800/40 px-4 py-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-white">Camiones asignados</p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAllowedTrucks(dbTrucks.map(t => t.id))}
-                        className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors"
-                      >
-                        Todos
-                      </button>
-                      <span className="text-gray-700 text-[10px]">·</span>
-                      <button
-                        type="button"
-                        onClick={() => setAllowedTrucks([])}
-                        className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors"
-                      >
-                        Ninguno
-                      </button>
+              {/* Columna izquierda: Permisos en grid */}
+              <div className="flex-1 p-5 overflow-y-auto border-r border-gray-800">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {MODULES.map(mod => {
+                    const modEnabled = perms[mod.key]?.enabled !== false
+                    return (
+                      <div key={mod.key} className={`rounded-xl border p-3 transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/50' : 'border-gray-800 bg-gray-800/20'}`}>
+                        <button onClick={() => toggleModule(mod.key)} className="w-full flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className={`w-3.5 h-3.5 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
+                            </svg>
+                            <span className={`text-xs font-bold ${modEnabled ? 'text-white' : 'text-gray-600'}`}>{mod.label}</span>
+                          </div>
+                          <div className={`w-9 h-5 rounded-full relative shrink-0 transition-colors ${modEnabled ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-4' : 'left-0.5'}`} />
+                          </div>
+                        </button>
+                        {mod.subs.length > 0 && modEnabled && (
+                          <div className="border-t border-gray-700/40 pt-2 space-y-1">
+                            {mod.subs.map(sub => {
+                              const subEnabled = perms[mod.key]?.[sub.key] !== false
+                              return (
+                                <button key={sub.key} onClick={() => toggleSub(mod.key, sub.key)}
+                                  className="w-full flex items-center justify-between py-0.5 gap-2">
+                                  <span className={`text-[11px] text-left leading-tight ${subEnabled ? 'text-gray-300' : 'text-gray-600'}`}>{sub.label}</span>
+                                  <div className={`w-7 h-3.5 rounded-full relative shrink-0 transition-colors ${subEnabled ? 'bg-orange-500/80' : 'bg-gray-700'}`}>
+                                    <span className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-all ${subEnabled ? 'left-3.5' : 'left-0.5'}`} />
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Columna derecha: Camiones + Comisión + Empresas */}
+              <div className="w-72 p-5 overflow-y-auto flex flex-col gap-5 shrink-0">
+
+                {/* Comisión — solo dispatchers */}
+                {permUser.user_metadata?.role === 'dispatcher' && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Comisión</p>
+                    <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                      <label className="block text-xs text-gray-400 mb-2">
+                        {new Date().toLocaleDateString('es-US', { month: 'long', year: 'numeric' })}
+                      </label>
+                      <div className="flex items-center gap-2 mb-4">
+                        <input
+                          type="number"
+                          min="0" max="100" step="0.5"
+                          value={dispatcherRate}
+                          onChange={e => setDispatcherRate(e.target.value)}
+                          placeholder="0"
+                          className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center"
+                        />
+                        <span className="text-gray-400 text-sm">%</span>
+                      </div>
+                      {rateHistory.length > 0 && (
+                        <>
+                          <p className="text-[10px] text-gray-600 uppercase tracking-wide mb-2">Historial</p>
+                          <div className="space-y-1">
+                            {[...rateHistory].reverse().slice(0, 8).map(r => (
+                              <div key={r.month} className="flex items-center justify-between">
+                                <span className="text-[11px] text-gray-500 capitalize">{formatMonth(r.month)}</span>
+                                <span className="text-[11px] font-semibold text-gray-300">{r.pct}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {dbTrucks.map(t => {
-                      const checked = allowedTrucks.includes(t.id)
-                      return (
-                        <label key={t.id} className="flex items-center gap-3 cursor-pointer py-0.5">
-                          <div
-                            onClick={() => setAllowedTrucks(prev =>
-                              checked ? prev.filter(id => id !== t.id) : [...prev, t.id]
-                            )}
-                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}
-                          >
-                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
-                          </div>
-                          <span className={`text-sm ${checked ? 'text-gray-200' : 'text-gray-600'}`}>
-                            #{t.number} — {t.name}
-                          </span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                )}
 
-              {MODULES.map(mod => {
-                const modEnabled = perms[mod.key]?.enabled !== false
-                return (
-                  <div key={mod.key} className={`rounded-xl border transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/40' : 'border-gray-800 bg-gray-800/20'}`}>
-                    {/* Módulo header */}
-                    <button
-                      onClick={() => toggleModule(mod.key)}
-                      className="w-full flex items-center justify-between px-4 py-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <svg className={`w-4 h-4 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
-                        </svg>
-                        <span className={`text-sm font-semibold ${modEnabled ? 'text-white' : 'text-gray-600'}`}>{mod.label}</span>
+                {/* Camiones */}
+                {permUser.user_metadata?.role !== 'super_admin' && dbTrucks.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Camiones asignados</p>
+                    <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-3">
+                      <div className="flex items-center gap-3 mb-3">
+                        <button type="button" onClick={() => setAllowedTrucks(dbTrucks.map(t => t.id))}
+                          className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors">Todos</button>
+                        <span className="text-gray-700 text-[10px]">·</span>
+                        <button type="button" onClick={() => setAllowedTrucks([])}
+                          className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors">Ninguno</button>
                       </div>
-                      {/* Toggle */}
-                      <div className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${modEnabled ? 'bg-orange-500' : 'bg-gray-700'}`}>
-                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-5' : 'left-0.5'}`} />
-                      </div>
-                    </button>
-
-                    {/* Sub-módulos */}
-                    {mod.subs.length > 0 && modEnabled && (
-                      <div className="border-t border-gray-700/50 px-4 py-2 space-y-1">
-                        {mod.subs.map(sub => {
-                          const subEnabled = perms[mod.key]?.[sub.key] !== false
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {dbTrucks.map(t => {
+                          const checked = allowedTrucks.includes(t.id)
                           return (
-                            <button
-                              key={sub.key}
-                              onClick={() => toggleSub(mod.key, sub.key)}
-                              className="w-full flex items-center justify-between py-1.5 group"
-                            >
-                              <span className={`text-xs ${subEnabled ? 'text-gray-300' : 'text-gray-600'}`}>{sub.label}</span>
-                              <div className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${subEnabled ? 'bg-orange-500/70' : 'bg-gray-700'}`}>
-                                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${subEnabled ? 'left-4' : 'left-0.5'}`} />
+                            <label key={t.id} className="flex items-center gap-3 cursor-pointer">
+                              <div onClick={() => setAllowedTrucks(prev => checked ? prev.filter(id => id !== t.id) : [...prev, t.id])}
+                                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
                               </div>
-                            </button>
+                              <span className={`text-xs ${checked ? 'text-gray-200' : 'text-gray-600'}`}>#{t.number} — {t.name}</span>
+                            </label>
                           )
                         })}
                       </div>
-                    )}
+                    </div>
                   </div>
-                )
-              })}
+                )}
+
+                {/* Empresas */}
+                {companies.length > 1 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Empresas</p>
+                    <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-3 space-y-2">
+                      {companies.map(c => {
+                        const cName = c.company_info?.company_name || c.display_name || 'Sin nombre'
+                        const checked = allowedCompanies.includes(c.id)
+                        return (
+                          <label key={c.id} className="flex items-center gap-3 cursor-pointer">
+                            <div onClick={() => setAllowedCompanies(prev => checked ? prev.filter(id => id !== c.id) : [...prev, c.id])}
+                              className={`w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${checked ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
+                            </div>
+                            <span className={`text-xs ${checked ? 'text-gray-200' : 'text-gray-600'}`}>{cName}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-800 shrink-0 flex gap-3">
-              <button onClick={() => setPermUser(null)} className="flex-1 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 transition-colors">
+              <button onClick={() => setPermUser(null)} className="flex-1 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-gray-800 transition-colors">
                 Cancelar
               </button>
-              <button
-                onClick={savePermissions}
-                disabled={savingPerms}
-                className="flex-1 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-              >
-                {savingPerms ? 'Guardando...' : 'Guardar permisos'}
+              <button onClick={savePermissions} disabled={savingPerms}
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                {savingPerms ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>
