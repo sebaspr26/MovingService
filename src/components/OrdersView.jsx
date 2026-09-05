@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
 import OrderDetail from './OrderDetail'
-import DatePicker from './DatePicker'
+import DateRangePicker from './DateRangePicker'
 import { useToast } from './Toast'
 
 const PAGE_SIZE = 30
@@ -286,13 +286,13 @@ export default function OrdersView() {
                 {brokerList.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
-            <div className="min-w-[140px]">
-              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Desde</label>
-              <DatePicker value={filterDateFrom} onChange={setFilterDateFrom} placeholder="Fecha inicio" />
-            </div>
-            <div className="min-w-[140px]">
-              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Hasta</label>
-              <DatePicker value={filterDateTo} onChange={setFilterDateTo} placeholder="Fecha fin" />
+            <div className="min-w-[200px]">
+              <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Rango de fechas</label>
+              <DateRangePicker
+                dateFrom={filterDateFrom}
+                dateTo={filterDateTo}
+                onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }}
+              />
             </div>
             {hasActiveFilters && (
               <button onClick={clearFilters}

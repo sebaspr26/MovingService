@@ -19,39 +19,34 @@ function fmt(d) {
   return `${y}-${m}-${day}`
 }
 
-function displayDate(val) {
-  if (!val) return null
-  const d = new Date(val + 'T00:00:00')
-  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`
+function fmtShort(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`
 }
 
-export default function DateRangePicker({ startDate, endDate, onChange, placeholder = 'Seleccionar rango...' }) {
+export default function DateRangePicker({ dateFrom, dateTo, onChange, placeholder = 'Rango de fechas' }) {
   const today = new Date()
-  const parsedStart = startDate ? new Date(startDate + 'T00:00:00') : null
+  const todayStr = fmt(today)
+
   const [open, setOpen] = useState(false)
-  const [viewYear, setViewYear] = useState(parsedStart?.getFullYear() || today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(parsedStart?.getMonth() ?? today.getMonth())
-  const [hovered, setHovered] = useState(null)
-  // 0 = waiting for start, 1 = start picked waiting for end
-  const [pickStep, setPickStep] = useState(startDate && !endDate ? 1 : 0)
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [hoverDate, setHoverDate] = useState(null)
   const ref = useRef()
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setHoverDate(null); return }
+    if (dateFrom) {
+      const d = new Date(dateFrom + 'T00:00:00')
+      setViewYear(d.getFullYear())
+      setViewMonth(d.getMonth())
+    }
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
-
-  useEffect(() => {
-    if (open) {
-      const p = parsedStart || today
-      setViewYear(p.getFullYear())
-      setViewMonth(p.getMonth())
-      setPickStep(startDate && !endDate ? 1 : 0)
-    }
   }, [open])
 
   function prevMonth() {
@@ -67,111 +62,95 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
   function selectDay(day) {
     const dateStr = fmt(new Date(viewYear, viewMonth, day))
 
-    if (pickStep === 0) {
-      // First click: set start
-      onChange(dateStr, '')
-      setPickStep(1)
+    if (!dateFrom || (dateFrom && dateTo)) {
+      // Empezar de nuevo: solo inicio
+      onChange({ from: dateStr, to: '' })
     } else {
-      // Second click: set end (swap if needed)
-      if (dateStr < startDate) {
-        onChange(dateStr, startDate)
+      // Ya hay inicio, elegir fin
+      if (dateStr === dateFrom) {
+        // Mismo día = día único
+        onChange({ from: dateStr, to: dateStr })
+        setOpen(false)
+      } else if (dateStr < dateFrom) {
+        // Antes del inicio: intercambiar
+        onChange({ from: dateStr, to: dateFrom })
+        setOpen(false)
       } else {
-        onChange(startDate, dateStr)
+        // Después del inicio: rango
+        onChange({ from: dateFrom, to: dateStr })
+        setOpen(false)
       }
-      setPickStep(0)
-      setOpen(false)
     }
   }
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
-  const todayStr = fmt(today)
 
-  function getDayClass(day) {
-    const dateStr = fmt(new Date(viewYear, viewMonth, day))
-    const isStart = dateStr === startDate
-    const isEnd = dateStr === endDate
-    const isToday = dateStr === todayStr
+  // Rango efectivo incluyendo preview hover
+  const picking = !!(dateFrom && !dateTo)
+  const previewTo = picking && hoverDate && hoverDate > dateFrom ? hoverDate : null
+  const previewFrom = picking && hoverDate && hoverDate < dateFrom ? hoverDate : null
+  const effFrom = previewFrom || dateFrom || ''
+  const effTo = previewTo || dateTo || ''
+  const isPreview = !!(previewTo || previewFrom)
 
-    // Determine if in range
-    let inRange = false
-    if (startDate && endDate) {
-      inRange = dateStr > startDate && dateStr < endDate
-    } else if (startDate && pickStep === 1 && hovered) {
-      const rangeEnd = hovered >= startDate ? hovered : startDate
-      const rangeStart = hovered < startDate ? hovered : startDate
-      inRange = dateStr > rangeStart && dateStr < rangeEnd
-    }
-
-    if (isStart || isEnd) {
-      return 'bg-orange-600 text-white'
-    }
-    if (inRange) {
-      return 'bg-orange-600/20 text-blue-300'
-    }
-    if (isToday) {
-      return 'bg-gray-800 text-blue-400 ring-1 ring-blue-500/50'
-    }
-    return 'text-gray-300 hover:bg-gray-800 hover:text-white'
+  // Etiqueta del botón
+  let label = null
+  if (dateFrom && dateTo) {
+    label = dateFrom === dateTo
+      ? fmtShort(dateFrom) + ' ' + new Date(dateFrom + 'T00:00:00').getFullYear()
+      : `${fmtShort(dateFrom)} – ${fmtShort(dateTo)} ${new Date(dateTo + 'T00:00:00').getFullYear()}`
+  } else if (dateFrom) {
+    label = `${fmtShort(dateFrom)} → ...`
   }
 
-  function getDayShape(day) {
-    const dateStr = fmt(new Date(viewYear, viewMonth, day))
-    const isStart = dateStr === startDate
-    const isEnd = dateStr === endDate
-
-    let effectiveEnd = endDate
-    if (!endDate && pickStep === 1 && hovered) {
-      effectiveEnd = hovered >= startDate ? hovered : null
-    }
-    let effectiveStart = startDate
-    if (!endDate && pickStep === 1 && hovered && hovered < startDate) {
-      effectiveStart = hovered
-      effectiveEnd = startDate
-    }
-
-    const inRange = effectiveStart && effectiveEnd && dateStr >= effectiveStart && dateStr <= effectiveEnd
-
-    if (!inRange) return 'rounded-lg'
-    if (dateStr === effectiveStart && dateStr === effectiveEnd) return 'rounded-lg'
-    if (dateStr === effectiveStart) return 'rounded-l-lg rounded-r-none'
-    if (dateStr === effectiveEnd) return 'rounded-r-lg rounded-l-none'
-    return 'rounded-none'
-  }
-
-  const displayValue = startDate
-    ? endDate
-      ? `${displayDate(startDate)} - ${displayDate(endDate)}`
-      : displayDate(startDate) + ' - ...'
-    : null
+  const hasValue = !!(dateFrom || dateTo)
 
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(v => !v)}
         className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-orange-500 flex items-center justify-between gap-2 transition-colors ${
-          startDate ? 'text-gray-100' : 'text-gray-500'
+          hasValue ? 'text-gray-100' : 'text-gray-500'
         }`}
       >
-        <span className="truncate">{displayValue || placeholder}</span>
-        <svg className={`w-3 h-3 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
+        <span className="truncate">{label || placeholder}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          {hasValue && (
+            <span
+              role="button"
+              onClick={e => { e.stopPropagation(); onChange({ from: '', to: '' }) }}
+              className="text-gray-600 hover:text-gray-400 cursor-pointer"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </span>
+          )}
+          <svg className={`w-3 h-3 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+          </svg>
+        </div>
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-3 w-[280px] animate-in">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2">
+        <div className="absolute top-full mt-1 left-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-3 w-[280px]">
+          {/* Hint */}
+          <p className="text-center text-[10px] text-gray-500 mb-2">
+            {picking
+              ? 'Elige la fecha fin · mismo día = solo ese día'
+              : 'Elige la fecha de inicio'}
+          </p>
+
+          {/* Header mes */}
+          <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={prevMonth} className="p-1 text-gray-400 hover:text-white rounded hover:bg-gray-800 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
             </button>
-            <span className="text-sm font-semibold text-white">
-              {MONTHS[viewMonth]} {viewYear}
-            </span>
+            <span className="text-sm font-semibold text-white">{MONTHS[viewMonth]} {viewYear}</span>
             <button type="button" onClick={nextMonth} className="p-1 text-gray-400 hover:text-white rounded hover:bg-gray-800 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -179,37 +158,54 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
             </button>
           </div>
 
-          {/* Step hint */}
-          <p className="text-[10px] text-center text-gray-500 mb-2">
-            {pickStep === 0 ? 'Selecciona fecha de inicio' : 'Selecciona fecha de fin'}
-          </p>
-
-          {/* Day headers */}
+          {/* Encabezados días */}
           <div className="grid grid-cols-7 mb-1">
             {DAYS.map(d => (
               <div key={d} className="text-center text-[10px] text-gray-500 font-medium py-1">{d}</div>
             ))}
           </div>
 
-          {/* Days grid */}
-          <div className="grid grid-cols-7">
-            {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`e-${i}`} />
-            ))}
+          {/* Grilla días */}
+          <div className="grid grid-cols-7" onMouseLeave={() => setHoverDate(null)}>
+            {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1
               const dateStr = fmt(new Date(viewYear, viewMonth, day))
+              const isFrom = dateStr === effFrom
+              const isTo = dateStr === effTo
+              const isSelected = isFrom || isTo
+              const isToday = dateStr === todayStr
+              const inRange = effFrom && effTo && dateStr > effFrom && dateStr < effTo
+              const rangeBg = isPreview ? 'bg-orange-500/10' : 'bg-orange-500/15'
+
               return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => selectDay(day)}
-                  onMouseEnter={() => pickStep === 1 && setHovered(dateStr)}
-                  onMouseLeave={() => setHovered(null)}
-                  className={`w-8 h-8 mx-auto text-xs font-medium transition-colors ${getDayClass(day)} ${getDayShape(day)}`}
-                >
-                  {day}
-                </button>
+                <div key={day} className="relative h-8 flex items-center justify-center">
+                  {/* Fondo del rango */}
+                  {inRange && <div className={`absolute inset-0 ${rangeBg}`} />}
+                  {isFrom && effTo && effFrom !== effTo && (
+                    <div className={`absolute top-0 bottom-0 left-1/2 right-0 ${rangeBg}`} />
+                  )}
+                  {isTo && effFrom && effFrom !== effTo && (
+                    <div className={`absolute top-0 bottom-0 right-1/2 left-0 ${rangeBg}`} />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => selectDay(day)}
+                    onMouseEnter={() => setHoverDate(dateStr)}
+                    className={`relative z-10 w-8 h-8 rounded-full text-xs font-medium transition-colors ${
+                      isSelected
+                        ? `bg-orange-600 text-white${isPreview ? ' opacity-60' : ''}`
+                        : isToday
+                          ? 'bg-gray-800 text-blue-400 ring-1 ring-blue-500/50 hover:bg-gray-700'
+                          : inRange
+                            ? 'text-orange-200 hover:bg-orange-500/40 hover:text-white'
+                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -218,20 +214,15 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
             <button
               type="button"
-              onClick={() => {
-                const t = fmt(today)
-                onChange(t, t)
-                setPickStep(0)
-                setOpen(false)
-              }}
+              onClick={() => { onChange({ from: fmt(today), to: fmt(today) }); setOpen(false) }}
               className="text-[10px] text-blue-400 hover:text-orange-300 transition-colors"
             >
               Hoy
             </button>
-            {startDate && (
+            {hasValue && (
               <button
                 type="button"
-                onClick={() => { onChange('', ''); setPickStep(0); setOpen(false) }}
+                onClick={() => { onChange({ from: '', to: '' }); setOpen(false) }}
                 className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
               >
                 Limpiar
