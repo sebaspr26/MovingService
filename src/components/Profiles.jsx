@@ -7,7 +7,20 @@ const ROLE_LABELS = {
   dispatcher: { label: 'Dispatcher', color: 'text-purple-400 bg-purple-400/10 border-purple-400/20' },
   driver: { label: 'Driver', color: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20' },
   driver_lease: { label: 'Driver LEASE', color: 'text-green-400 bg-green-400/10 border-green-400/20' },
-  user: { label: 'Usuario', color: 'text-gray-400 bg-gray-400/10 border-gray-400/20' },
+}
+
+const INVITE_EXPIRY_MS = 40 * 60 * 1000 // 40 minutos
+
+function getInviteStatus(user) {
+  if (user.confirmed_at) return 'active'
+  const sentAt = user.invited_at || user.created_at
+  const elapsed = Date.now() - new Date(sentAt).getTime()
+  return elapsed > INVITE_EXPIRY_MS ? 'expired' : 'pending'
+}
+
+function rolePriority(role) {
+  const order = { super_admin: 0, admin: 1, dispatcher: 2, driver: 3, driver_lease: 4 }
+  return order[role] ?? 99
 }
 
 function getInitials(name, email) {
@@ -20,7 +33,7 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' })
   const [submitting, setSubmitting] = useState(false)
   const toast = useToast()
 
@@ -36,7 +49,10 @@ export default function Profiles() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
-      setUsers(data.users || [])
+      const sorted = (data.users || []).sort((a, b) =>
+        rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
+      )
+      setUsers(sorted)
     } catch (err) {
       toast.error('Error al cargar usuarios: ' + err.message)
     } finally {
@@ -79,6 +95,28 @@ export default function Profiles() {
     }
   }
 
+  async function handleResend(user) {
+    try {
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resend',
+          email: user.email,
+          userId: user.id,
+          name: user.user_metadata?.name,
+          role: user.user_metadata?.role,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      toast.success(`Invitación reenviada a ${user.email}`)
+      fetchUsers()
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
   async function handleUpdateRole(userId, newRole) {
     try {
       const res = await fetch('/api/invite-user', {
@@ -115,7 +153,7 @@ export default function Profiles() {
 
   function openModal(mode) {
     setModalMode(mode)
-    setForm({ name: '', email: '', password: '', role: 'user' })
+    setForm({ name: '', email: '', password: '', role: 'admin' })
     setShowModal(true)
   }
 
@@ -203,31 +241,50 @@ export default function Profiles() {
                   <p className="text-xs text-gray-400 mt-0.5">{lastSignIn}</p>
                 </div>
 
-                {/* Estado */}
-                <div className="shrink-0">
-                  {user.confirmed_at ? (
-                    <span className="flex items-center gap-1.5 text-xs text-green-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                      Activo
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-xs text-yellow-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-                      Pendiente
-                    </span>
-                  )}
-                </div>
+                {/* Estado + Acciones */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {(() => {
+                    const status = getInviteStatus(user)
+                    if (status === 'active') return (
+                      <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                        Activo
+                      </span>
+                    )
+                    if (status === 'pending') return (
+                      <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                        Solicitud enviada
+                      </span>
+                    )
+                    // expired
+                    return (
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                          Expirado
+                        </span>
+                        <button
+                          onClick={() => handleResend(user)}
+                          className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                          title="Reenviar invitación"
+                        >
+                          Reenviar
+                        </button>
+                      </div>
+                    )
+                  })()}
 
-                {/* Acciones */}
-                <button
-                  onClick={() => handleDelete(user.id, user.email)}
-                  className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
-                  title="Eliminar usuario"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                </button>
+                  <button
+                    onClick={() => handleDelete(user.id, user.email)}
+                    className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    title="Eliminar usuario"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -316,7 +373,6 @@ export default function Profiles() {
                   <option value="dispatcher">Dispatcher</option>
                   <option value="driver">Driver</option>
                   <option value="driver_lease">Driver LEASE</option>
-                  <option value="user">Usuario</option>
                 </select>
               </div>
 
