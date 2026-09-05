@@ -101,12 +101,18 @@ export default function OrdersView() {
       supabase.from('brokers').select('id, name, type'),
     ])
     const allowedIds = getAllowedTruckIds(session)
+    const userRole = session?.user?.user_metadata?.role
+    const userEmail = session?.user?.email
     const allTrucks = trucksRes.data || []
     const filteredTrucks = allowedIds ? allTrucks.filter(t => allowedIds.includes(t.id)) : allTrucks
     const allOrders = ordersRes.data || []
-    const filteredOrders = allowedIds
+    let filteredOrders = allowedIds
       ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
       : allOrders
+    // Dispatchers only see their own orders
+    if (userRole === 'dispatcher' && userEmail) {
+      filteredOrders = filteredOrders.filter(o => o.dispatcher === userEmail)
+    }
     const advancedOrders = await autoAdvanceStatuses(filteredOrders, supabase)
     setOrders(advancedOrders)
     setTrucks(filteredTrucks)
