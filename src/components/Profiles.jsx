@@ -297,19 +297,21 @@ export default function Profiles() {
             const isDriverGroup = group.roles.includes('driver')
             const isDispatcherGroup = group.roles.includes('dispatcher')
             const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
-            // Compare dispatcher names against ALL auth users (any role) — full name or first name match
-            const allAuthNames = new Set(users.map(u => u.user_metadata?.name?.toLowerCase()).filter(Boolean))
-            const allAuthFirstNames = new Set(
-              users.map(u => u.user_metadata?.name?.toLowerCase().split(/\s+/)[0]).filter(Boolean)
+            // Compare dispatcher names against ALL auth users — name tokens + email prefix
+            const allAuthTokens = new Set(
+              users.flatMap(u => [
+                ...(u.user_metadata?.name || '').toLowerCase().split(/\s+/),
+                u.email?.toLowerCase().split('@')[0] || '',
+              ]).filter(Boolean)
             )
             const unlinkedDrivers = isDriverGroup
               ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
               : []
             const unlinkedDispatchers = isDispatcherGroup
               ? dbDispatchers.filter(name => {
-                  const lower = name.toLowerCase()
-                  const firstName = lower.split(/\s+/)[0]
-                  return !allAuthNames.has(lower) && !allAuthFirstNames.has(firstName)
+                  // Exclude if any token of the dispatcher name matches any auth user token
+                  const tokens = name.toLowerCase().split(/\s+/)
+                  return !tokens.some(t => allAuthTokens.has(t))
                 })
               : []
             const totalCount = groupUsers.length + unlinkedDrivers.length + unlinkedDispatchers.length
