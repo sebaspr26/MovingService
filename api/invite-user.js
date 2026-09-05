@@ -50,7 +50,8 @@ export default async function handler(req, res) {
 
     if (action === 'invite') {
       // Generar el link sin que Supabase envíe el correo
-      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      let linkData, linkError
+      const inviteRes = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',
         email,
         options: {
@@ -58,9 +59,23 @@ export default async function handler(req, res) {
           redirectTo: 'https://www.etg-tms.com/set-password',
         },
       })
-      if (error) return res.status(400).json({ error: error.message })
+      linkData = inviteRes.data
+      linkError = inviteRes.error
 
-      const inviteUrl = data.properties?.action_link
+      // Si el usuario ya existe, usar recovery (reset de contraseña) como fallback
+      if (linkError?.message?.includes('already been registered') || linkError?.message?.includes('already registered')) {
+        const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email,
+          options: { redirectTo: 'https://www.etg-tms.com/set-password' },
+        })
+        linkData = recoveryRes.data
+        linkError = recoveryRes.error
+      }
+
+      if (linkError) return res.status(400).json({ error: linkError.message })
+
+      const inviteUrl = linkData.properties?.action_link
       if (!inviteUrl) return res.status(500).json({ error: 'No se pudo generar el link' })
 
       const { companyName, logoUrl } = await getCompanyData(companyId)
