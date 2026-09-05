@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useToast } from './Toast'
 import { MODULES, defaultPermissions } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' },
@@ -41,6 +42,7 @@ export default function Profiles() {
   const [perms, setPerms] = useState({})
   const [savingPerms, setSavingPerms] = useState(false)
   const toast = useToast()
+  const { refreshSession } = useAuth()
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -159,8 +161,17 @@ export default function Profiles() {
   }
 
   function openPermissions(user) {
-    const existing = user.user_metadata?.permissions || defaultPermissions()
-    setPerms(existing)
+    const defaults = defaultPermissions()
+    const existing = user.user_metadata?.permissions || {}
+    // Merge: defaults como base, existing sobreescribe
+    const merged = {}
+    for (const mod of MODULES) {
+      merged[mod.key] = {
+        ...defaults[mod.key],
+        ...(existing[mod.key] || {}),
+      }
+    }
+    setPerms(merged)
     setPermUser(user)
   }
 
@@ -191,6 +202,7 @@ export default function Profiles() {
       toast.success('Permisos guardados')
       setPermUser(null)
       fetchUsers()
+      refreshSession()
     } catch (err) {
       toast.error(err.message)
     } finally {

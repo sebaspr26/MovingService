@@ -18,23 +18,26 @@ export default function SetPassword() {
     return () => clearTimeout(t)
   }, [])
 
+  const [userName, setUserName] = useState('')
+  const [userInitials, setUserInitials] = useState('')
+
   useEffect(() => {
-    // Supabase intercepta el hash de la URL automáticamente
-    // onAuthStateChange detecta el evento SIGNED_IN con type=invite
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setReady(true)
-      }
-      if (event === 'TOKEN_REFRESHED') {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+        const name = session.user?.user_metadata?.name || ''
+        setUserName(name)
+        setUserInitials(name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : session.user?.email?.slice(0, 2).toUpperCase())
         setReady(true)
       }
     })
 
-    // Verificar si ya hay sesión activa (por el link de invitación)
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true)
-      else {
-        // Si no hay sesión, el link expiró o ya fue usado
+      if (data.session) {
+        const name = data.session.user?.user_metadata?.name || ''
+        setUserName(name)
+        setUserInitials(name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : data.session.user?.email?.slice(0, 2).toUpperCase())
+        setReady(true)
+      } else {
         const hash = window.location.hash
         if (!hash.includes('access_token')) setExpired(true)
       }
@@ -119,8 +122,15 @@ export default function SetPassword() {
           >
             {/* Brand */}
             <div className="mb-8">
+              {/* Avatar con iniciales */}
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white mb-4"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 4px 20px rgba(234,88,12,0.4)' }}
+              >
+                {userInitials || '?'}
+              </div>
               <h1 className="text-3xl font-bold text-white mb-1" style={{ letterSpacing: '-0.02em' }}>
-                Bienvenido
+                {userName ? `Bienvenido, ${userName.split(' ')[0]}` : 'Bienvenido'}
               </h1>
               <p className="text-gray-400 text-sm">Crea tu contraseña para acceder al sistema</p>
               <div className="mt-4 h-0.5 w-10 rounded-full" style={{ background: 'linear-gradient(90deg, #ea580c, #fb923c)' }} />

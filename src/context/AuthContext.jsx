@@ -18,8 +18,13 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  async function refreshSession() {
+    const { data } = await supabase.auth.refreshSession()
+    if (data.session) setSession(data.session)
+  }
+
   return (
-    <AuthContext.Provider value={{ session }}>
+    <AuthContext.Provider value={{ session, refreshSession }}>
       {children}
     </AuthContext.Provider>
   )
