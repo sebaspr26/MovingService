@@ -25,3 +25,7 @@ dist-ssr
 .vercel
 .env
 .aider*
+
+# Videos grandes
+public/truck.mp4
+public/*.mp4

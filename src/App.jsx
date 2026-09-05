@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './components/Dashboard'
 import TruckView from './components/TruckView'
@@ -7,9 +7,10 @@ import OrderDetail from './components/OrderDetail'
 import CompanyInfo from './components/CompanyInfo'
 import Settings from './components/Settings'
 import Statistics from './components/Statistics'
-
-// Cambia a false para reactivar la app
-const MAINTENANCE_MODE = true
+import Login from './components/Login'
+import Profiles from './components/Profiles'
+import SetPassword from './components/SetPassword'
+import { useAuth } from './context/AuthContext'
 
 function MaintenancePage() {
   return (
@@ -35,13 +36,40 @@ function MaintenancePage() {
   )
 }
 
+function ProtectedRoute({ children }) {
+  const { session } = useAuth()
+
+  // Cargando sesión
+  if (session === undefined) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!session) return <Navigate to="/maintenance" replace />
+  return children
+}
+
 function App() {
-  if (MAINTENANCE_MODE) return <MaintenancePage />
+  const { session } = useAuth()
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        {/* /login solo accesible si sabes la URL — muestra mantenimiento si no hay sesión y van a / */}
+        <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/set-password" element={<SetPassword />} />
+        <Route path="/maintenance" element={<MaintenancePage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="truck/:id" element={<TruckView />} />
           <Route path="orders" element={<OrdersView />} />
@@ -49,6 +77,7 @@ function App() {
           <Route path="company" element={<CompanyInfo />} />
           <Route path="statistics" element={<Statistics />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="profiles" element={<Profiles />} />
         </Route>
       </Routes>
     </BrowserRouter>

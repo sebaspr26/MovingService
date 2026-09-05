@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getCompanySettings } from '../lib/company'
+import { signOut } from '../lib/auth'
+import { useToast } from './Toast'
 
 export default function Layout() {
   const [companyName, setCompanyName] = useState('ETG Moving Services')
   const [companyDba, setCompanyDba] = useState('Driving Is Work LLC')
+  const { toast } = useToast()
+
+  async function handleSignOut() {
+    const confirmed = await toast.confirm('¿Cerrar sesión?')
+    if (!confirmed) return
+    try {
+      await signOut()
+    } catch {
+      toast.error('Error al cerrar sesión')
+    }
+  }
 
   useEffect(() => {
     getCompanySettings().then(s => {
@@ -46,6 +59,11 @@ export default function Layout() {
       to: '/statistics',
       label: 'Estad\u00edsticas',
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />,
+    },
+    {
+      to: '/profiles',
+      label: 'Perfiles',
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />,
     },
     {
       to: '/settings',
@@ -142,18 +160,38 @@ export default function Layout() {
           className="border-t border-gray-800 overflow-hidden"
           style={{
             padding: collapsed ? '8px' : '16px',
-            textAlign: collapsed ? 'center' : 'left',
             transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
+          <button
+            onClick={handleSignOut}
+            title="Cerrar sesión"
+            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors ${collapsed ? 'justify-center' : ''}`}
+          >
+            <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            </svg>
+            <span
+              style={{
+                width: collapsed ? 0 : 'auto',
+                opacity: collapsed ? 0 : 1,
+                transition: 'opacity 0.2s ease',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Cerrar Sesión
+            </span>
+          </button>
           <p
-            className="text-xs text-gray-600 whitespace-nowrap"
+            className="text-xs text-gray-600 whitespace-nowrap mt-2"
             style={{
               opacity: collapsed ? 0.7 : 1,
               transition: 'opacity 0.2s ease',
+              textAlign: collapsed ? 'center' : 'left',
             }}
           >
-            {collapsed ? 'v1.3' : 'v1.3.1 - Fase 3.5'}
+            {collapsed ? 'v1.4' : 'v1.4 - Fase 5'}
           </p>
         </div>
       </aside>
@@ -211,8 +249,17 @@ export default function Layout() {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-gray-800">
-            <p className="text-xs text-gray-600">v1.3.1 - Fase 3.5</p>
+          <div className="p-4 border-t border-gray-800 space-y-2">
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+              </svg>
+              Cerrar Sesión
+            </button>
+            <p className="text-xs text-gray-600">v1.4 - Fase 5</p>
           </div>
         </aside>
       </div>
