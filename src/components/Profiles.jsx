@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from './Toast'
 import { MODULES, defaultPermissions } from '../lib/permissions'
+import { getActiveCompanyId } from '../lib/company'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' },
@@ -80,6 +81,7 @@ export default function Profiles() {
           password: form.password,
           name: form.name,
           role: form.role,
+          companyId: getActiveCompanyId(),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -110,6 +112,7 @@ export default function Profiles() {
           userId: user.id,
           name: user.user_metadata?.name,
           role: user.user_metadata?.role,
+          companyId: getActiveCompanyId(),
         }),
       })
       const data = await res.json().catch(() => ({}))
