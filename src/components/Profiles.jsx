@@ -56,6 +56,7 @@ export default function Profiles() {
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' })
   const [submitting, setSubmitting] = useState(false)
+  const [resendUser, setResendUser] = useState(null) // usuario original al reenviar
   const [permUser, setPermUser] = useState(null)
   const [perms, setPerms] = useState({})
   const [allowedCompanies, setAllowedCompanies] = useState([])
@@ -105,6 +106,15 @@ export default function Profiles() {
 
     setSubmitting(true)
     try {
+      // Si es reenvío y el email cambió, eliminar el usuario viejo primero
+      if (resendUser && resendUser.email !== form.email) {
+        await fetch('/api/invite-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', email: resendUser.email, userId: resendUser.id }),
+        })
+      }
+
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,6 +135,7 @@ export default function Profiles() {
         : `Usuario ${form.email} creado exitosamente`
       )
       setShowModal(false)
+      setResendUser(null)
       setForm({ name: '', email: '', password: '', role: 'user' })
       fetchUsers()
     } catch (err) {
@@ -246,6 +257,7 @@ export default function Profiles() {
   }
 
   function openModal(mode) {
+    setResendUser(null)
     setModalMode(mode)
     setForm({ name: '', email: '', password: '', role: 'admin' })
     setShowModal(true)
@@ -392,6 +404,7 @@ export default function Profiles() {
                               </span>
                               <button
                                 onClick={() => {
+                                  setResendUser(user)
                                   setModalMode('invite')
                                   setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
                                   setShowModal(true)
@@ -410,6 +423,7 @@ export default function Profiles() {
                               </span>
                               <button
                                 onClick={() => {
+                                  setResendUser(user)
                                   setModalMode('invite')
                                   setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
                                   setShowModal(true)
@@ -709,7 +723,7 @@ export default function Profiles() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setResendUser(null) }} />
           <div className="relative w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">
