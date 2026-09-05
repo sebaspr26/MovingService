@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
 import OrderDetail from './OrderDetail'
 import DateRangePicker from './DateRangePicker'
+import MultiSelect from './MultiSelect'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds } from '../lib/permissions'
@@ -46,9 +47,9 @@ export default function OrdersView() {
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [filterTruck, setFilterTruck] = useState('')
-  const [filterDispatcher, setFilterDispatcher] = useState('')
-  const [filterBroker, setFilterBroker] = useState('')
+  const [filterTrucks, setFilterTrucks] = useState([])
+  const [filterDispatchers, setFilterDispatchers] = useState([])
+  const [filterBrokers, setFilterBrokers] = useState([])
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [page, setPage] = useState(0)
@@ -68,7 +69,7 @@ export default function OrdersView() {
     }
     fetchData()
   }, [])
-  useEffect(() => { setPage(0) }, [tab, search, filterTruck, filterDispatcher, filterBroker, filterDateFrom, filterDateTo])
+  useEffect(() => { setPage(0) }, [tab, search, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
 
   const openDrawer = useCallback((id) => {
     setDrawerId(id)
@@ -150,12 +151,12 @@ export default function OrdersView() {
     }).filter(Boolean)
   )].sort()
   const brokerList = Object.values(brokers).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-  const hasActiveFilters = filterTruck || filterDispatcher || filterBroker || filterDateFrom || filterDateTo
+  const hasActiveFilters = filterTrucks.length || filterDispatchers.length || filterBrokers.length || filterDateFrom || filterDateTo
 
   function clearFilters() {
-    setFilterTruck('')
-    setFilterDispatcher('')
-    setFilterBroker('')
+    setFilterTrucks([])
+    setFilterDispatchers([])
+    setFilterBrokers([])
     setFilterDateFrom('')
     setFilterDateTo('')
   }
@@ -168,9 +169,9 @@ export default function OrdersView() {
   let filtered = tab === 'all' ? orders : orders.filter(o => o.status === tab)
 
   // Advanced filters
-  if (filterTruck) filtered = filtered.filter(o => o.truck_id === filterTruck)
-  if (filterDispatcher) filtered = filtered.filter(o => o.dispatcher === filterDispatcher)
-  if (filterBroker) filtered = filtered.filter(o => o.broker_id === filterBroker)
+  if (filterTrucks.length) filtered = filtered.filter(o => filterTrucks.includes(o.truck_id))
+  if (filterDispatchers.length) filtered = filtered.filter(o => filterDispatchers.includes(o.dispatcher))
+  if (filterBrokers.length) filtered = filtered.filter(o => filterBrokers.includes(o.broker_id))
   if (filterDateFrom) filtered = filtered.filter(o => (o.pu_date || '') >= filterDateFrom)
   if (filterDateTo) filtered = filtered.filter(o => (o.pu_date || '') <= filterDateTo)
 
@@ -283,29 +284,32 @@ export default function OrdersView() {
       <div className={`transition-all duration-300 ease-out ${showFilters ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none h-0'}`}>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <div className="flex flex-wrap gap-3 items-end">
-            <div className="min-w-[130px]">
+            <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Truck</label>
-              <select value={filterTruck} onChange={e => setFilterTruck(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
-                <option value="">Todos</option>
-                {trucks.map(t => <option key={t.id} value={t.id}>{t.number} - {t.name}</option>)}
-              </select>
+              <MultiSelect
+                value={filterTrucks}
+                onChange={setFilterTrucks}
+                placeholder="Todos"
+                options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))}
+              />
             </div>
-            <div className="min-w-[130px]">
+            <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Dispatcher</label>
-              <select value={filterDispatcher} onChange={e => setFilterDispatcher(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
-                <option value="">Todos</option>
-                {dispatchers.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <MultiSelect
+                value={filterDispatchers}
+                onChange={setFilterDispatchers}
+                placeholder="Todos"
+                options={dispatchers.map(d => ({ value: d, label: d }))}
+              />
             </div>
-            <div className="min-w-[130px]">
+            <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Broker</label>
-              <select value={filterBroker} onChange={e => setFilterBroker(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
-                <option value="">Todos</option>
-                {brokerList.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <MultiSelect
+                value={filterBrokers}
+                onChange={setFilterBrokers}
+                placeholder="Todos"
+                options={brokerList.map(b => ({ value: b.id, label: b.name }))}
+              />
             </div>
             <div className="min-w-[200px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Rango de fechas</label>
