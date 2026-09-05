@@ -5,9 +5,12 @@ import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
 import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
+import { useAuth } from '../context/AuthContext'
+import { canAccess, isSuperAdmin } from '../lib/permissions'
 
 export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
   const toast = useToast()
+  const { session } = useAuth()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -321,11 +324,13 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                             <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
                           </svg>
                         </button>
+                        {(isSuperAdmin(session) || canAccess(session, 'orders', 'eliminar_ordenes')) && (
                         <button onClick={() => handleDelete(row.id)} className="p-1 text-gray-500 hover:text-red-400">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                           </svg>
                         </button>
+                        )}
                       </div>
                     </td>
                   )}
