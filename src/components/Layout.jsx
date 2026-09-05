@@ -279,10 +279,7 @@ export default function Layout() {
             transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          <button
-            onClick={handleSignOut}
-            title="Cerrar sesión"
-            {/* User profile link */}
+          {/* User profile link */}
           <button
             onClick={() => navigate('/profile')}
             title={collapsed ? userName : undefined}
