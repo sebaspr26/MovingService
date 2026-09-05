@@ -6,7 +6,7 @@ import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { getAllowedTruckIds } from '../lib/permissions'
+import { getAllowedTruckIds, isSuperAdmin } from '../lib/permissions'
 
 const PAGE_SIZE = 30
 
@@ -21,9 +21,11 @@ const STATUS_ABBREV = {
   canceled: 'C',
 }
 
-// Cache orders data to avoid re-fetching on every navigation
-let ordersCache = { orders: null, trucks: null, brokers: null, ts: 0 }
+// Cache orders data per user to avoid cross-user contamination
+const ordersCacheMap = {}
 const CACHE_TTL = 30000
+function getCache(userId) { return ordersCacheMap[userId] || { orders: null, trucks: null, brokers: null, ts: 0 } }
+function setCache(userId, data) { ordersCacheMap[userId] = { ...data, ts: Date.now() } }
 
 const TABS = [
   { key: 'all', label: 'Todas' },
@@ -61,10 +63,12 @@ export default function OrdersView() {
   const toast = useToast()
 
   useEffect(() => {
-    if (ordersCache.orders && Date.now() - ordersCache.ts < CACHE_TTL) {
-      setOrders(ordersCache.orders)
-      setTrucks(ordersCache.trucks || [])
-      setBrokers(ordersCache.brokers || {})
+    const userId = session?.user?.id
+    const cached = getCache(userId)
+    if (cached.orders && Date.now() - cached.ts < CACHE_TTL) {
+      setOrders(cached.orders)
+      setTrucks(cached.trucks || [])
+      setBrokers(cached.brokers || {})
       setLoading(false)
       return
     }
@@ -92,7 +96,7 @@ export default function OrdersView() {
           await supabase.from('orders').update({ dispatcher: email }).eq('id', order.id)
         }
         if (toMigrate.length > 0) {
-          ordersCache = {} // invalidar cache para que recargue con emails actualizados
+          delete ordersCacheMap[session?.user?.id] // invalidar cache para recargar
           fetchData()
         }
       })
@@ -120,15 +124,19 @@ export default function OrdersView() {
     const allowedIds = getAllowedTruckIds(session)
     const userRole = session?.user?.user_metadata?.role
     const userEmail = session?.user?.email
+    const userId = session?.user?.id
     const allTrucks = trucksRes.data || []
     const filteredTrucks = allowedIds ? allTrucks.filter(t => allowedIds.includes(t.id)) : allTrucks
     const allOrders = ordersRes.data || []
     let filteredOrders = allowedIds
       ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
       : allOrders
-    // Dispatchers only see their own orders
+    // Dispatchers: solo sus órdenes a menos que tengan permiso "ver_todas_ordenes"
     if (userRole === 'dispatcher' && userEmail) {
-      filteredOrders = filteredOrders.filter(o => o.dispatcher === userEmail)
+      const canSeeAll = session?.user?.user_metadata?.permissions?.orders?.ver_todas_ordenes === true
+      if (!canSeeAll) {
+        filteredOrders = filteredOrders.filter(o => o.dispatcher === userEmail)
+      }
     }
     const advancedOrders = await autoAdvanceStatuses(filteredOrders, supabase)
     setOrders(advancedOrders)
@@ -136,7 +144,7 @@ export default function OrdersView() {
     const bMap = {}
     ;(brokersRes.data || []).forEach(b => { bMap[b.id] = b })
     setBrokers(bMap)
-    ordersCache = { orders: advancedOrders, trucks: filteredTrucks, brokers: bMap, ts: Date.now() }
+    setCache(userId, { orders: advancedOrders, trucks: filteredTrucks, brokers: bMap })
     setLoading(false)
   }
 
