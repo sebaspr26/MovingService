@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useToast } from './Toast'
+import { MODULES, defaultPermissions } from '../lib/permissions'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' },
@@ -35,6 +36,9 @@ export default function Profiles() {
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' })
   const [submitting, setSubmitting] = useState(false)
+  const [permUser, setPermUser] = useState(null)
+  const [perms, setPerms] = useState({})
+  const [savingPerms, setSavingPerms] = useState(false)
   const toast = useToast()
 
   useEffect(() => { fetchUsers() }, [])
@@ -151,6 +155,46 @@ export default function Profiles() {
     }
   }
 
+  function openPermissions(user) {
+    const existing = user.user_metadata?.permissions || defaultPermissions()
+    setPerms(existing)
+    setPermUser(user)
+  }
+
+  function toggleModule(modKey) {
+    setPerms(prev => ({
+      ...prev,
+      [modKey]: { ...prev[modKey], enabled: !prev[modKey]?.enabled },
+    }))
+  }
+
+  function toggleSub(modKey, subKey) {
+    setPerms(prev => ({
+      ...prev,
+      [modKey]: { ...prev[modKey], [subKey]: !prev[modKey]?.[subKey] },
+    }))
+  }
+
+  async function savePermissions() {
+    setSavingPerms(true)
+    try {
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      toast.success('Permisos guardados')
+      setPermUser(null)
+      fetchUsers()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSavingPerms(false)
+    }
+  }
+
   function openModal(mode) {
     setModalMode(mode)
     setForm({ name: '', email: '', password: '', role: 'admin' })
@@ -199,8 +243,8 @@ export default function Profiles() {
         <div className="space-y-3">
           {users.map(user => {
             const name = user.user_metadata?.name || ''
-            const role = user.user_metadata?.role || 'user'
-            const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.user
+            const role = user.user_metadata?.role || 'admin'
+            const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.admin
             const lastSignIn = user.last_sign_in_at
               ? new Date(user.last_sign_in_at).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'Nunca'
@@ -275,6 +319,17 @@ export default function Profiles() {
                     )
                   })()}
 
+                  {role !== 'super_admin' && (
+                    <button
+                      onClick={() => openPermissions(user)}
+                      className="p-2 rounded-lg text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
+                      title="Configurar permisos"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                      </svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(user.id, user.email)}
                     className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
@@ -288,6 +343,90 @@ export default function Profiles() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Modal Permisos */}
+      {permUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPermUser(null)} />
+          <div className="relative w-full max-w-lg bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-white">Permisos de acceso</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{permUser.user_metadata?.name || permUser.email}</p>
+              </div>
+              <button onClick={() => setPermUser(null)} className="text-gray-500 hover:text-white transition-colors p-1">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+              {MODULES.map(mod => {
+                const modEnabled = perms[mod.key]?.enabled !== false
+                return (
+                  <div key={mod.key} className={`rounded-xl border transition-colors ${modEnabled ? 'border-gray-700 bg-gray-800/40' : 'border-gray-800 bg-gray-800/20'}`}>
+                    {/* Módulo header */}
+                    <button
+                      onClick={() => toggleModule(mod.key)}
+                      className="w-full flex items-center justify-between px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg className={`w-4 h-4 shrink-0 ${modEnabled ? 'text-orange-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
+                        </svg>
+                        <span className={`text-sm font-semibold ${modEnabled ? 'text-white' : 'text-gray-600'}`}>{mod.label}</span>
+                      </div>
+                      {/* Toggle */}
+                      <div className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${modEnabled ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-5' : 'left-0.5'}`} />
+                      </div>
+                    </button>
+
+                    {/* Sub-módulos */}
+                    {mod.subs.length > 0 && modEnabled && (
+                      <div className="border-t border-gray-700/50 px-4 py-2 space-y-1">
+                        {mod.subs.map(sub => {
+                          const subEnabled = perms[mod.key]?.[sub.key] !== false
+                          return (
+                            <button
+                              key={sub.key}
+                              onClick={() => toggleSub(mod.key, sub.key)}
+                              className="w-full flex items-center justify-between py-1.5 group"
+                            >
+                              <span className={`text-xs ${subEnabled ? 'text-gray-300' : 'text-gray-600'}`}>{sub.label}</span>
+                              <div className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${subEnabled ? 'bg-orange-500/70' : 'bg-gray-700'}`}>
+                                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${subEnabled ? 'left-4' : 'left-0.5'}`} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-800 shrink-0 flex gap-3">
+              <button onClick={() => setPermUser(null)} className="flex-1 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 transition-colors">
+                Cancelar
+              </button>
+              <button
+                onClick={savePermissions}
+                disabled={savingPerms}
+                className="flex-1 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+              >
+                {savingPerms ? 'Guardando...' : 'Guardar permisos'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

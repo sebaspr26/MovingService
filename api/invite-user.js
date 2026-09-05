@@ -156,6 +156,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    if (action === 'update_permissions') {
+      const { userId, permissions } = req.body
+      const { data: current } = await supabaseAdmin.auth.admin.getUserById(userId)
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: { ...current?.user?.user_metadata, permissions },
+      })
+      if (error) return res.status(400).json({ error: error.message })
+      return res.status(200).json({ success: true })
+    }
+
     if (action === 'update_role') {
       const { userId, role: newRole } = req.body
       const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
