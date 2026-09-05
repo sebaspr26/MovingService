@@ -135,7 +135,14 @@ export default function OrdersView() {
     if (userRole === 'dispatcher' && userEmail) {
       const canSeeAll = session?.user?.user_metadata?.permissions?.orders?.ver_todas_ordenes === true
       if (!canSeeAll) {
-        filteredOrders = filteredOrders.filter(o => o.dispatcher === userEmail)
+        const userName = (session?.user?.user_metadata?.name || '').trim().toLowerCase()
+        filteredOrders = filteredOrders.filter(o => {
+          if (!o.dispatcher) return false
+          if (o.dispatcher === userEmail) return true
+          // también coincide por nombre mientras no se haya migrado
+          if (userName && o.dispatcher.trim().toLowerCase() === userName) return true
+          return false
+        })
       }
     }
     const advancedOrders = await autoAdvanceStatuses(filteredOrders, supabase)

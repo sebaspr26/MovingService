@@ -211,6 +211,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    if (action === 'migrate_dispatchers') {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+      const nameToEmail = {}
+      for (const u of usersData?.users || []) {
+        const name = (u.user_metadata?.name || '').trim()
+        if (name && u.email) nameToEmail[name.toLowerCase()] = u.email
+      }
+      const supabaseDb = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      const { data: orders } = await supabaseDb.from('orders').select('id, dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
+      let migrated = 0
+      for (const order of orders || []) {
+        if (order.dispatcher.includes('@')) continue
+        const email = nameToEmail[order.dispatcher.trim().toLowerCase()]
+        if (!email) continue
+        await supabaseDb.from('orders').update({ dispatcher: email }).eq('id', order.id)
+        migrated++
+      }
+      return res.status(200).json({ success: true, migrated })
+    }
+
     return res.status(400).json({ error: 'Acción no válida' })
   } catch (err) {
     return res.status(500).json({ error: err.message })
