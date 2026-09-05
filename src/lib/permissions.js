@@ -63,13 +63,13 @@ export const MODULES = [
   },
 ]
 
-// Permisos por defecto: todo activado
+// Permisos por defecto: todo desactivado (super admin debe conceder explícitamente)
 export function defaultPermissions() {
   const perms = {}
   for (const mod of MODULES) {
-    perms[mod.key] = { enabled: true }
+    perms[mod.key] = { enabled: false }
     for (const sub of mod.subs) {
-      perms[mod.key][sub.key] = true
+      perms[mod.key][sub.key] = false
     }
   }
   return perms
@@ -88,11 +88,14 @@ export function accessibleModules(session) {
 // Chequea si un módulo está habilitado para el usuario actual
 export function canAccess(session, moduleKey, subKey = null) {
   if (isSuperAdmin(session)) return true
+  const role = session?.user?.user_metadata?.role
+  // admins tienen acceso total salvo que tengan permisos explícitos configurados
   const perms = session?.user?.user_metadata?.permissions
-  if (!perms) return true // sin config = todo visible (retrocompatible)
+  if (!perms && role === 'admin') return true
+  if (!perms) return false // sin config = sin acceso (dispatcher/driver/etc)
   const mod = perms[moduleKey]
   if (!mod?.enabled) return false
-  if (subKey) return mod[subKey] !== false
+  if (subKey) return mod[subKey] === true
   return true
 }
 

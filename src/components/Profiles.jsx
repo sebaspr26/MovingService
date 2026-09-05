@@ -664,9 +664,19 @@ export default function Profiles() {
                             <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${modEnabled ? 'left-4' : 'left-0.5'}`} />
                           </div>
                         </button>
-                        {/* Subs — siempre visibles, bloqueados si módulo deshabilitado */}
-                        {hasSubs && (
-                          <div className={`border-t border-gray-700/40 pt-2 space-y-1 ${!modEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                        {/* Subs — solo visibles si módulo habilitado; si no, indicador compacto */}
+                        {hasSubs && !modEnabled && (
+                          <div className="border-t border-gray-800 pt-2">
+                            <p className="text-[10px] text-gray-700 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                              </svg>
+                              {mod.subs.length} permisos bloqueados
+                            </p>
+                          </div>
+                        )}
+                        {hasSubs && modEnabled && (
+                          <div className="border-t border-gray-700/40 pt-2 space-y-1">
                             {mod.subs.map(sub => {
                               const subEnabled = perms[mod.key]?.[sub.key] !== false
                               return (
