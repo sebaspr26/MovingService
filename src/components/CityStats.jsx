@@ -110,7 +110,7 @@ export default function CityStats() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar ciudad..."
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
         />
       </div>
 

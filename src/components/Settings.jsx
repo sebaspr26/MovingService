@@ -23,7 +23,7 @@ export default function Settings() {
               onClick={() => setTheme('dark')}
               className={`p-4 rounded-xl border-2 transition-all ${
                 isDark
-                  ? 'border-blue-500 ring-1 ring-blue-500/30'
+                  ? 'border-orange-500 ring-1 ring-blue-500/30'
                   : 'border-gray-700 hover:border-gray-600'
               }`}
             >
@@ -38,7 +38,7 @@ export default function Settings() {
               onClick={() => setTheme('light')}
               className={`p-4 rounded-xl border-2 transition-all ${
                 !isDark
-                  ? 'border-blue-500 ring-1 ring-blue-500/30'
+                  ? 'border-orange-500 ring-1 ring-blue-500/30'
                   : 'border-gray-700 hover:border-gray-600'
               }`}
             >

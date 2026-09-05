@@ -742,7 +742,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-3 sm:px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-500 transition-colors disabled:opacity-50"
+            className="px-3 sm:px-4 py-1.5 bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
@@ -778,8 +778,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 const reached = STATUS_ORDER.indexOf(status) >= i
                 const isCurrent = status === s
                 const cfg = STATUS_CONFIG[s]
-                const dotColors = { blue: 'bg-blue-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500', cyan: 'bg-cyan-500', green: 'bg-emerald-500', violet: 'bg-violet-500' }
-                const lineColors = { blue: 'bg-blue-500/50', yellow: 'bg-yellow-500/50', orange: 'bg-orange-500/50', cyan: 'bg-cyan-500/50', green: 'bg-emerald-500/50', violet: 'bg-violet-500/50' }
+                const dotColors = { blue: 'bg-orange-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500', cyan: 'bg-cyan-500', green: 'bg-emerald-500', violet: 'bg-violet-500' }
+                const lineColors = { blue: 'bg-orange-500/50', yellow: 'bg-yellow-500/50', orange: 'bg-orange-500/50', cyan: 'bg-cyan-500/50', green: 'bg-emerald-500/50', violet: 'bg-violet-500/50' }
                 return (
                   <div key={s} className="flex items-center flex-1">
                     <button
@@ -900,7 +900,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     // Auto-calculate DH + loaded miles
                     if (val) { calculateDH(val); autoCalculateRoute() }
                   }}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {trucks.map(t => (
@@ -922,7 +922,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 <select
                   value={equipmentType}
                   onChange={(e) => setEquipmentType(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -934,7 +934,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 <select
                   value={loadType}
                   onChange={(e) => setLoadType(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {LOAD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -978,7 +978,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   value={invoiceNotes}
                   onChange={(e) => setInvoiceNotes(e.target.value)}
                   rows={2}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500 resize-none"
                 />
               </div>
             </div>
@@ -1017,30 +1017,30 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   <div className="grid grid-cols-6 gap-1.5">
                     {/* Row 1: Address + Location Name */}
                     <input placeholder="Direccion" value={stop.address || ''} onChange={(e) => updateStop(idx, 'address', e.target.value)} autoComplete="one-time-code"
-                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input placeholder="Location Name" value={stop.location_name || ''} onChange={(e) => updateStop(idx, 'location_name', e.target.value)} autoComplete="one-time-code"
-                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     {/* Row 2: City, State, Date, Time From, Time To, Schedule */}
                     <input placeholder="Ciudad" value={stop.city || ''} onChange={(e) => updateStop(idx, 'city', e.target.value)} autoComplete="one-time-code"
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input placeholder="ST" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input type="date" value={stop.date || ''} onChange={(e) => updateStop(idx, 'date', e.target.value)}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input type="time" value={stop.time || ''} onChange={(e) => {
                       updateStop(idx, 'time', e.target.value)
                       if (e.target.value && e.target.value === stop.time_end) updateStop(idx, 'schedule_type', 'appointment')
                       else if (e.target.value && stop.time_end && e.target.value !== stop.time_end) updateStop(idx, 'schedule_type', 'range')
                     }}
                       title="Hora inicio"
-                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input type="time" value={stop.time_end || ''} onChange={(e) => {
                       updateStop(idx, 'time_end', e.target.value)
                       if (e.target.value && e.target.value === stop.time) updateStop(idx, 'schedule_type', 'appointment')
                       else if (e.target.value && stop.time && e.target.value !== stop.time) updateStop(idx, 'schedule_type', 'range')
                     }}
                       title="Hora fin"
-                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <button type="button" onClick={() => updateStop(idx, 'schedule_type', stop.schedule_type === 'appointment' ? 'range' : 'appointment')}
                       className={`px-1.5 py-1 rounded text-[10px] font-medium border transition-colors ${
                         stop.schedule_type === 'appointment'
@@ -1050,9 +1050,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     >{stop.schedule_type === 'appointment' ? 'Cita' : 'Rango'}</button>
                     {/* Row 3: Ref + Notes */}
                     <input placeholder="Ref #" value={stop.ref_number || ''} onChange={(e) => updateStop(idx, 'ref_number', e.target.value)}
-                      className="col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input placeholder="Notas" value={stop.notes || ''} onChange={(e) => updateStop(idx, 'notes', e.target.value)}
-                      className="col-span-4 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500" />
+                      className="col-span-4 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                   </div>
                 </div>
               ))}
@@ -1135,12 +1135,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
               <button onClick={() => toggle('invoicing')} className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-[11px] font-bold flex items-center justify-center">5</span>
+                <span className="w-6 h-6 rounded-full bg-orange-600/20 text-orange-400 text-[11px] font-bold flex items-center justify-center">5</span>
                 <h2 className="text-sm font-semibold text-white">Invoicing</h2>
               </button>
               <div className="flex items-center gap-2">
                 <button onClick={() => setInvoiceItems(prev => [...prev, emptyInvoiceItem()])}
-                  className="text-blue-400 text-xs font-medium hover:text-blue-300 transition-colors flex items-center gap-1">
+                  className="text-blue-400 text-xs font-medium hover:text-orange-300 transition-colors flex items-center gap-1">
                   + Add Line Item
                 </button>
                 <button onClick={() => toggle('invoicing')} className="text-gray-500">
@@ -1156,7 +1156,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   <p className="font-medium text-gray-400">Invoice Note</p>
                   {specialInstructions ? (
                     <textarea value={specialInstructions} onChange={(e) => setSpecialInstructions(e.target.value)}
-                      rows={2} className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 resize-none" />
+                      rows={2} className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 resize-none" />
                   ) : (
                     <p className="text-gray-600 text-[11px]">Click to add special instructions or notes related to the invoice</p>
                   )}
@@ -1180,14 +1180,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                             <td className="px-3 py-2">
                               <select value={item.pay_item} onChange={(e) => {
                                 const u = [...invoiceItems]; u[idx] = { ...u[idx], pay_item: e.target.value }; setInvoiceItems(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500">
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {INVOICE_ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
                             <td className="py-2 pl-3">
                               <select value={item.units_type} onChange={(e) => {
                                 const u = [...invoiceItems]; u[idx] = { ...u[idx], units_type: e.target.value }; setInvoiceItems(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500">
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {UNITS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
@@ -1195,7 +1195,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                               <input type="number" value={item.units} onChange={(e) => {
                                 const u = [...invoiceItems]; const units = Number(e.target.value) || 0
                                 u[idx] = { ...u[idx], units, total: units * (Number(u[idx].rate) || 0) }; setInvoiceItems(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-12 focus:outline-none focus:border-blue-500" />
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-12 focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="px-3 py-2">
                               <div className="flex items-center">
@@ -1203,7 +1203,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                                 <input type="number" step="0.01" value={item.rate} onChange={(e) => {
                                   const u = [...invoiceItems]; const rate = Number(e.target.value) || 0
                                   u[idx] = { ...u[idx], rate, total: (Number(u[idx].units) || 1) * rate }; setInvoiceItems(u)
-                                }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-20 focus:outline-none focus:border-blue-500" />
+                                }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-20 focus:outline-none focus:border-orange-500" />
                               </div>
                             </td>
                             <td className="px-3 py-2 text-right text-white font-medium">
@@ -1237,12 +1237,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
               <button onClick={() => toggle('commodities')} className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-[11px] font-bold flex items-center justify-center">6</span>
+                <span className="w-6 h-6 rounded-full bg-orange-600/20 text-orange-400 text-[11px] font-bold flex items-center justify-center">6</span>
                 <h2 className="text-sm font-semibold text-white">Commodities</h2>
               </button>
               <div className="flex items-center gap-2">
                 <button onClick={() => setCommodities(prev => [...prev, emptyCommodity()])}
-                  className="text-blue-400 text-xs font-medium hover:text-blue-300 transition-colors flex items-center gap-1">
+                  className="text-blue-400 text-xs font-medium hover:text-orange-300 transition-colors flex items-center gap-1">
                   + Add Commodity
                 </button>
                 <button onClick={() => toggle('commodities')} className="text-gray-500">
@@ -1273,17 +1273,17 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                             <td className="px-3 py-2">
                               <input value={item.name} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], name: e.target.value }; setCommodities(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 w-full focus:outline-none focus:border-blue-500" />
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 w-full focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="px-3 py-2">
                               <input type="number" value={item.qty} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], qty: e.target.value }; setCommodities(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-12 focus:outline-none focus:border-blue-500" />
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-12 focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="px-3 py-2">
                               <select value={item.type} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], type: e.target.value }; setCommodities(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-blue-500">
+                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {COMMODITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
@@ -1291,13 +1291,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                               <input value={item.dimensions} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], dimensions: e.target.value }; setCommodities(u)
                               }} placeholder="- x - x -"
-                                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 w-24 focus:outline-none focus:border-blue-500" />
+                                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 w-24 focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="px-3 py-2">
                               <input type="number" step="0.1" value={item.weight} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], weight: e.target.value }; setCommodities(u)
                               }} placeholder="lbs"
-                                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-24 focus:outline-none focus:border-blue-500" />
+                                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-24 focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="py-2 pr-2">
                               <button onClick={() => setCommodities(prev => prev.filter((_, i) => i !== idx))}
@@ -1392,7 +1392,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                       value={brokerEmail}
                       onChange={e => { setBrokerEmail(e.target.value); setDirty(true) }}
                       placeholder={selectedBroker.email || 'Email del broker para esta orden'}
-                      className="w-full mt-1 bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:border-blue-500 focus:outline-none placeholder-gray-600"
+                      className="w-full mt-1 bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none placeholder-gray-600"
                     />
                   </div>
                 </div>
@@ -1501,7 +1501,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-white font-medium">{s.name}</span>
                               <span className={`text-[9px] px-1.5 py-0.5 rounded ${
-                                s._local ? 'bg-blue-900/40 text-blue-400'
+                                s._local ? 'bg-orange-900/40 text-orange-400'
                                 : s.status === 'Authorized' ? 'bg-emerald-900/40 text-emerald-400'
                                 : 'bg-red-900/40 text-red-400'
                               }`}>
@@ -1523,24 +1523,24 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                   <div className="grid grid-cols-2 gap-1.5">
                     <input placeholder="MC #" value={newBroker.mc_number} autoComplete="one-time-code"
                       onChange={(e) => setNewBroker(p => ({ ...p, mc_number: e.target.value }))}
-                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 placeholder-gray-600" />
                     <input placeholder="DOT #" value={newBroker.dot_number} autoComplete="one-time-code"
                       onChange={(e) => setNewBroker(p => ({ ...p, dot_number: e.target.value }))}
-                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                      className="bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 placeholder-gray-600" />
                   </div>
                   <input placeholder="Telefono" value={newBroker.phone} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 placeholder-gray-600" />
                   <input placeholder="Email" value={newBroker.email} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, email: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 placeholder-gray-600" />
                   <input placeholder="Direccion" value={newBroker.address} autoComplete="one-time-code"
                     onChange={(e) => setNewBroker(p => ({ ...p, address: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+                    className="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 placeholder-gray-600" />
 
                   <div className="flex gap-2 justify-end pt-1">
                     <button onClick={() => { setShowNewBroker(false); setFmcsaSuggestions([]) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-white transition-colors">Cancelar</button>
-                    <button onClick={createBroker} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors">Crear</button>
+                    <button onClick={createBroker} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors">Crear</button>
                   </div>
                 </div>
               )}
@@ -1553,7 +1553,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Ruta</h3>
               <div className="flex items-start gap-2">
                 <div className="flex flex-col items-center mt-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                   <div className="w-0.5 h-8 bg-gray-700" />
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                 </div>
@@ -1593,7 +1593,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     onClick={() => rcFileRef.current?.click()}
                     className={`w-full py-8 border-2 border-dashed rounded-lg flex flex-col items-center gap-2 transition-colors ${
                       rcDragging
-                        ? 'border-blue-500 bg-blue-600/10 text-blue-300'
+                        ? 'border-orange-500 bg-orange-600/10 text-blue-300'
                         : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500'
                     }`}
                   >
@@ -1632,7 +1632,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                       </button>
                       <button
                         onClick={() => { rcFileRef.current?.click() }}
-                        className="p-1 text-gray-600 hover:text-blue-400 transition-colors"
+                        className="p-1 text-gray-600 hover:text-orange-400 transition-colors"
                         title="Cambiar archivo"
                       >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1784,7 +1784,7 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
         step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
       />
     </div>
   )
@@ -1816,7 +1816,7 @@ function DispatcherAutocomplete({ label, value, onChange, existingDispatchers, r
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
         required={required}
       />
       {open && suggestions.length > 0 && (
@@ -1885,12 +1885,12 @@ function CompanyInfoSidebar() {
           <div>
             <label className="block text-[10px] text-gray-500 mb-1">Company Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="ETG Moving Services"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500" />
           </div>
           <div>
             <label className="block text-[10px] text-gray-500 mb-1">DBA</label>
             <input value={dba} onChange={e => setDba(e.target.value)} placeholder="Driving Is Work LLC"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500" />
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500" />
           </div>
           <div className="flex justify-end pt-1">
             {saved ? (
@@ -1899,7 +1899,7 @@ function CompanyInfoSidebar() {
                 Guardado
               </span>
             ) : (
-              <button onClick={handleSave} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-[11px] font-medium hover:bg-blue-500 transition-colors">
+              <button onClick={handleSave} className="px-3 py-1 bg-orange-600 text-white rounded-lg text-[11px] font-medium hover:bg-orange-500 transition-colors">
                 Guardar
               </button>
             )}

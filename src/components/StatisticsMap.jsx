@@ -375,7 +375,7 @@ export default function StatisticsMap() {
             onClick={() => setMode('full')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               mode === 'full'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-orange-600 text-white'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
@@ -411,7 +411,7 @@ export default function StatisticsMap() {
             <select
               value={driverFilter}
               onChange={e => setDriverFilter(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-100 focus:outline-none focus:border-orange-500"
             >
               <option value="">Todos</option>
               {drivers.map(d => (
@@ -422,7 +422,7 @@ export default function StatisticsMap() {
           <button
             onClick={search}
             disabled={loading || !hasFilters}
-            className="px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? 'Buscando...' : 'Buscar'}
           </button>

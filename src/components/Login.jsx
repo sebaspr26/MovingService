@@ -21,6 +21,11 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, password)
+      // Guardar credenciales en el gestor del navegador
+      if (window.PasswordCredential) {
+        const cred = new window.PasswordCredential({ id: email, password })
+        await navigator.credentials.store(cred)
+      }
     } catch {
       setError('Email o contraseña incorrectos.')
     } finally {
@@ -45,8 +50,8 @@ export default function Login() {
       {/* Overlay oscuro sobre el video */}
       <div className="absolute inset-0 bg-black/60" />
 
-      {/* Panel izquierdo — centrado con margen */}
-      <div className="relative z-10 flex items-center min-h-screen px-8 md:px-16 lg:px-24">
+      {/* Panel centrado */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen w-full px-4">
       <div
         className="w-full max-w-md"
         style={{

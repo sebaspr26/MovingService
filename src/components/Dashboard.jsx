@@ -6,6 +6,7 @@ import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 import AddReceiptModal from './AddReceiptModal'
 import DayPicker from './DayPicker'
+import { getActiveCompanyId } from '../lib/company'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -171,7 +172,9 @@ export default function Dashboard() {
   }
 
   async function fetchTrucks() {
-    const { data } = await supabase.from('trucks').select('*').order('number')
+    const companyId = getActiveCompanyId()
+    const query = supabase.from('trucks').select('*').order('number')
+    const { data } = companyId ? await query.eq('company_id', companyId) : await query
     setTrucks(data || [])
     if (data && data.length > 0) {
       await fetchCyclesAndSummaries(data)
@@ -377,7 +380,7 @@ export default function Dashboard() {
       await saveRecurringExpenses(editingTruck.id)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
-        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null })
+        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, company_id: getActiveCompanyId() })
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
@@ -578,7 +581,7 @@ export default function Dashboard() {
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Balance Total</p>
             <p className={`text-xl font-bold ${
               Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0) >= 0
-                ? 'text-blue-400' : 'text-red-400'
+                ? 'text-green-400' : 'text-red-400'
             }`}>
               {fmt(Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0))}
             </p>
@@ -590,7 +593,7 @@ export default function Dashboard() {
             <span className="text-gray-500 uppercase tracking-wider text-xs">Balance</span>
             <span className={`text-lg font-bold ${
               Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0) >= 0
-                ? 'text-blue-400' : 'text-red-400'
+                ? 'text-green-400' : 'text-red-400'
             }`}>
               {fmt(Object.values(summaries).reduce((s, v) => s + (Number(v.balance) || 0), 0))}
             </span>
@@ -601,7 +604,7 @@ export default function Dashboard() {
       {/* Floating action buttons - desktop: vertical stack visible */}
       <div className="fixed bottom-6 right-6 z-40 hidden sm:flex flex-col gap-3 items-end">
         <button onClick={() => openTruckModal()}
-          className="px-5 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-500 transition-colors shadow-lg flex items-center gap-2">
+          className="px-5 py-3 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 transition-colors shadow-lg flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
           </svg>
@@ -634,7 +637,7 @@ export default function Dashboard() {
       <div className="fixed bottom-6 right-6 z-40 sm:hidden flex flex-col items-end gap-3">
         <div className={`flex flex-col gap-2 items-end transition-all duration-300 ease-out ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <button onClick={() => { openTruckModal(); setFabOpen(false) }}
-            className={`px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-500 shadow-lg flex items-center gap-2 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-100' : 'opacity-0 translate-y-3'}`}>
+            className={`px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 shadow-lg flex items-center gap-2 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-100' : 'opacity-0 translate-y-3'}`}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
             </svg>
@@ -660,7 +663,7 @@ export default function Dashboard() {
           )}
         </div>
         <button onClick={() => setFabOpen(!fabOpen)}
-          className={`p-3.5 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-500 transition-all duration-300 ease-out ${fabOpen ? 'rotate-45 scale-110' : 'scale-100'}`}>
+          className={`p-3.5 bg-orange-600 text-white rounded-full shadow-xl hover:bg-orange-500 transition-all duration-300 ease-out ${fabOpen ? 'rotate-45 scale-110' : 'scale-100'}`}>
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -758,12 +761,12 @@ export default function Dashboard() {
               <div key={truck.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors group">
                 <div className="flex items-start justify-between mb-4">
                   <Link to={`/truck/${truck.id}`} className="flex-1">
-                    <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
+                    <h3 className="text-lg font-semibold text-white group-hover:text-orange-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
                     <p className="text-xs text-gray-500">#{truck.number}{assignedDriver ? ` · ${assignedDriver.name}` : ''}</p>
                   </Link>
                   <div className="flex gap-1">
                     <button onClick={() => openTruckModal(truck)}
-                      className="p-1.5 text-gray-600 hover:text-blue-400 rounded sm:opacity-0 sm:group-hover:opacity-100 transition-all" title="Editar">
+                      className="p-1.5 text-gray-600 hover:text-orange-400 rounded sm:opacity-0 sm:group-hover:opacity-100 transition-all" title="Editar">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
                       </svg>
@@ -797,7 +800,7 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Balance</p>
-                          <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
+                          <p className={`text-sm font-semibold ${(s.balance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(s.balance)}</p>
                         </div>
                       </div>
 
@@ -816,20 +819,20 @@ export default function Dashboard() {
                               type="date"
                               value={openCycleDate}
                               onChange={(e) => setOpenCycleDate(e.target.value)}
-                              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
                             />
                             <button onClick={() => setOpenCycleTarget(null)}
                               className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
                               Cancelar
                             </button>
                             <button onClick={handleOpenCycleForTruck}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-500 transition-colors">
+                              className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs hover:bg-orange-500 transition-colors">
                               Abrir
                             </button>
                           </div>
                         ) : (
                           <button onClick={() => { setOpenCycleTarget(truck); setOpenCycleDate(new Date().toISOString().split('T')[0]) }}
-                            className="w-full px-3 py-1.5 bg-blue-600/20 border border-blue-600/40 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+                            className="w-full px-3 py-1.5 bg-orange-600/20 border border-orange-600/40 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors">
                             + Abrir Nuevo Ciclo
                           </button>
                         )}
@@ -845,7 +848,7 @@ export default function Dashboard() {
                           type="date"
                           value={openCycleDate}
                           onChange={(e) => setOpenCycleDate(e.target.value)}
-                          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
                         />
                         <div className="flex gap-2">
                           <button onClick={() => setOpenCycleTarget(null)}
@@ -853,14 +856,14 @@ export default function Dashboard() {
                             Cancelar
                           </button>
                           <button onClick={handleOpenCycleForTruck}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-500 transition-colors">
+                            className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs hover:bg-orange-500 transition-colors">
                             Abrir
                           </button>
                         </div>
                       </div>
                     ) : (
                       <button onClick={() => { setOpenCycleTarget(truck); setOpenCycleDate(new Date().toISOString().split('T')[0]) }}
-                        className="px-4 py-2 bg-blue-600/20 border border-blue-600/40 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+                        className="px-4 py-2 bg-orange-600/20 border border-orange-600/40 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors">
                         Abrir Ciclo
                       </button>
                     )}
@@ -935,7 +938,7 @@ export default function Dashboard() {
                     type="text"
                     value={truckName}
                     onChange={(e) => setTruckName(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                     placeholder="Ej: CARLOS"
                     required
                   />
@@ -946,7 +949,7 @@ export default function Dashboard() {
                     type="text"
                     value={truckNumber}
                     onChange={(e) => setTruckNumber(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                     placeholder="Ej: 109"
                     required
                   />
@@ -958,7 +961,7 @@ export default function Dashboard() {
                 <select
                   value={truckDriverId}
                   onChange={(e) => setTruckDriverId(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">Sin asignar</option>
                   {drivers
@@ -1003,7 +1006,7 @@ export default function Dashboard() {
                       onClick={() => { setTruckDiscount(val); setTruckDiscountCustom('') }}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         truckDiscount === val
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-orange-600 text-white'
                           : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
                       }`}
                     >
@@ -1015,7 +1018,7 @@ export default function Dashboard() {
                     onClick={() => setTruckDiscount('custom')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       truckDiscount === 'custom'
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-orange-600 text-white'
                         : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
                     }`}
                   >
@@ -1028,7 +1031,7 @@ export default function Dashboard() {
                         step="0.01"
                         value={truckDiscountCustom}
                         onChange={(e) => setTruckDiscountCustom(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                         placeholder="Ej: 10"
                         autoFocus
                         required
@@ -1053,7 +1056,7 @@ export default function Dashboard() {
                         type="text"
                         value={p.name}
                         onChange={(e) => updatePartner(i, 'name', e.target.value)}
-                        className="flex-1 min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                        className="flex-1 min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                         placeholder="Nombre"
                       />
                       <div className="relative w-20 sm:w-24">
@@ -1062,7 +1065,7 @@ export default function Dashboard() {
                           step="0.01"
                           value={p.percentage}
                           onChange={(e) => updatePartner(i, 'percentage', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           placeholder="%"
                         />
                         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
@@ -1078,7 +1081,7 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <button type="button" onClick={addPartnerRow}
-                  className="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                  className="mt-2 text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
@@ -1099,7 +1102,7 @@ export default function Dashboard() {
                               type="text"
                               value={r.description}
                               onChange={(e) => updateRecurring(i, 'description', e.target.value)}
-                              className="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                              className="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
                               placeholder="Nombre"
                             />
                             <div className="relative">
@@ -1109,7 +1112,7 @@ export default function Dashboard() {
                                 step="0.01"
                                 value={r.amount}
                                 onChange={(e) => updateRecurring(i, 'amount', e.target.value)}
-                                className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-6 pr-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-6 pr-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
                                 placeholder="Valor"
                               />
                             </div>
@@ -1146,7 +1149,7 @@ export default function Dashboard() {
                     step="0.01"
                     value={truckCajaInicial}
                     onChange={(e) => setTruckCajaInicial(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                     placeholder="0.00 (saldo anterior del primer ciclo)"
                   />
                 </div>
@@ -1168,7 +1171,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-500 transition-colors"
                 >
                   {editingTruck ? 'Guardar Cambios' : 'Crear Camion'}
                 </button>

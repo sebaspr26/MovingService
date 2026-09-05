@@ -5,13 +5,16 @@ import App from './App.jsx'
 import { ToastProvider } from './components/Toast'
 import { ThemeProvider } from './lib/theme'
 import { AuthProvider } from './context/AuthContext'
+import { CompanyProvider } from './context/CompanyContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <App />
+          <CompanyProvider>
+            <App />
+          </CompanyProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

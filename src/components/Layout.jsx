@@ -1,34 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { getCompanySettings } from '../lib/company'
+import { getLogoUrl, setActiveCompanyId } from '../lib/company'
 import { signOut } from '../lib/auth'
 import { useToast } from './Toast'
-
+import { useCompany } from '../context/CompanyContext'
+import CompanyWizard from './CompanyWizard'
 export default function Layout() {
-  const [companyName, setCompanyName] = useState('ETG Moving Services')
-  const [companyDba, setCompanyDba] = useState('Driving Is Work LLC')
   const { toast } = useToast()
+  const { companies, activeCompany } = useCompany()
+  const [showSwitcher, setShowSwitcher] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+
+  const companyName = activeCompany?.company_info?.company_name || activeCompany?.display_name || 'ETG Moving Services'
+  const companyDba = activeCompany?.company_info?.dba || ''
+  const logoUrl = activeCompany?.logo_path ? getLogoUrl(activeCompany.logo_path) : null
+
+  async function handleSwitchCompany(id) {
+    setShowSwitcher(false)
+    setActiveCompanyId(id)
+    window.location.href = '/'
+  }
 
   async function handleSignOut() {
-    const confirmed = await toast.confirm('¿Cerrar sesión?')
-    if (!confirmed) return
     try {
       await signOut()
+      navigate('/login')
     } catch {
       toast.error('Error al cerrar sesión')
     }
   }
-
-  useEffect(() => {
-    getCompanySettings().then(s => {
-      const info = s?.company_info || {}
-      if (info.company_name) setCompanyName(info.company_name)
-      if (info.dba) setCompanyDba(info.dba)
-    })
-  }, [])
   const location = useLocation()
   const navigate = useNavigate()
-  const isSubPage = location.pathname !== '/' && location.pathname !== '/orders' && location.pathname !== '/company' && location.pathname !== '/statistics' && location.pathname !== '/settings'
+  const isSubPage = location.pathname !== '/' && location.pathname !== '/orders' && location.pathname !== '/company' && location.pathname !== '/statistics' && location.pathname !== '/settings' && location.pathname !== '/informacion' && location.pathname !== '/profiles'
   const [menuOpen, setMenuOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
 
@@ -70,6 +73,11 @@ export default function Layout() {
       label: 'Configuraci\u00f3n',
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />,
     },
+    {
+      to: '/informacion',
+      label: 'Informaci\u00f3n',
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />,
+    },
   ]
 
   return (
@@ -79,25 +87,98 @@ export default function Layout() {
         className={`hidden lg:flex fixed inset-y-0 left-0 z-30 bg-gray-900 border-r border-gray-800 flex-col ${collapsed ? 'w-16' : 'w-64'}`}
         style={{ transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
       >
-        <div
-          className="border-b border-gray-800 flex items-center overflow-hidden"
-          style={{
-            padding: collapsed ? '12px' : '24px',
-            justifyContent: collapsed ? 'center' : 'space-between',
-            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          <div
-            className="overflow-hidden whitespace-nowrap"
-            style={{
-              width: collapsed ? 0 : 180,
-              opacity: collapsed ? 0 : 1,
-              transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
-            }}
+        {/* Company switcher header */}
+        <div className="border-b border-gray-800 relative">
+          <button
+            onClick={() => setShowSwitcher(v => !v)}
+            className="w-full flex items-center gap-3 hover:bg-gray-800/60 transition-colors"
+            style={{ padding: collapsed ? '12px' : '14px 16px' }}
+            title={collapsed ? companyName : undefined}
           >
-            <h1 className="text-xl font-bold text-white tracking-tight">{companyName}</h1>
-            <p className="text-xs text-gray-500 mt-1">{companyDba}</p>
-          </div>
+            {/* Logo o iniciales */}
+            <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-orange-600/20 border border-orange-600/30">
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="w-full h-full object-contain p-0.5" />
+              ) : (
+                <span className="text-sm font-bold text-orange-400">
+                  {companyName?.charAt(0)?.toUpperCase() || 'E'}
+                </span>
+              )}
+            </div>
+
+            <div
+              className="flex-1 text-left overflow-hidden"
+              style={{
+                width: collapsed ? 0 : 'auto',
+                opacity: collapsed ? 0 : 1,
+                transition: 'opacity 0.2s ease',
+              }}
+            >
+              <p className="text-sm font-bold text-white truncate leading-tight">{companyName}</p>
+              {companyDba && <p className="text-xs text-gray-500 truncate">{companyDba}</p>}
+            </div>
+
+            {!collapsed && (
+              <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+              </svg>
+            )}
+          </button>
+
+          {/* Popup switcher */}
+          {showSwitcher && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowSwitcher(false)} />
+              <div className="absolute left-0 top-full mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="p-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5 font-semibold">Empresas</p>
+                  {companies.map(c => {
+                    const name = c.company_info?.company_name || c.display_name || 'Sin nombre'
+                    const logo = c.logo_path ? getLogoUrl(c.logo_path) : null
+                    const isActive = c.id === activeCompany?.id
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => handleSwitchCompany(c.id)}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors ${
+                          isActive ? 'bg-orange-600/15 text-orange-400' : 'hover:bg-gray-800 text-gray-300'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-gray-800 border border-gray-700 shrink-0">
+                          {logo ? (
+                            <img src={logo} alt="" className="w-full h-full object-contain p-0.5" />
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400">{name?.charAt(0)?.toUpperCase()}</span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium truncate flex-1">{name}</span>
+                        {isActive && (
+                          <svg className="w-4 h-4 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="border-t border-gray-800 p-2">
+                  <button
+                    onClick={() => { setShowSwitcher(false); setShowWizard(true) }}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-orange-400 hover:bg-orange-600/10 transition-colors font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Nueva Empresa
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* collapse button row */}
+        <div className="flex justify-end px-2 py-1 border-b border-gray-800/50">
           <button
             onClick={toggleCollapsed}
             className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 shrink-0"
@@ -133,7 +214,7 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
                   isActive
-                    ? 'bg-blue-600/20 text-blue-400'
+                    ? 'bg-orange-600/20 text-orange-400'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
                 } ${collapsed ? 'justify-center' : ''}`
               }
@@ -237,7 +318,7 @@ export default function Layout() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                    isActive ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
                   }`
                 }
               >
@@ -297,6 +378,15 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Company Wizard */}
+      {showWizard && (
+        <CompanyWizard
+          onClose={() => setShowWizard(false)}
+          onCreated={() => setShowWizard(false)}
+        />
+      )}
+
     </div>
   )
 }

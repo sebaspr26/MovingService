@@ -192,7 +192,7 @@ export default function OrdersView() {
         </div>
         <button
           onClick={() => openDrawer('new')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors inline-flex items-center gap-2 w-fit"
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -210,13 +210,13 @@ export default function OrdersView() {
               onClick={() => setTab(t.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 tab === t.key
-                  ? 'bg-blue-600/20 text-blue-400'
+                  ? 'bg-orange-600/20 text-orange-400'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
               }`}
             >
               {t.label}
               <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] ${
-                tab === t.key ? 'bg-blue-600/30' : 'bg-gray-800'
+                tab === t.key ? 'bg-orange-600/30' : 'bg-gray-800'
               }`}>
                 {counts[t.key] || 0}
               </span>
@@ -231,13 +231,13 @@ export default function OrdersView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar orden, ciudad, truck, broker..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
               autoFocus
             />
           </div>
           <button
             onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearch('') }}
-            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -245,14 +245,14 @@ export default function OrdersView() {
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-1.5 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`p-1.5 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300'}`}
             title="Filtros avanzados"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
             </svg>
             {hasActiveFilters && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />
             )}
           </button>
         </div>
@@ -265,7 +265,7 @@ export default function OrdersView() {
             <div className="min-w-[130px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Truck</label>
               <select value={filterTruck} onChange={e => setFilterTruck(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
                 <option value="">Todos</option>
                 {trucks.map(t => <option key={t.id} value={t.id}>{t.number} - {t.name}</option>)}
               </select>
@@ -273,7 +273,7 @@ export default function OrdersView() {
             <div className="min-w-[130px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Dispatcher</label>
               <select value={filterDispatcher} onChange={e => setFilterDispatcher(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
                 <option value="">Todos</option>
                 {dispatchers.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
@@ -281,7 +281,7 @@ export default function OrdersView() {
             <div className="min-w-[130px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Broker</label>
               <select value={filterBroker} onChange={e => setFilterBroker(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500">
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500">
                 <option value="">Todos</option>
                 {brokerList.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
@@ -349,7 +349,7 @@ export default function OrdersView() {
               const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
               const truck = truckMap[row.truck_id]
               const rowBorder = {
-                booked: 'border-l-blue-500',
+                booked: 'border-l-orange-500',
                 assigned: 'border-l-yellow-500',
                 in_transit: 'border-l-orange-500',
                 delivered: 'border-l-cyan-500',
@@ -359,7 +359,7 @@ export default function OrdersView() {
                 canceled: 'border-l-gray-600',
               }[row.status] || 'border-l-gray-700'
               const rowBg = {
-                booked: 'bg-blue-600/25',
+                booked: 'bg-orange-600/25',
                 assigned: 'bg-yellow-600/25',
                 in_transit: 'bg-orange-600/25',
                 delivered: 'bg-cyan-600/25',
@@ -424,7 +424,7 @@ export default function OrdersView() {
                   <td className="py-2.5">
                     <button
                       onClick={() => openDrawer(row.id)}
-                      className="text-gray-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />

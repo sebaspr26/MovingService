@@ -104,10 +104,10 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
     }
 
     if (isStart || isEnd) {
-      return 'bg-blue-600 text-white'
+      return 'bg-orange-600 text-white'
     }
     if (inRange) {
-      return 'bg-blue-600/20 text-blue-300'
+      return 'bg-orange-600/20 text-blue-300'
     }
     if (isToday) {
       return 'bg-gray-800 text-blue-400 ring-1 ring-blue-500/50'
@@ -150,7 +150,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-blue-500 flex items-center justify-between gap-2 transition-colors ${
+        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-orange-500 flex items-center justify-between gap-2 transition-colors ${
           startDate ? 'text-gray-100' : 'text-gray-500'
         }`}
       >
@@ -224,7 +224,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, placehol
                 setPickStep(0)
                 setOpen(false)
               }}
-              className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-[10px] text-blue-400 hover:text-orange-300 transition-colors"
             >
               Hoy
             </button>

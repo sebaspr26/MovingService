@@ -75,7 +75,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-blue-500 flex items-center justify-between gap-2 transition-colors ${
+        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-orange-500 flex items-center justify-between gap-2 transition-colors ${
           value ? 'text-gray-100' : 'text-gray-500'
         }`}
       >
@@ -128,7 +128,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
                   onClick={() => selectDay(day)}
                   className={`w-8 h-8 mx-auto rounded-lg text-xs font-medium transition-colors ${
                     isSelected
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-orange-600 text-white'
                       : isToday
                         ? 'bg-gray-800 text-blue-400 ring-1 ring-blue-500/50'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
@@ -145,7 +145,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
             <button
               type="button"
               onClick={() => { selectDay(today.getDate()); setViewMonth(today.getMonth()); setViewYear(today.getFullYear()) }}
-              className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-[10px] text-blue-400 hover:text-orange-300 transition-colors"
             >
               Hoy
             </button>

@@ -4,8 +4,6 @@ import { useToast, friendlyError } from './Toast'
 import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
 
 const SECTIONS = [
-  { key: 'company_info', label: 'Company Information', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5M3.75 3v18m16.5-18v18M5.25 6h.008v.008H5.25V6Zm0 3h.008v.008H5.25V9Zm0 3h.008v.008H5.25V12Zm7.5-6h.008v.008h-.008V6Zm0 3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" /> },
-  { key: 'billing', label: 'Billing Information', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /> },
   { key: 'company_docs', label: 'Company Documents', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /> },
   { key: 'choferes', label: 'Choferes', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /> },
   { key: 'camiones', label: 'Camiones', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /> },
@@ -13,13 +11,13 @@ const SECTIONS = [
 ]
 
 export default function CompanyInfo() {
-  const [activeSection, setActiveSection] = useState('company_info')
+  const [activeSection, setActiveSection] = useState('company_docs')
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Informaci&oacute;n de la Compa&ntilde;&iacute;a</h1>
-        <p className="text-sm text-gray-500 mt-1">Choferes, camiones y trailers</p>
+        <p className="text-sm text-gray-500 mt-1">Documentos, choferes, camiones y trailers</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -30,7 +28,7 @@ export default function CompanyInfo() {
               onClick={() => setActiveSection(s.key)}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeSection === s.key
-                  ? 'bg-blue-600/20 text-blue-400'
+                  ? 'bg-orange-600/20 text-orange-400'
                   : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
               }`}
             >
@@ -43,8 +41,6 @@ export default function CompanyInfo() {
         </nav>
 
         <div className="flex-1 min-w-0">
-          {activeSection === 'company_info' && <SectionCompanyInfo />}
-          {activeSection === 'billing' && <SectionBilling />}
           {activeSection === 'company_docs' && <SectionCompanyDocs />}
           {activeSection === 'choferes' && <SectionChoferes />}
           {activeSection === 'camiones' && <SectionCamiones />}
@@ -113,7 +109,7 @@ function SectionCompanyInfo() {
           disabled={!isDirty}
           className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
             isDirty
-              ? 'bg-blue-600 text-white hover:bg-blue-500'
+              ? 'bg-orange-600 text-white hover:bg-orange-500'
               : 'bg-gray-800 text-gray-600 cursor-not-allowed'
           }`}
         >
@@ -128,27 +124,27 @@ function SectionCompanyInfo() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Company Name</label>
-            <input value={form.company_name} onChange={e => update('company_name', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="ETG Moving Services" />
+            <input value={form.company_name} onChange={e => update('company_name', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="ETG Moving Services" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">DBA (Doing Business As)</label>
-            <input value={form.dba} onChange={e => update('dba', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="Driving Is Work LLC" />
+            <input value={form.dba} onChange={e => update('dba', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="Driving Is Work LLC" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">EIN (Tax ID)</label>
-            <input value={form.ein} onChange={e => update('ein', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="XX-XXXXXXX" />
+            <input value={form.ein} onChange={e => update('ein', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="XX-XXXXXXX" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">MC Number</label>
-            <input value={form.mc_number} onChange={e => update('mc_number', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="MC-XXXXXXX" />
+            <input value={form.mc_number} onChange={e => update('mc_number', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="MC-XXXXXXX" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">DOT Number</label>
-            <input value={form.dot_number} onChange={e => update('dot_number', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="XXXXXXX" />
+            <input value={form.dot_number} onChange={e => update('dot_number', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="XXXXXXX" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Date Founded</label>
-            <input type="date" value={form.founded} onChange={e => update('founded', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+            <input type="date" value={form.founded} onChange={e => update('founded', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
           </div>
         </div>
 
@@ -157,20 +153,20 @@ function SectionCompanyInfo() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="text-xs text-gray-500 mb-1 block">Street Address</label>
-            <input value={form.address} onChange={e => update('address', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="123 Main St" />
+            <input value={form.address} onChange={e => update('address', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="123 Main St" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">City</label>
-            <input value={form.city} onChange={e => update('city', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="Houston" />
+            <input value={form.city} onChange={e => update('city', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="Houston" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">State</label>
-              <input value={form.state} onChange={e => update('state', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="TX" />
+              <input value={form.state} onChange={e => update('state', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="TX" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">ZIP</label>
-              <input value={form.zip} onChange={e => update('zip', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="77001" />
+              <input value={form.zip} onChange={e => update('zip', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="77001" />
             </div>
           </div>
         </div>
@@ -180,15 +176,15 @@ function SectionCompanyInfo() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Phone</label>
-            <input value={form.phone} onChange={e => update('phone', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="(555) 123-4567" />
+            <input value={form.phone} onChange={e => update('phone', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="(555) 123-4567" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Email</label>
-            <input type="email" value={form.email} onChange={e => update('email', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="info@company.com" />
+            <input type="email" value={form.email} onChange={e => update('email', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="info@company.com" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Website</label>
-            <input value={form.website} onChange={e => update('website', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" placeholder="www.company.com" />
+            <input value={form.website} onChange={e => update('website', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" placeholder="www.company.com" />
           </div>
         </div>
 
@@ -251,7 +247,7 @@ function SectionBilling() {
     }
   }, [isDirty])
 
-  const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+  const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
 
   return (
     <div className="space-y-6">
@@ -261,7 +257,7 @@ function SectionBilling() {
           onClick={handleSave}
           disabled={!isDirty}
           className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
-            isDirty ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+            isDirty ? 'bg-orange-600 text-white hover:bg-orange-500' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
           }`}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -274,7 +270,7 @@ function SectionBilling() {
       {/* Logo */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => setLogoFullscreen(true)} className="w-12 h-12 rounded-full border-2 border-gray-700 overflow-hidden bg-gray-800 shrink-0 cursor-pointer hover:border-blue-500 transition-colors" title="Ver grande">
+          <button onClick={() => setLogoFullscreen(true)} className="w-12 h-12 rounded-full border-2 border-gray-700 overflow-hidden bg-gray-800 shrink-0 cursor-pointer hover:border-orange-500 transition-colors" title="Ver grande">
             <img src={logoPreview || '/logo-invoice.png'} alt="Logo" className="w-full h-full object-cover" />
           </button>
           <div>
@@ -283,7 +279,7 @@ function SectionBilling() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => logoRef.current?.click()} className="px-3 py-1.5 bg-blue-600/20 border border-blue-600/50 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+          <button onClick={() => logoRef.current?.click()} className="px-3 py-1.5 bg-orange-600/20 border border-blue-600/50 text-blue-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors">
             Cambiar
           </button>
           {logoPreview && (
@@ -459,14 +455,14 @@ function SectionCompanyDocs() {
             <input
               value={docName}
               onChange={e => setDocName(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
               autoFocus
               onKeyDown={e => { if (e.key === 'Enter') confirmUpload(); if (e.key === 'Escape') { setShowNameInput(false); setPendingFile(null) } }}
             />
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={() => { setShowNameInput(false); setPendingFile(null) }} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
-            <button onClick={confirmUpload} className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors">Subir</button>
+            <button onClick={confirmUpload} className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors">Subir</button>
           </div>
         </div>
       ) : (
@@ -521,7 +517,7 @@ function SectionCompanyDocs() {
                   {(isImage(doc.mime_type) || isPdf(doc.mime_type)) && (
                     <button
                       onClick={() => setPreview(preview?.id === doc.id ? null : doc)}
-                      className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-800"
                       title="Ver"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -679,7 +675,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
                   <>
                     <button
                       onClick={() => setPreview(preview?.id === slotDocs[0].id ? null : slotDocs[0])}
-                      className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-700/50"
+                      className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-700/50"
                       title="Ver"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -711,7 +707,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
                 <button
                   onClick={() => triggerUpload(dt.key)}
                   disabled={uploading === dt.key}
-                  className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-700/50 disabled:opacity-50"
+                  className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-700/50 disabled:opacity-50"
                   title={hasDoc ? 'Reemplazar' : 'Subir'}
                 >
                   {uploading === dt.key ? (
@@ -760,7 +756,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => setPreview(preview?.id === doc.id ? null : doc)} className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-700/50" title="Ver">
+              <button onClick={() => setPreview(preview?.id === doc.id ? null : doc)} className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-700/50" title="Ver">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -799,7 +795,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
             value={customLabel}
             onChange={(e) => setCustomLabel(e.target.value)}
             placeholder="Nombre del documento..."
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter' && customLabel.trim()) {
@@ -818,7 +814,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
                 setCustomLabel('')
               }
             }}
-            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors"
+            className="px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors"
           >
             Subir
           </button>
@@ -968,7 +964,7 @@ function SectionChoferes() {
         </div>
         <button
           onClick={openCreate}
-          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+          className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -984,38 +980,38 @@ function SectionChoferes() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Nombre *</label>
-              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Telefono</label>
-              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Email</label>
-              <input value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Camion Asignado</label>
-              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Sin asignar</option>
                 {trucks.map(t => <option key={t.id} value={t.id}>{t.name} (#{t.number})</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Licencia #</label>
-              <input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Estado Licencia</label>
-              <input value={form.license_state} onChange={e => setForm({...form, license_state: e.target.value})} placeholder="TX, CA..." className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.license_state} onChange={e => setForm({...form, license_state: e.target.value})} placeholder="TX, CA..." className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Vencimiento Licencia</label>
-              <input value={form.license_expiry} onChange={e => setForm({...form, license_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.license_expiry} onChange={e => setForm({...form, license_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Vencimiento Tarjeta Medica</label>
-              <input value={form.medical_card_expiry} onChange={e => setForm({...form, medical_card_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.medical_card_expiry} onChange={e => setForm({...form, medical_card_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
           </div>
           <div className="flex items-center gap-2 pt-2">
@@ -1029,7 +1025,7 @@ function SectionChoferes() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors">
+            <button onClick={handleSave} className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors">
               {editing ? 'Guardar' : 'Crear'}
             </button>
           </div>
@@ -1043,7 +1039,7 @@ function SectionChoferes() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
           </svg>
           <p className="text-sm text-gray-500">No hay choferes registrados</p>
-          <button onClick={openCreate} className="mt-3 text-sm text-blue-400 hover:text-blue-300 transition-colors">Agregar el primero</button>
+          <button onClick={openCreate} className="mt-3 text-sm text-blue-400 hover:text-orange-300 transition-colors">Agregar el primero</button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1060,7 +1056,7 @@ function SectionChoferes() {
                   className="px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-gray-800/50 transition-colors"
                   onClick={() => toggleExpand(driver.id)}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${driver.status === 'active' ? 'bg-blue-900/40 text-blue-400' : 'bg-gray-700 text-gray-500'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${driver.status === 'active' ? 'bg-orange-900/40 text-orange-400' : 'bg-gray-700 text-gray-500'}`}>
                     {driver.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1081,7 +1077,7 @@ function SectionChoferes() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(driver) }}
-                      className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-800"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
@@ -1358,7 +1354,7 @@ function SectionTrailers() {
         </div>
         <button
           onClick={openCreate}
-          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+          className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -1373,22 +1369,22 @@ function SectionTrailers() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Nombre *</label>
-              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Numero</label>
-              <input value={form.number} onChange={e => setForm({...form, number: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+              <input value={form.number} onChange={e => setForm({...form, number: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Tipo</label>
-              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Seleccionar...</option>
                 {TRAILER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Camion Asignado</label>
-              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Sin asignar</option>
                 {trucks.map(t => <option key={t.id} value={t.id}>{t.name} (#{t.number})</option>)}
               </select>
@@ -1405,7 +1401,7 @@ function SectionTrailers() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors">
+            <button onClick={handleSave} className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors">
               {editing ? 'Guardar' : 'Crear'}
             </button>
           </div>
@@ -1418,7 +1414,7 @@ function SectionTrailers() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5h10.5m-10.5 3h10.5M3.75 18h16.5M3.75 12h16.5m-16.5 3h16.5" />
           </svg>
           <p className="text-sm text-gray-500">No hay trailers registrados</p>
-          <button onClick={openCreate} className="mt-3 text-sm text-blue-400 hover:text-blue-300 transition-colors">Agregar el primero</button>
+          <button onClick={openCreate} className="mt-3 text-sm text-blue-400 hover:text-orange-300 transition-colors">Agregar el primero</button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1452,7 +1448,7 @@ function SectionTrailers() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(trailer) }}
-                      className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-orange-400 transition-colors rounded hover:bg-gray-800"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />

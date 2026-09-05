@@ -136,7 +136,7 @@ export default function RateCalculator() {
             onChange={e => setOrigin(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ej: Dallas, TX"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
         </div>
         <div>
@@ -147,7 +147,7 @@ export default function RateCalculator() {
             onChange={e => setDestination(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ej: Chicago, IL"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
         </div>
         <div>
@@ -159,7 +159,7 @@ export default function RateCalculator() {
             onKeyDown={handleKeyDown}
             placeholder="0"
             min="0"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
         </div>
         <button
@@ -204,7 +204,7 @@ export default function RateCalculator() {
               <span className="text-[10px] text-gray-500">{fmt(stats.avgPerMile)}/mi</span>
             </div>
 
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-center justify-between">
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-blue-400/70">Mediana</p>
                 <p className="text-lg font-bold text-blue-400">{fmt(result.suggestedMedian)}</p>

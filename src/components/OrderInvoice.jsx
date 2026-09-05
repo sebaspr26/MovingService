@@ -435,7 +435,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     return (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
         <div className="bg-gray-900 rounded-xl p-8 text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 text-sm mt-3">Generando invoice...</p>
           <p className="text-gray-600 text-xs mt-1">Renderizando documentos adjuntos</p>
         </div>
@@ -496,7 +496,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
             )}
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors flex items-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m0 0a48.159 48.159 0 0 1 12.5 0m-12.5 0v-2.134c0-1.399.562-2.78 1.655-3.655C7.956 2.61 9.37 2 12 2c2.63 0 4.044.61 5.095 1.444A4.867 4.867 0 0 1 18.75 7.09" />
@@ -696,7 +696,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] text-gray-500 uppercase font-semibold">{label}</p>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-blue-900/40 text-blue-400'}`}>{tag}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-orange-900/40 text-orange-400'}`}>{tag}</span>
               </div>
               {email ? (
                 <p className={`text-sm ${emailToggles[type] ? 'text-gray-200' : 'text-gray-600 line-through'}`}>{email}</p>
@@ -769,7 +769,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] text-gray-500 uppercase font-semibold">{label}</p>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>{tag}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded ${tag === 'To' ? 'bg-orange-900/40 text-orange-400' : 'bg-orange-900/40 text-orange-400'}`}>{tag}</span>
               </div>
               {email ? (
                 <p className={`text-sm ${podEmailToggles[type] ? 'text-gray-200' : 'text-gray-600 line-through'}`}>{email}</p>

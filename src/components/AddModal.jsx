@@ -184,7 +184,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                 <select
                   value={formData[field.name] || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                   required={field.required}
                 >
                   <option value="">Seleccionar...</option>
@@ -198,7 +198,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                   step={field.step}
                   value={formData[field.name] || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                   required={field.required}
                   placeholder={field.placeholder}
                 />
@@ -218,7 +218,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
               type="submit"
               disabled={scanning}
               className={`flex-1 px-4 py-2 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                scanned ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'
+                scanned ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-orange-600 hover:bg-orange-500'
               }`}
             >
               {scanned ? 'Confirmar Datos' : 'Guardar'}

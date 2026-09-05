@@ -198,7 +198,7 @@ export default function TruckView() {
                 type="date"
                 value={newCycleDate}
                 onChange={(e) => setNewCycleDate(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
               />
               <div className="flex gap-2">
                 <button onClick={() => setOpeningCycle(false)}
@@ -206,14 +206,14 @@ export default function TruckView() {
                   Cancelar
                 </button>
                 <button onClick={handleOpenCycle}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors">
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-500 transition-colors">
                   Abrir Ciclo
                 </button>
               </div>
             </div>
           ) : (
             <button onClick={() => setOpeningCycle(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-500 transition-colors">
+              className="px-6 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-500 transition-colors">
               Abrir Nuevo Ciclo
             </button>
           )}
@@ -237,7 +237,7 @@ export default function TruckView() {
                 <span className="ml-2 text-[10px] bg-emerald-900/40 text-emerald-400 px-1.5 py-0.5 rounded">Cerrado</span>
               )}
               {!cycle.closed && (
-                <span className="ml-2 text-[10px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded">Activo</span>
+                <span className="ml-2 text-[10px] bg-orange-900/40 text-orange-400 px-1.5 py-0.5 rounded">Activo</span>
               )}
             </div>
             <button onClick={() => handleCycleShift(-1)} disabled={cycleIndex <= 0}
@@ -257,20 +257,20 @@ export default function TruckView() {
                     type="date"
                     value={newCycleDate}
                     onChange={(e) => setNewCycleDate(e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                   />
                   <button onClick={() => setOpeningCycle(false)}
                     className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
                     Cancelar
                   </button>
                   <button onClick={handleOpenCycle}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-500 transition-colors">
+                    className="px-3 py-2 bg-orange-600 text-white rounded-lg text-xs hover:bg-orange-500 transition-colors">
                     Abrir Ciclo
                   </button>
                 </div>
               ) : (
                 <button onClick={() => setOpeningCycle(true)}
-                  className="px-4 py-2 bg-blue-600/20 border border-blue-600/40 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-600/30 transition-colors">
+                  className="px-4 py-2 bg-orange-600/20 border border-orange-600/40 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-600/30 transition-colors">
                   + Abrir Nuevo Ciclo
                 </button>
               )}
@@ -291,7 +291,7 @@ export default function TruckView() {
             <button
               onClick={() => setSelectedWeek(null)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                !selectedWeek ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                !selectedWeek ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
             >
               Todo el ciclo
@@ -302,7 +302,7 @@ export default function TruckView() {
                 onClick={() => setSelectedWeek(w)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   selectedWeek?.start === w.start
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-orange-600 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
@@ -328,9 +328,9 @@ export default function TruckView() {
               <p className="text-xs text-gray-500 mb-2">Total Crédito</p>
               <p className="text-xl sm:text-2xl font-bold text-green-400">{fmt(totalCredito)}</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-blue-500">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-orange-500">
               <p className="text-xs text-gray-500 mb-2">Balance</p>
-              <p className={`text-xl sm:text-2xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{fmt(balance)}</p>
+              <p className={`text-xl sm:text-2xl font-bold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(balance)}</p>
             </div>
           </div>
 

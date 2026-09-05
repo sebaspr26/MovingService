@@ -1,5 +1,5 @@
 export const STATUS_CONFIG = {
-  booked:     { label: 'Reservada',   color: 'blue',    bg: 'bg-blue-600/30',    text: 'text-blue-300',    border: 'border-blue-500/60' },
+  booked:     { label: 'Reservada',   color: 'blue',    bg: 'bg-orange-600/30',    text: 'text-blue-300',    border: 'border-orange-500/60' },
   assigned:   { label: 'Asignada',    color: 'yellow',  bg: 'bg-yellow-600/30',  text: 'text-yellow-300',  border: 'border-yellow-500/60' },
   in_transit: { label: 'En Transito', color: 'orange',  bg: 'bg-orange-600/30',  text: 'text-orange-300',  border: 'border-orange-500/60' },
   delivered:  { label: 'Entregada',   color: 'cyan',    bg: 'bg-cyan-600/30',    text: 'text-cyan-300',    border: 'border-cyan-500/60' },

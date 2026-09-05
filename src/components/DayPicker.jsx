@@ -43,7 +43,7 @@ export default function DayPicker({ value, onChange, placeholder = 'Dia...' }) {
       <button
         type="button"
         onClick={toggle}
-        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-blue-500 flex items-center justify-between gap-2 transition-colors ${
+        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none focus:border-orange-500 flex items-center justify-between gap-2 transition-colors ${
           value ? 'text-gray-100' : 'text-gray-500'
         }`}
       >
@@ -71,7 +71,7 @@ export default function DayPicker({ value, onChange, placeholder = 'Dia...' }) {
                   onClick={() => selectDay(day)}
                   className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
                     isSelected
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-orange-600 text-white'
                       : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }`}
                 >
