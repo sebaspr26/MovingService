@@ -34,7 +34,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const [tonuPrice, setTonuPrice] = useState('150')
   const [trucks, setTrucks] = useState([])
   const [allBrokers, setAllBrokers] = useState([])
-  const [existingDispatchers, setExistingDispatchers] = useState([])
+  const [authDispatchers, setAuthDispatchers] = useState([]) // [{email, name}]
 
   // Order fields
   const [status, setStatus] = useState('booked')
@@ -113,12 +113,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
     Promise.all([
       supabase.from('trucks').select('id, name, number, discount_percent').order('number'),
       supabase.from('brokers').select('*').order('name'),
-      supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null),
-    ]).then(([tRes, bRes, dRes]) => {
+      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()),
+    ]).then(([tRes, bRes, usersRes]) => {
       setTrucks(tRes.data || [])
       setAllBrokers(bRes.data || [])
-      const dispatchers = [...new Set((dRes.data || []).map(o => String(o.dispatcher).trim()).filter(Boolean))].sort()
-      setExistingDispatchers(dispatchers)
+      const dispatcherRoles = ['super_admin', 'admin', 'dispatcher']
+      const dispatchers = (usersRes.users || [])
+        .filter(u => dispatcherRoles.includes(u.user_metadata?.role))
+        .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setAuthDispatchers(dispatchers)
     })
 
     // Auto-generate ref_number for new orders
@@ -913,7 +917,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 label="Dispatcher"
                 value={dispatcher}
                 onChange={setDispatcher}
-                existingDispatchers={existingDispatchers}
+                authDispatchers={authDispatchers}
                 required={isNew}
               />
 
@@ -1790,45 +1794,65 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
   )
 }
 
-function DispatcherAutocomplete({ label, value, onChange, existingDispatchers, required }) {
+function DispatcherAutocomplete({ label, value, onChange, authDispatchers, required }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef(null)
 
+  // value is an email; display the name if found
+  const displayName = useMemo(() => {
+    if (!value) return ''
+    const found = authDispatchers.find(d => d.email === value)
+    return found ? found.name : value
+  }, [value, authDispatchers])
+
+  const [inputText, setInputText] = useState('')
+
+  useEffect(() => {
+    setInputText(displayName)
+  }, [displayName])
+
   const suggestions = useMemo(() => {
-    const term = (value || '').trim().toUpperCase()
-    if (!term) return existingDispatchers.slice(0, 8)
-    return existingDispatchers.filter(d => d.toUpperCase().includes(term)).slice(0, 8)
-  }, [value, existingDispatchers])
+    const term = inputText.trim().toLowerCase()
+    if (!term) return authDispatchers.slice(0, 10)
+    return authDispatchers.filter(d =>
+      d.name.toLowerCase().includes(term) || d.email.toLowerCase().includes(term)
+    ).slice(0, 10)
+  }, [inputText, authDispatchers])
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false)
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false)
+        setInputText(displayName)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [displayName])
 
   return (
     <div ref={wrapperRef} className="relative">
       <label className="block text-xs font-medium text-gray-400 mb-1">{label}{required ? ' *' : ''}</label>
       <input
         type="text"
-        value={value}
-        onChange={(e) => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        value={inputText}
+        onChange={(e) => { setInputText(e.target.value); setOpen(true) }}
+        onFocus={() => { setInputText(''); setOpen(true) }}
         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-        required={required}
+        required={required && !value}
+        placeholder="Buscar dispatcher..."
       />
       {open && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+        <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {suggestions.map(d => (
             <button
-              key={d}
+              key={d.email}
               type="button"
-              onClick={() => { onChange(d); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-sm text-gray-100 hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg"
+              onClick={() => { onChange(d.email); setOpen(false) }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg"
             >
-              {d}
+              <div className="text-gray-100 font-medium">{d.name}</div>
+              <div className="text-gray-500 text-xs">{d.email}</div>
             </button>
           ))}
         </div>

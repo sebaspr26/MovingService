@@ -113,7 +113,7 @@ html.light .bg-black\/60 {
    ======================== */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #3b82f6 #1f2937;
+  scrollbar-color: #ea580c #1f2937;
 }
 
 ::-webkit-scrollbar {
@@ -127,12 +127,12 @@ html.light .bg-black\/60 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3b82f6;
+  background: #ea580c;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #60a5fa;
+  background: #c2410c;
 }
 
 ::-webkit-scrollbar-corner {

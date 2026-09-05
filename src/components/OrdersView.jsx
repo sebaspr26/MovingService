@@ -52,6 +52,7 @@ export default function OrdersView() {
   const [filterBrokers, setFilterBrokers] = useState([])
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [authDispatchers, setAuthDispatchers] = useState([]) // [{email, name}]
   const [page, setPage] = useState(0)
   const [drawerId, setDrawerId] = useState(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
@@ -68,6 +69,17 @@ export default function OrdersView() {
       return
     }
     fetchData()
+    // Fetch auth users for dispatcher display
+    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
+      .then(r => r.json())
+      .then(data => {
+        const roles = ['super_admin', 'admin', 'dispatcher']
+        setAuthDispatchers((data.users || [])
+          .filter(u => roles.includes(u.user_metadata?.role))
+          .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
+        )
+      })
+      .catch(() => {})
   }, [])
   useEffect(() => { setPage(0) }, [tab, search, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
 
@@ -143,13 +155,22 @@ export default function OrdersView() {
   const truckMap = {}
   trucks.forEach(t => { truckMap[t.id] = t })
 
-  // Unique dispatchers and broker list for filter dropdowns
-  const dispatchers = [...new Set(
-    orders.map(o => {
-      const d = String(o.dispatcher || '').trim().toUpperCase()
-      return d.split(/\s+/)[0]
-    }).filter(Boolean)
+  // Helper: resolve dispatcher display name (email → name, or raw value)
+  function dispatcherName(val) {
+    if (!val) return ''
+    const found = authDispatchers.find(d => d.email === val)
+    return found ? found.name : val
+  }
+
+  // Build dispatcher options for filter (from authDispatchers + any legacy name-based values)
+  const dispatcherEmails = new Set(authDispatchers.map(d => d.email))
+  const legacyDispatchers = [...new Set(
+    orders.map(o => o.dispatcher).filter(d => d && !dispatcherEmails.has(d))
   )].sort()
+  const dispatcherOptions = [
+    ...authDispatchers.map(d => ({ value: d.email, label: d.name })),
+    ...legacyDispatchers.map(d => ({ value: d, label: d })),
+  ]
   const brokerList = Object.values(brokers).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   const hasActiveFilters = filterTrucks.length || filterDispatchers.length || filterBrokers.length || filterDateFrom || filterDateTo
 
@@ -299,7 +320,7 @@ export default function OrdersView() {
                 value={filterDispatchers}
                 onChange={setFilterDispatchers}
                 placeholder="Todos"
-                options={dispatchers.map(d => ({ value: d, label: d }))}
+                options={dispatcherOptions}
               />
             </div>
             <div className="min-w-[140px]">
@@ -430,7 +451,7 @@ export default function OrdersView() {
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                     {row.dispatcher ? (
-                      <span className="text-xs text-gray-300 font-medium">{row.dispatcher}</span>
+                      <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span>
                     ) : (
                       <span className="text-gray-700">—</span>
                     )}

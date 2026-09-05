@@ -307,10 +307,15 @@ export default function Profiles() {
             const unlinkedDrivers = isDriverGroup
               ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
               : []
+            const allAuthEmails = new Set(users.map(u => u.email?.toLowerCase()).filter(Boolean))
             const unlinkedDispatchers = isDispatcherGroup
-              ? dbDispatchers.filter(name => {
-                  // Exclude if any token of the dispatcher name matches any auth user token
-                  const tokens = name.toLowerCase().split(/\s+/)
+              ? dbDispatchers.filter(val => {
+                  if (val.includes('@')) {
+                    // Email-based dispatcher: linked if an auth user has this email
+                    return !allAuthEmails.has(val.toLowerCase())
+                  }
+                  // Legacy name-based: exclude if any token matches any auth user token
+                  const tokens = val.toLowerCase().split(/\s+/)
                   return !tokens.some(t => allAuthTokens.has(t))
                 })
               : []
