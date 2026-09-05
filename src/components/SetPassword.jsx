@@ -58,9 +58,11 @@ export default function SetPassword() {
 
     setLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password })
+      const { error } = await supabase.auth.updateUser({
+        password,
+        data: { needs_password: false },
+      })
       if (error) throw error
-      // Redirigir al dashboard
       navigate('/', { replace: true })
     } catch (err) {
       setError(err.message || 'Error al establecer la contraseña.')

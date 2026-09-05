@@ -38,7 +38,7 @@ export default async function handler(req, res) {
         type: 'invite',
         email,
         options: {
-          data: { name, role: role || 'user' },
+          data: { name, role: role || 'user', needs_password: true },
           redirectTo: 'https://www.etg-tms.com/set-password',
         },
       })
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
         type: 'invite',
         email,
         options: {
-          data: { name: rName, role: rRole || 'user' },
+          data: { name: rName, role: rRole || 'user', needs_password: true },
           redirectTo: 'https://www.etg-tms.com/set-password',
         },
       })

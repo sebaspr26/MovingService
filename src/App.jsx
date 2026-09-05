@@ -18,7 +18,6 @@ import { useAuth } from './context/AuthContext'
 function ProtectedRoute({ children }) {
   const { session } = useAuth()
 
-  // Cargando sesión
   if (session === undefined) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -28,6 +27,12 @@ function ProtectedRoute({ children }) {
   }
 
   if (!session) return <Navigate to={import.meta.env.PROD ? '/maintenance' : '/login'} replace />
+
+  // Usuario invitado que aún no ha configurado su contraseña
+  if (session.user?.user_metadata?.needs_password) {
+    return <Navigate to="/set-password" replace />
+  }
+
   return children
 }
 
