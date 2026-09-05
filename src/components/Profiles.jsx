@@ -297,12 +297,13 @@ export default function Profiles() {
             const isDriverGroup = group.roles.includes('driver')
             const isDispatcherGroup = group.roles.includes('dispatcher')
             const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
-            const authNames = new Set(groupUsers.map(u => u.user_metadata?.name?.toLowerCase()).filter(Boolean))
+            // Compare dispatcher names against ALL auth users (any role) to avoid duplicates
+            const allAuthNames = new Set(users.map(u => u.user_metadata?.name?.toLowerCase()).filter(Boolean))
             const unlinkedDrivers = isDriverGroup
               ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
               : []
             const unlinkedDispatchers = isDispatcherGroup
-              ? dbDispatchers.filter(name => !authNames.has(name.toLowerCase()))
+              ? dbDispatchers.filter(name => !allAuthNames.has(name.toLowerCase()))
               : []
             const totalCount = groupUsers.length + unlinkedDrivers.length + unlinkedDispatchers.length
             if (totalCount === 0) return null
