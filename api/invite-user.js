@@ -1,9 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+async function getLogoUrl() {
+  const { data } = await supabaseAdmin.from('company_settings').select('logo_path').limit(1).single()
+  if (!data?.logo_path) return null
+  return `${SUPABASE_URL}/storage/v1/object/public/${data.logo_path}`
+}
+
+function logoBlock(logoUrl) {
+  if (logoUrl) {
+    return `<img src="${logoUrl}" alt="Logo" style="height:48px;max-width:180px;object-fit:contain;display:block;margin:0 auto 12px;" />`
+  }
+  return `<div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:rgba(234,88,12,0.15);border:1px solid rgba(234,88,12,0.3);border-radius:14px;margin-bottom:14px;"><span style="font-size:26px;">🚛</span></div>`
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -47,6 +58,8 @@ export default async function handler(req, res) {
       const inviteUrl = data.properties?.action_link
       if (!inviteUrl) return res.status(500).json({ error: 'No se pudo generar el link' })
 
+      const logoUrl = await getLogoUrl()
+
       // Enviar por Resend con diseño personalizado
       const html = `
 <!DOCTYPE html>
@@ -55,11 +68,9 @@ export default async function handler(req, res) {
 <body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
 
-    <!-- Logo / Icon -->
+    <!-- Logo -->
     <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:rgba(234,88,12,0.15);border:1px solid rgba(234,88,12,0.3);border-radius:14px;margin-bottom:14px;">
-        <span style="font-size:26px;">🚛</span>
-      </div>
+      ${logoBlock(logoUrl)}
       <p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">ETG Moving Services</p>
     </div>
 
@@ -143,7 +154,8 @@ export default async function handler(req, res) {
       if (error) return res.status(400).json({ error: error.message })
       const inviteUrl = data.properties?.action_link
       if (!inviteUrl) return res.status(500).json({ error: 'No se pudo generar el link' })
-      const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 20px;"><div style="text-align:center;margin-bottom:32px;"><div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:rgba(234,88,12,0.15);border:1px solid rgba(234,88,12,0.3);border-radius:14px;margin-bottom:14px;"><span style="font-size:26px;">🚛</span></div><p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">ETG Moving Services</p></div><div style="background:#111118;border:1px solid #1f1f2e;border-radius:20px;padding:36px;"><h1 style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:700;">Nueva invitación</h1><p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">Te enviamos un nuevo enlace de acceso. El anterior ya no es válido.</p><a href="${inviteUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#ea580c,#c2410c);color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:12px;font-size:15px;font-weight:700;">Activar mi cuenta &rarr;</a><div style="border-top:1px solid #1f1f2e;margin:28px 0;"></div><p style="margin:0 0 8px;color:#4b5563;font-size:12px;">Si el botón no funciona, copia este enlace:</p><p style="margin:0;color:#ea580c;font-size:11px;word-break:break-all;">${inviteUrl}</p></div><div style="text-align:center;margin-top:24px;"><p style="margin:0;color:#374151;font-size:11px;">ETG TMS — Sistema de Gestión de Transporte</p></div></div></body></html>`
+      const logoUrl2 = await getLogoUrl()
+      const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 20px;"><div style="text-align:center;margin-bottom:32px;">${logoBlock(logoUrl2)}<p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">ETG Moving Services</p></div><div style="background:#111118;border:1px solid #1f1f2e;border-radius:20px;padding:36px;"><h1 style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:700;">Nueva invitación</h1><p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">Te enviamos un nuevo enlace de acceso. El anterior ya no es válido.</p><a href="${inviteUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#ea580c,#c2410c);color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:12px;font-size:15px;font-weight:700;">Activar mi cuenta &rarr;</a><div style="border-top:1px solid #1f1f2e;margin:28px 0;"></div><p style="margin:0 0 8px;color:#4b5563;font-size:12px;">Si el botón no funciona, copia este enlace:</p><p style="margin:0;color:#ea580c;font-size:11px;word-break:break-all;">${inviteUrl}</p></div><div style="text-align:center;margin-top:24px;"><p style="margin:0;color:#374151;font-size:11px;">ETG TMS — Sistema de Gestión de Transporte</p></div></div></body></html>`
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RESEND_KEY}` },
