@@ -138,12 +138,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
         .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
-    })
 
-    // Auto-fill dispatcher for dispatcher role on new orders
-    if (isNew && isDispatcher) {
-      setDispatcher(userEmail)
-    }
+      // Auto-fill dispatcher with current user's email for new orders (all roles)
+      if (isNew && userEmail) {
+        setDispatcher(userEmail)
+      }
+    })
 
     // Auto-generate ref_number for new orders
     if (isNew) {
