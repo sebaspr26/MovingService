@@ -74,7 +74,9 @@ export default function Dashboard() {
   }, [])
 
   async function fetchDrivers() {
-    const { data } = await supabase.from('drivers').select('id, name, truck_id, status').order('name')
+    const cId = getActiveCompanyId()
+    const dq = supabase.from('drivers').select('id, name, truck_id, status').order('name')
+    const { data } = cId ? await dq.eq('company_id', cId) : await dq
     const allowedIds = getAllowedTruckIds(session)
     const filtered = allowedIds
       ? (data || []).filter(d => !d.truck_id || allowedIds.includes(d.truck_id))

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 import DispatcherPaymentModal from './DispatcherPaymentModal'
 
 const ROLE_LABELS = {
@@ -32,17 +33,23 @@ export default function PagoDispatchers() {
         body: JSON.stringify({ action: 'list' }),
       })
       const data = await res.json()
-      const authUsers = (data.users || []).filter(u =>
+      const activeCompanyId = getActiveCompanyId()
+      const allUsers = (data.users || []).filter(u =>
         ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role)
       )
+      // Filter by company: super_admin always visible, others must have activeCompanyId in allowed_companies
+      const authUsers = activeCompanyId
+        ? allUsers.filter(u => {
+            if (u.user_metadata?.role === 'super_admin') return true
+            const ac = u.user_metadata?.allowed_companies
+            return Array.isArray(ac) && ac.includes(activeCompanyId)
+          })
+        : allUsers
       const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
 
-      // Dispatchers únicos de órdenes (pueden ser emails o nombres legacy)
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('dispatcher')
-        .not('dispatcher', 'is', null)
-        .neq('dispatcher', '')
+      // Dispatchers únicos de órdenes (pueden ser emails o nombres legacy) — filtrados por empresa
+      const ordersQ = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
+      const { data: orders } = activeCompanyId ? await ordersQ.eq('company_id', activeCompanyId) : await ordersQ
 
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
 

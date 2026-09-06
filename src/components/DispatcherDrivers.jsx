@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
+import { getActiveCompanyId } from '../lib/company'
 import PdfViewer from './PdfViewer'
 
 function docUrl(filePath) {
@@ -116,10 +117,12 @@ export default function DispatcherDrivers() {
       }
     }
 
+    const cId = getActiveCompanyId()
     // Fetch trucks
     let trucksData = []
     if (allowedTruckIds === null) {
-      const { data } = await supabase.from('trucks').select('id, name, number, vin_number').order('name')
+      const q = supabase.from('trucks').select('id, name, number, vin_number').order('name')
+      const { data } = cId ? await q.eq('company_id', cId) : await q
       trucksData = data || []
     } else if (allowedTruckIds.length > 0) {
       const { data } = await supabase.from('trucks').select('id, name, number, vin_number').in('id', allowedTruckIds).order('name')
@@ -133,7 +136,8 @@ export default function DispatcherDrivers() {
     // Fetch drivers
     let driversData = []
     if (allowedTruckIds === null) {
-      const { data } = await supabase.from('drivers').select('*').eq('status', 'active').order('name')
+      const q = supabase.from('drivers').select('*').eq('status', 'active').order('name')
+      const { data } = cId ? await q.eq('company_id', cId) : await q
       driversData = data || []
     } else if (allowedTruckIds.length > 0) {
       const { data } = await supabase.from('drivers').select('*').in('truck_id', allowedTruckIds).eq('status', 'active').order('name')

@@ -1264,7 +1264,7 @@ function SectionTrailers() {
 
   async function fetchTrailers() {
     setLoading(true)
-    const { data } = await supabase.from('trailers').select('*').order('name')
+    const cId = getActiveCompanyId(); const tq = supabase.from('trailers').select('*').order('name'); const { data } = cId ? await tq.eq('company_id', cId) : await tq
     setTrailers(data || [])
     setLoading(false)
   }
@@ -1306,6 +1306,7 @@ function SectionTrailers() {
         if (error) throw error
         toast.success('Trailer actualizado')
       } else {
+        payload.company_id = getActiveCompanyId() || null
         const { error } = await supabase.from('trailers').insert(payload)
         if (error) throw error
         toast.success('Trailer creado')

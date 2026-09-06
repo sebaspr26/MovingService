@@ -290,7 +290,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   useEffect(() => {
     Promise.all([
-      supabase.from('trucks').select('id, name, number, discount_percent').order('number'),
+      (() => { const q = supabase.from('trucks').select('id, name, number, discount_percent').order('number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       supabase.from('brokers').select('*').order('name'),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ]).then(([tRes, bRes, usersRes]) => {
