@@ -20,8 +20,11 @@ const BASE_TABS = [
 
 export default function TruckView() {
   const { id } = useParams()
-  const { session } = useAuth()
+  const { session, refreshSession } = useAuth()
   const userRole = session?.user?.user_metadata?.role
+
+  // Refresh session on mount to pick up any permission changes since last login
+  useEffect(() => { refreshSession() }, [])
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [truck, setTruck] = useState(null)
   const [tab, setTab] = useState('orders')

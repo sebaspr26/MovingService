@@ -53,13 +53,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   // Order fields
   const [status, setStatus] = useState('booked')
   const [orderNumber, setOrderNumber] = useState('')
-  const [truckId, setTruckId] = useState('')
+  const [truckId, setTruckId] = useState(isNew && defaultTruckId ? defaultTruckId : '')
   const [brokerId, setBrokerId] = useState('')
   const [brokerEmail, setBrokerEmail] = useState('')
   const [brokerType, setBrokerType] = useState('broker')
   const [equipmentType, setEquipmentType] = useState('')
   const [loadType, setLoadType] = useState('')
-  const [dispatcher, setDispatcher] = useState('')
+  const [dispatcher, setDispatcher] = useState(isNew ? userEmail : '')
   const [refNumber, setRefNumber] = useState('')
   const [rate, setRate] = useState('')
   const [applyDiscount, setApplyDiscount] = useState(true)
@@ -127,7 +127,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     Promise.all([
       supabase.from('trucks').select('id, name, number, discount_percent').order('number'),
       supabase.from('brokers').select('*').order('name'),
-      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()),
+      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ]).then(([tRes, bRes, usersRes]) => {
       const allTrucks = tRes.data || []
       // Dispatchers only see their allowed trucks
@@ -140,18 +140,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
 
-      // Auto-fill dispatcher with current user's email for new orders (all roles)
-      if (isNew && userEmail) {
-        setDispatcher(userEmail)
-      }
-
-      // Pre-select truck if navigated from TruckView or opened as drawer with defaultTruckId
+      // Set discount percent for pre-selected truck (truckId already initialized from defaultTruckId)
       const preSelectId = defaultTruckId || location.state?.truckId
       if (isNew && preSelectId) {
         const preselectedTruck = (allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
           .find(t => t.id === preSelectId)
         if (preselectedTruck) {
-          setTruckId(preselectedTruck.id)
           setDiscountPercent(preselectedTruck.discount_percent || 13)
         }
       }
