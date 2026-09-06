@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { isSuperAdmin } from '../lib/permissions'
+import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
 
 function expiryBadge(dateStr) {
   if (!dateStr) return null
@@ -43,13 +43,19 @@ export default function DispatcherDrivers() {
     let allowedTruckIds = null // null = todos
 
     if (!isAdmin) {
-      // Dispatcher: obtener truck_ids de sus ordenes
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('truck_id')
-        .eq('dispatcher', userEmail)
-        .not('truck_id', 'is', null)
-      allowedTruckIds = [...new Set((orders || []).map(o => o.truck_id))]
+      // Primero intentar allowed_trucks configurados en permisos
+      const fromPerms = getAllowedTruckIds(session)
+      if (fromPerms && fromPerms.length > 0) {
+        allowedTruckIds = fromPerms
+      } else {
+        // Fallback: truck_ids de las órdenes asignadas al dispatcher
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('truck_id')
+          .eq('dispatcher', userEmail)
+          .not('truck_id', 'is', null)
+        allowedTruckIds = [...new Set((orders || []).map(o => o.truck_id))]
+      }
     }
 
     // Fetch trucks

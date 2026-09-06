@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -10,6 +11,168 @@ import { useToast, friendlyError } from './Toast'
 import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
+import DatePicker from './DatePicker'
+
+// ─── Custom Select ─────────────────────────────────────────────────────────
+function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
+  const [open, setOpen] = useState(false)
+  const [rect, setRect] = useState(null)
+  const btnRef = useRef(null)
+  const opts = options.map(o => typeof o === 'string' ? { value: o, label: o } : o)
+  const selected = opts.find(o => o.value === value)
+
+  function handleOpen(e) {
+    e.stopPropagation()
+    setRect(btnRef.current?.getBoundingClientRect())
+    setOpen(true)
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleOpen}
+        className={`w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-500 transition-colors focus:outline-none ${
+          compact ? 'px-2 py-1 text-xs gap-1' : 'px-3 py-1.5 text-sm gap-2'
+        }`}
+      >
+        <span className={`truncate ${selected?.value ? 'text-gray-100' : 'text-gray-500'}`}>
+          {selected?.label || placeholder}
+        </span>
+        <svg className="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      {open && rect && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 overflow-y-auto"
+            style={{ top: rect.bottom + 4, left: rect.left, minWidth: Math.max(rect.width, 160), maxHeight: 260 }}
+          >
+            {opts.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false) }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+                  opt.value === value ? 'bg-gray-800/60 text-orange-400' : 'text-gray-300 hover:bg-gray-800'
+                }`}
+              >
+                <span className="flex-1">{opt.label}</span>
+                {opt.value === value && (
+                  <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  )
+}
+
+// ─── Time Picker ────────────────────────────────────────────────────────────
+function TimePicker({ value, onChange, title, placeholder = '--:--' }) {
+  const [open, setOpen] = useState(false)
+  const [rect, setRect] = useState(null)
+  const btnRef = useRef(null)
+
+  function parseTime(v) {
+    if (!v) return { h12: null, min: null, pm: true }
+    const [h, m] = v.split(':').map(Number)
+    return { h12: h === 0 ? 12 : h > 12 ? h - 12 : h, min: m, pm: h >= 12 }
+  }
+
+  function buildTime(h12, min, pm) {
+    const h24 = pm ? (h12 === 12 ? 12 : h12 + 12) : (h12 === 12 ? 0 : h12)
+    return `${String(h24).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+  }
+
+  const { h12, min, pm } = parseTime(value)
+  const display = value ? `${h12}:${String(min).padStart(2, '0')} ${pm ? 'PM' : 'AM'}` : placeholder
+
+  const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  const MINUTES = [0, 15, 30, 45]
+
+  function pickHour(h) { onChange(buildTime(h, min ?? 0, pm)) }
+  function pickMin(m) { onChange(buildTime(h12 ?? 8, m, pm)) }
+  function toggleAmPm(p) { onChange(buildTime(h12 ?? 8, min ?? 0, p)) }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        title={title}
+        onClick={(e) => { e.stopPropagation(); setRect(btnRef.current?.getBoundingClientRect()); setOpen(true) }}
+        className={`w-full flex items-center justify-center bg-gray-800 border border-gray-700 rounded px-1 py-1 text-[11px] hover:border-gray-500 transition-colors focus:outline-none ${value ? 'text-gray-100' : 'text-gray-500'}`}
+      >
+        {display}
+      </button>
+      {open && rect && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-3"
+            style={{ top: rect.bottom + 4, left: rect.left }}
+          >
+            {/* AM / PM */}
+            <div className="flex gap-1 mb-2">
+              {[false, true].map(isPm => (
+                <button key={String(isPm)} type="button"
+                  onClick={() => toggleAmPm(isPm)}
+                  className={`flex-1 py-1 rounded text-xs font-bold transition-colors ${pm === isPm && value ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  {isPm ? 'PM' : 'AM'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              {/* Hours grid */}
+              <div className="grid grid-cols-3 gap-1">
+                {HOURS.map(h => (
+                  <button key={h} type="button"
+                    onClick={() => pickHour(h)}
+                    className={`w-8 h-8 rounded text-xs font-medium transition-colors ${h12 === h && value ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                  >
+                    {h}
+                  </button>
+                ))}
+              </div>
+              {/* Minutes */}
+              <div className="flex flex-col gap-1">
+                {MINUTES.map(m => (
+                  <button key={m} type="button"
+                    onClick={() => pickMin(m)}
+                    className={`px-3 h-8 rounded text-xs font-medium transition-colors ${min === m && value ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                  >
+                    :{String(m).padStart(2, '0')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {value && (
+              <button type="button"
+                onClick={() => { onChange(''); setOpen(false) }}
+                className="mt-2 w-full text-xs text-gray-600 hover:text-red-400 transition-colors py-0.5"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  )
+}
 
 const emptyStop = () => ({ id: null, type: 'pickup', location_name: '', address: '', city: '', state: '', date: '', time: '', time_end: '', schedule_type: 'range', ref_number: '', notes: '' })
 const emptyInvoiceItem = () => ({ id: null, pay_item: 'Flat Rate', units_type: 'Gross', units: 1, rate: '', total: '' })
@@ -902,12 +1065,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Camion</label>
-                <select
+                <CustomSelect
                   value={truckId}
-                  onChange={async (e) => {
-                    const val = e.target.value
+                  onChange={async (val) => {
                     if (val) {
-                      // Check active cycle and auto-assign cycle_id
                       const activeCycle = await getActiveCycle(val)
                       if (!activeCycle) {
                         const t = trucks.find(x => x.id === val)
@@ -921,22 +1082,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
                     if (t) setDiscountPercent(t.discount_percent || 13)
-                    // Auto-fill driver name from truck
                     if (t) setDriverName(t.name || '')
-                    // Auto-advance: booked → assigned when truck is selected
                     if (val && status === 'booked') setStatus('assigned')
-                    // Auto-revert: assigned → booked when truck is removed
                     if (!val && status === 'assigned') setStatus('booked')
-                    // Auto-calculate DH + loaded miles
                     if (val) { calculateDH(val); autoCalculateRoute() }
                   }}
-                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {trucks.map(t => (
-                    <option key={t.id} value={t.id}>{t.number} - {t.name}</option>
-                  ))}
-                </select>
+                  options={[{ value: '', label: '-- Seleccionar --' }, ...trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))]}
+                />
               </div>
 
               <DispatcherAutocomplete
@@ -950,26 +1102,20 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Tipo Equipo</label>
-                <select
+                <CustomSelect
                   value={equipmentType}
-                  onChange={(e) => setEquipmentType(e.target.value)}
-                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                  onChange={setEquipmentType}
+                  options={[{ value: '', label: '-- Seleccionar --' }, ...EQUIPMENT_TYPES]}
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Tipo Carga</label>
-                <select
+                <CustomSelect
                   value={loadType}
-                  onChange={(e) => setLoadType(e.target.value)}
-                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {LOAD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                  onChange={setLoadType}
+                  options={[{ value: '', label: '-- Seleccionar --' }, ...LOAD_TYPES]}
+                />
               </div>
 
               <Field label="Rate ($)" value={rate} onChange={setRate} type="number" step="0.01" required />
@@ -1026,15 +1172,18 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                 }`}>
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <select
-                        value={stop.type}
-                        onChange={(e) => updateStop(idx, 'type', e.target.value)}
-                        className="bg-transparent border-none text-xs font-medium focus:outline-none cursor-pointer text-gray-300"
-                      >
-                        <option value="pickup">Pickup</option>
-                        <option value="delivery">Delivery</option>
-                        <option value="stop">Parada</option>
-                      </select>
+                      {[
+                        { value: 'pickup', label: 'Pickup', active: 'bg-blue-600/30 text-blue-300 border-blue-700/50' },
+                        { value: 'delivery', label: 'Delivery', active: 'bg-green-600/30 text-green-300 border-green-700/50' },
+                        { value: 'stop', label: 'Parada', active: 'bg-gray-700 text-gray-200 border-gray-600' },
+                      ].map(opt => (
+                        <button key={opt.value} type="button"
+                          onClick={() => updateStop(idx, 'type', opt.value)}
+                          className={`text-[11px] px-2 py-0.5 rounded font-medium border transition-colors ${stop.type === opt.value ? opt.active : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                       <span className="text-[10px] text-gray-600">#{idx + 1}</span>
                     </div>
                     {stops.length > 2 && (
@@ -1056,22 +1205,21 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                       className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input placeholder="ST" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
                       className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
-                    <input type="date" value={stop.date || ''} onChange={(e) => updateStop(idx, 'date', e.target.value)}
-                      className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
-                    <input type="time" value={stop.time || ''} onChange={(e) => {
-                      updateStop(idx, 'time', e.target.value)
-                      if (e.target.value && e.target.value === stop.time_end) updateStop(idx, 'schedule_type', 'appointment')
-                      else if (e.target.value && stop.time_end && e.target.value !== stop.time_end) updateStop(idx, 'schedule_type', 'range')
-                    }}
-                      title="Hora inicio"
-                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
-                    <input type="time" value={stop.time_end || ''} onChange={(e) => {
-                      updateStop(idx, 'time_end', e.target.value)
-                      if (e.target.value && e.target.value === stop.time) updateStop(idx, 'schedule_type', 'appointment')
-                      else if (e.target.value && stop.time && e.target.value !== stop.time) updateStop(idx, 'schedule_type', 'range')
-                    }}
-                      title="Hora fin"
-                      className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
+                    <DatePicker value={stop.date || ''} onChange={(v) => updateStop(idx, 'date', v)} placeholder="Fecha" />
+                    <TimePicker title="Hora inicio" value={stop.time || ''}
+                      onChange={(v) => {
+                        updateStop(idx, 'time', v)
+                        if (v && v === stop.time_end) updateStop(idx, 'schedule_type', 'appointment')
+                        else if (v && stop.time_end && v !== stop.time_end) updateStop(idx, 'schedule_type', 'range')
+                      }}
+                    />
+                    <TimePicker title="Hora fin" value={stop.time_end || ''}
+                      onChange={(v) => {
+                        updateStop(idx, 'time_end', v)
+                        if (v && v === stop.time) updateStop(idx, 'schedule_type', 'appointment')
+                        else if (v && stop.time && v !== stop.time) updateStop(idx, 'schedule_type', 'range')
+                      }}
+                    />
                     <button type="button" onClick={() => updateStop(idx, 'schedule_type', stop.schedule_type === 'appointment' ? 'range' : 'appointment')}
                       className={`px-1.5 py-1 rounded text-[10px] font-medium border transition-colors ${
                         stop.schedule_type === 'appointment'
@@ -1209,18 +1357,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                         {invoiceItems.map((item, idx) => (
                           <tr key={idx} className="border-t border-gray-700">
                             <td className="px-3 py-2">
-                              <select value={item.pay_item} onChange={(e) => {
-                                const u = [...invoiceItems]; u[idx] = { ...u[idx], pay_item: e.target.value }; setInvoiceItems(u)
-                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
-                                {INVOICE_ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
+                              <CustomSelect compact value={item.pay_item}
+                                onChange={(v) => { const u = [...invoiceItems]; u[idx] = { ...u[idx], pay_item: v }; setInvoiceItems(u) }}
+                                options={INVOICE_ITEM_TYPES}
+                              />
                             </td>
                             <td className="py-2 pl-3">
-                              <select value={item.units_type} onChange={(e) => {
-                                const u = [...invoiceItems]; u[idx] = { ...u[idx], units_type: e.target.value }; setInvoiceItems(u)
-                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
-                                {UNITS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
+                              <CustomSelect compact value={item.units_type}
+                                onChange={(v) => { const u = [...invoiceItems]; u[idx] = { ...u[idx], units_type: v }; setInvoiceItems(u) }}
+                                options={UNITS_TYPES}
+                              />
                             </td>
                             <td className="py-2 px-1">
                               <input type="number" value={item.units} onChange={(e) => {
@@ -1312,11 +1458,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                               }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 text-right w-12 focus:outline-none focus:border-orange-500" />
                             </td>
                             <td className="px-3 py-2">
-                              <select value={item.type} onChange={(e) => {
-                                const u = [...commodities]; u[idx] = { ...u[idx], type: e.target.value }; setCommodities(u)
-                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
-                                {COMMODITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
+                              <CustomSelect compact value={item.type}
+                                onChange={(v) => { const u = [...commodities]; u[idx] = { ...u[idx], type: v }; setCommodities(u) }}
+                                options={COMMODITY_TYPES}
+                              />
                             </td>
                             <td className="px-3 py-2">
                               <input value={item.dimensions} onChange={(e) => {
