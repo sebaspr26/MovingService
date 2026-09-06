@@ -14,9 +14,31 @@ import SetPassword from './components/SetPassword'
 import ComingSoon from './components/ComingSoon'
 import Welcome from './components/Welcome'
 import UserProfile from './components/UserProfile'
+import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess } from './lib/permissions'
+import { supabase } from './lib/supabase'
 
+
+function DriverRedirect() {
+  const { session } = useAuth()
+  const [truckId, setTruckId] = useState(undefined)
+
+  useEffect(() => {
+    const email = session?.user?.email
+    if (!email) { setTruckId(null); return }
+    supabase.from('drivers').select('truck_id').eq('email', email).maybeSingle()
+      .then(({ data }) => setTruckId(data?.truck_id || null))
+  }, [session?.user?.email])
+
+  if (truckId === undefined) return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+  if (truckId) return <Navigate to={`/truck/${truckId}`} replace />
+  return <Dashboard />
+}
 
 function ProtectedRoute({ children }) {
   const { session } = useAuth()
@@ -59,12 +81,9 @@ function App() {
           <Route index element={(() => {
             if (!isSuperAdmin(session) && !canAccess(session, 'dashboard'))
               return <Navigate to="/welcome" replace />
-            const meta = session?.user?.user_metadata || {}
-            const role = meta.role
+            const role = session?.user?.user_metadata?.role
             const isDriver = role === 'driver' || role === 'driver_lease'
-            const trucks = meta.allowed_trucks || []
-            if (isDriver && trucks.length > 0)
-              return <Navigate to={`/truck/${trucks[0]}`} replace />
+            if (isDriver) return <DriverRedirect />
             return <Dashboard />
           })()} />
           <Route path="truck/:id" element={<TruckView />} />
