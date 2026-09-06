@@ -199,7 +199,7 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
         ${logoUrl
           ? `<img src="${logoUrl}" alt="${companyName}" style="height:44px;max-width:130px;object-fit:contain;display:block;margin-bottom:14px;" />`
           : `<p style="margin:0 0 14px;font-size:15px;font-weight:800;color:#fff;">${companyName}</p>`}
-        <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Settlement #${paymentNumber} is Ready</h1>
+        <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Payment Summary #${paymentNumber}</h1>
         <p style="margin:6px 0 0;font-size:13px;color:#fed7aa;">Pay date: ${fmtDate(payDate)}</p>
       </td>
     </tr>
@@ -335,10 +335,10 @@ export default async function handler(req, res) {
     })
 
     const emailOptions = {
-      from: `${companyName} <settlements@etg-tms.com>`,
+      from: `${companyName} <invoices@etg-tms.com>`,
       reply_to: billing.email || companyInfo.email || undefined,
       to: [dispatcherEmail],
-      subject: `Your Settlement #${paymentNumber} is Ready — ${fmt(payout)}`,
+      subject: `Payment Summary #${paymentNumber} — ${dispatcherName}`,
       html: emailBody,
       text: emailText,
     }
