@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
 import { useToast, friendlyError } from './Toast'
-import AddModal from './AddModal'
 import AddReceiptModal from './AddReceiptModal'
 import OrderDetail from './OrderDetail'
 import DayPicker from './DayPicker'
@@ -20,41 +19,6 @@ const EXPENSE_CATEGORIES = [
   'Lavado', 'Parqueo', 'Multas', 'Comida', 'Otros'
 ]
 
-const orderFields = [
-  { name: 'order_number', label: 'Orden #', required: true },
-  { name: 'pu_date', label: 'Fecha Pickup', type: 'date', required: true },
-  { name: 'pu_city', label: 'Ciudad Pickup', required: true },
-  { name: 'do_date', label: 'Fecha Delivery', type: 'date', required: true },
-  { name: 'do_city', label: 'Ciudad Delivery', required: true },
-  { name: 'miles', label: 'Millas', type: 'number', step: '0.01' },
-  { name: 'rate', label: 'Rate ($)', type: 'number', step: '0.01', required: true },
-  { name: 'apply_discount', label: 'Aplicar descuento', type: 'toggle', default: true, rateField: 'rate' },
-]
-
-const dieselFields = [
-  { name: 'invoice_number', label: 'Invoice #', required: true },
-  { name: 'date', label: 'Fecha', type: 'date', required: true },
-  { name: 'city', label: 'Ciudad', required: true },
-  { name: 'gallons', label: 'Galones', type: 'number', step: '0.01', required: true },
-  { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
-]
-
-const defFields = [
-  { name: 'invoice_number', label: 'Invoice #', required: true },
-  { name: 'date', label: 'Fecha', type: 'date', required: true },
-  { name: 'city', label: 'Ciudad', required: true },
-  { name: 'gallons', label: 'Galones', type: 'number', step: '0.01', required: true },
-  { name: 'value', label: 'Valor ($)', type: 'number', step: '0.01', required: true },
-]
-
-const expenseFields = [
-  { name: 'category', label: 'Categoria', type: 'select', required: true,
-    options: EXPENSE_CATEGORIES.map(c => ({ value: c, label: c })) },
-  { name: 'invoice_number', label: 'Invoice #' },
-  { name: 'description', label: 'Descripcion', required: true },
-  { name: 'amount', label: 'Monto ($)', type: 'number', step: '0.01', required: true },
-  { name: 'date', label: 'Fecha', type: 'date', required: true },
-]
 
 export default function Dashboard() {
   const toast = useToast()
@@ -68,7 +32,6 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
 
-  const [quickAdd, setQuickAdd] = useState(null)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
   const [orderDrawerOpen, setOrderDrawerOpen] = useState(false)
@@ -521,10 +484,6 @@ export default function Dashboard() {
     await fetchTrucks()
   }
 
-  function openQuickAdd(type) {
-    setQuickAdd(type)
-  }
-
   function openOrderDrawer() {
     setOrderDrawerOpen(true)
     requestAnimationFrame(() => setOrderDrawerVisible(true))
@@ -535,79 +494,9 @@ export default function Dashboard() {
     setTimeout(() => setOrderDrawerOpen(false), 300)
   }
 
-  async function handleQuickSaveWrapped(data) {
-    const { _truck_select, ...rest } = data
-    if (!_truck_select) return
-    const cycle = truckCycles[_truck_select]
-    if (!cycle) return
-
-    const table = quickAdd === 'order' ? 'orders' : quickAdd === 'diesel' ? 'diesel' : quickAdd === 'def' ? 'def' : 'expenses'
-    const periodStart = cycle.start_date
-    const periodEnd = cycle.end_date || today
-
-    const record = { ...rest, truck_id: _truck_select, cycle_id: cycle.id, period_start: periodStart, period_end: periodEnd }
-
-    // Normalizar apply_discount a boolean real para orders y guardar discount_percent
-    if (quickAdd === 'order') {
-      record.apply_discount = rest.apply_discount === false || rest.apply_discount === 'false' ? false : true
-      const truck = trucks.find(t => t.id === _truck_select)
-      record.discount_percent = Number(truck?.discount_percent) || 13
-    }
-
-    // Duplicate check
-    const dupField = quickAdd === 'order' ? 'order_number' : 'invoice_number'
-    const dupValue = record[dupField]
-    if (dupValue) {
-      const { data: existing } = await supabase.from(table).select('id')
-        .eq('truck_id', _truck_select).eq(dupField, dupValue).limit(1)
-      if (existing && existing.length > 0) {
-        const label = quickAdd === 'order' ? 'orden' : quickAdd
-        const ok = await toast.confirm(`Ya existe un registro de ${label} con ${dupField === 'order_number' ? 'numero' : 'invoice'} "${dupValue}". ¿Agregar de todas formas?`)
-        if (!ok) return
-      }
-    }
-
-    supabase.from(table).insert(record).then(({ error }) => {
-      if (error) {
-        toast.error(friendlyError(error.message))
-      } else {
-        setQuickAdd(null)
-        toast.success('Registro agregado')
-        fetchCyclesAndSummaries(trucks)
-      }
-    })
-  }
-
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0)
 
   const trucksWithCycles = trucks.filter(t => truckCycles[t.id] && !truckCycles[t.id].closed)
-
-  function getQuickFields(baseFields) {
-    const truckField = {
-      name: '_truck_select',
-      label: 'Camion',
-      type: 'select',
-      required: true,
-      options: trucksWithCycles.map(t => ({ value: t.id, label: `${t.name} (#${t.number})` })),
-    }
-    return [truckField, ...baseFields]
-  }
-
-  // Para orders, enriquecer el campo toggle con el discountPct del camion seleccionado
-  function getOrderFields(selectedTruckId) {
-    const truck = trucks.find(t => t.id === selectedTruckId)
-    const discountPct = Number(truck?.discount_percent) || 13
-    return getQuickFields(orderFields.map(f =>
-      f.name === 'apply_discount' ? { ...f, discountPct } : f
-    ))
-  }
-
-  const quickConfig = {
-    order: { fields: getQuickFields(orderFields), title: 'Agregar Orden' },
-    diesel: { fields: getQuickFields(dieselFields), title: 'Agregar Diesel' },
-    def: { fields: getQuickFields(defFields), title: 'Agregar DEF' },
-    expense: { fields: getQuickFields(expenseFields), title: 'Agregar Gasto' },
-  }
 
   const totalPct = truckPartners.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
 
@@ -1225,18 +1114,6 @@ export default function Dashboard() {
             </form>
           </div>
         </div>
-      )}
-
-      {/* Quick Add Order Modal */}
-      {quickAdd && (
-        <AddModal
-          isOpen={true}
-          onClose={() => setQuickAdd(null)}
-          onSave={handleQuickSaveWrapped}
-          fields={quickConfig[quickAdd].fields}
-          title={quickConfig[quickAdd].title}
-          onScan={() => {}}
-        />
       )}
 
       {/* Quick Add Expense Modal (unified receipt) */}
