@@ -24,6 +24,7 @@ export default function UserProfile() {
   const meta = user?.user_metadata || {}
 
   const [name, setName] = useState(meta.name || '')
+  const [phone, setPhone] = useState(meta.phone || '')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(() => getAvatarUrl(meta.avatar_path))
@@ -33,7 +34,14 @@ export default function UserProfile() {
     ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() || '?'
 
-  const dirty = name !== (meta.name || '')
+  const dirty = name !== (meta.name || '') || phone !== (meta.phone || '')
+
+  function formatPhone(raw) {
+    const digits = raw.replace(/\D/g, '').slice(0, 10)
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`
+    return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+  }
 
   async function handleAvatarChange(e) {
     const file = e.target.files[0]
@@ -88,9 +96,14 @@ export default function UserProfile() {
   }
 
   async function handleSave() {
+    const digits = phone.replace(/\D/g, '')
+    if (phone && digits.length !== 10) {
+      toast.warning('El teléfono debe tener 10 dígitos (formato USA)')
+      return
+    }
     setSaving(true)
     try {
-      const { error } = await supabase.auth.updateUser({ data: { ...meta, name } })
+      const { error } = await supabase.auth.updateUser({ data: { ...meta, name, phone: phone || null } })
       if (error) throw error
       await refreshSession()
       toast.success('Perfil actualizado')
@@ -173,6 +186,16 @@ export default function UserProfile() {
               className="w-full bg-gray-800/50 border border-gray-800 rounded-lg px-3 py-2.5 text-sm text-gray-500 cursor-not-allowed"
             />
             <p className="text-xs text-gray-600 mt-1">El email no se puede modificar desde aquí</p>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1.5">Teléfono <span className="text-gray-600">(USA)</span></label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(formatPhone(e.target.value))}
+              placeholder="(555) 555-5555"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/70"
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1.5">Rol</label>
