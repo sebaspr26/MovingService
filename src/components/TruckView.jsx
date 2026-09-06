@@ -347,7 +347,8 @@ export default function TruckView() {
             <span className="text-gray-300">{period.end}</span>
           </div>
 
-          {/* Cards grandes — Total Débito, Total Crédito, Balance */}
+          {/* Cards grandes — Total Débito, Total Crédito, Balance — ocultas si driver no tiene ver_truck_view */}
+          {(isSuperAdmin(session) || !isDriver || canAccess(session, 'dashboard', 'ver_truck_view')) && (<>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-red-500">
               <p className="text-xs text-gray-500 mb-2">Total Débito</p>
@@ -387,6 +388,7 @@ export default function TruckView() {
               <p className="text-[9px] text-gray-600 mt-0.5">ordenes</p>
             </div>
           </div>
+          </>)}
 
           {/* Tabs */}
           <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 border border-gray-800 w-full sm:w-fit overflow-x-auto">

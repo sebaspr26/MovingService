@@ -237,7 +237,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
           </button>
-          {!readOnly && (
+          {!readOnly && canAccess(session, 'orders', 'crear_ordenes') && (
             <button
               onClick={() => openOrderDrawer()}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
