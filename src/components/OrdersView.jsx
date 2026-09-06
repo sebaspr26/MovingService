@@ -395,7 +395,7 @@ export default function OrdersView() {
       </div>
 
       {/* Layout: tabla + panel lateral derecho de estados */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 items-start min-h-0">
         {/* Tabla principal */}
         <div className="flex-1 min-w-0">
           {/* Pagination */}
@@ -634,11 +634,13 @@ export default function OrdersView() {
 
       {/* Floating totals bar */}
       {filtered.length > 0 && !drawerId && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg whitespace-nowrap">
-          <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
-          <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
-          <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
-          {(() => { const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0); const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0); return tMi > 0 ? <span className="text-cyan-400"><span className="text-gray-600 mr-1">RPM</span> ${(tRate / tMi).toFixed(2)}</span> : null })()}
+        <div className="fixed bottom-4 left-0 right-0 lg:right-60 z-40 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg whitespace-nowrap">
+            <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
+            <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
+            <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
+            {(() => { const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0); const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0); return tMi > 0 ? <span className="text-cyan-400"><span className="text-gray-600 mr-1">RPM</span> ${(tRate / tMi).toFixed(2)}</span> : null })()}
+          </div>
         </div>
       )}
 
