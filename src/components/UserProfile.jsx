@@ -41,7 +41,6 @@ const TRUCK_DOC_LABELS = {
   cab_card: 'Cab Card',
   truck_picture: 'Foto del Camión',
   vin_picture: 'Foto del VIN',
-  other: 'Otro',
 }
 
 const ROLE_NAMES = {
