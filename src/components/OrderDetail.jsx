@@ -296,9 +296,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       // Dispatchers only see their allowed trucks
       setTrucks(allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
       setAllBrokers(bRes.data || [])
-      // All users with a name, regardless of role or active status
+      // Solo usuarios con rol de dispatcher/admin/super_admin
       const dispatchers = (usersRes.users || [])
-        .filter(u => u.user_metadata?.name || u.email)
+        .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
         .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
@@ -2025,6 +2025,7 @@ function DispatcherAutocomplete({ label, value, onChange, authDispatchers, requi
         value={inputText}
         onChange={(e) => { setInputText(e.target.value); setOpen(true) }}
         onFocus={() => { setInputText(''); setOpen(true) }}
+        onBlur={() => setTimeout(() => { setOpen(false); setInputText(displayName) }, 150)}
         className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
         required={required && !value}
         placeholder="Buscar dispatcher..."

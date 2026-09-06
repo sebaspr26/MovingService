@@ -360,227 +360,222 @@ export default function OrdersView() {
         </button>
       </div>
 
-      {/* Tabs (derecha) + búsqueda (izquierda) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex gap-2 items-center">
-          <div className={`overflow-hidden transition-all duration-300 ease-out ${showSearch ? 'w-56 sm:w-72 opacity-100' : 'w-0 opacity-0'}`}>
+      {/* Filtros — búsqueda integrada en la misma fila */}
+      <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl px-3 py-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Búsqueda */}
+          <div className="relative w-[160px]">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar orden, ciudad, truck, broker..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
-              autoFocus
+              placeholder="Buscar..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
             />
           </div>
-          <button
-            onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearch('') }}
-            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex gap-1 overflow-x-auto">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                tab === t.key
-                  ? 'bg-orange-600/20 text-orange-400'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              {t.label}
-              <span className={`ml-1 px-1 py-0.5 rounded text-[10px] ${
-                tab === t.key ? 'bg-orange-600/30' : 'bg-gray-800'
-              }`}>
-                {counts[t.key] || 0}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Filtros avanzados — siempre visibles, compactos */}
-      <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl px-3 py-2">
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="w-[130px]">
-            <MultiSelect
-              value={filterTrucks}
-              onChange={setFilterTrucks}
-              placeholder="Truck"
-              options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))}
-            />
+          <div className="w-[120px]">
+            <MultiSelect value={filterTrucks} onChange={setFilterTrucks} placeholder="Truck" options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))} />
           </div>
-          <div className="w-[130px]">
-            <MultiSelect
-              value={filterDispatchers}
-              onChange={setFilterDispatchers}
-              placeholder="Dispatcher"
-              options={dispatcherOptions}
-            />
+          <div className="w-[120px]">
+            <MultiSelect value={filterDispatchers} onChange={setFilterDispatchers} placeholder="Dispatcher" options={dispatcherOptions} />
           </div>
-          <div className="w-[130px]">
-            <MultiSelect
-              value={filterBrokers}
-              onChange={setFilterBrokers}
-              placeholder="Broker"
-              options={brokerList.map(b => ({ value: b.id, label: b.name }))}
-            />
+          <div className="w-[120px]">
+            <MultiSelect value={filterBrokers} onChange={setFilterBrokers} placeholder="Broker" options={brokerList.map(b => ({ value: b.id, label: b.name }))} />
           </div>
-          <div className="w-[190px]">
-            <DateRangePicker
-              dateFrom={filterDateFrom}
-              dateTo={filterDateTo}
-              onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }}
-            />
+          <div className="w-[180px]">
+            <DateRangePicker dateFrom={filterDateFrom} dateTo={filterDateTo} onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }} />
           </div>
           {hasActiveFilters && (
-            <button onClick={clearFilters}
-              className="px-2.5 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">
-              Limpiar
-            </button>
+            <button onClick={clearFilters} className="px-2.5 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">Limpiar</button>
           )}
         </div>
       </div>
 
-      {/* Pagination (top) */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Anterior
-            </button>
-            <span className="px-3 py-1 text-gray-400">{page + 1} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Siguiente
-            </button>
+      {/* Layout: tabla + panel lateral derecho de estados */}
+      <div className="flex gap-4 items-start">
+        {/* Tabla principal */}
+        <div className="flex-1 min-w-0">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+              <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+              <div className="flex gap-1">
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors">‹</button>
+                <span className="px-2 py-1 text-gray-400">{page + 1} / {totalPages}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors">›</button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
+                  <th className="pb-2 pr-3">St.</th>
+                  <th className="pb-2 pr-3">Orden #</th>
+                  <th className="pb-2 pr-3">Truck</th>
+                  <th className="pb-2 pr-3">Dispatcher</th>
+                  <th className="pb-2 pr-3">Origen</th>
+                  <th className="pb-2 pr-3">Destino</th>
+                  <th className="pb-2 pr-3 text-right">Miles / DH</th>
+                  <th className="pb-2 pr-3 text-right">Rate</th>
+                  <th className="pb-2 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(row => {
+                  const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
+                  const truck = truckMap[row.truck_id]
+                  const rowBorder = {
+                    booked: 'border-l-blue-500', assigned: 'border-l-yellow-500', in_transit: 'border-l-orange-500',
+                    delivered: 'border-l-cyan-500', invoiced: 'border-l-emerald-500', paid: 'border-l-violet-500',
+                    tonu: 'border-l-red-500', canceled: 'border-l-gray-600',
+                  }[row.status] || 'border-l-gray-700'
+                  const rowBg = {
+                    booked: 'bg-blue-600/10', assigned: 'bg-yellow-600/10', in_transit: 'bg-orange-600/10',
+                    delivered: 'bg-cyan-600/10', invoiced: 'bg-emerald-600/10', paid: 'bg-violet-600/10',
+                    tonu: 'bg-red-600/10', canceled: 'bg-gray-600/5',
+                  }[row.status] || ''
+                  return (
+                    <tr key={row.id} className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}>
+                      <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
+                        <StatusSelect row={row} onChange={handleStatusChange} />
+                      </td>
+                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="font-semibold text-white">{row.order_number}</div>
+                        {brokers[row.broker_id] && (
+                          <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        {truck ? <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">{truck.number}</span> : '-'}
+                      </td>
+                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        {row.dispatcher ? <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span> : <span className="text-gray-700">—</span>}
+                      </td>
+                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
+                        <div className="text-[10px] text-gray-500">{row.pu_date}</div>
+                      </td>
+                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
+                        <div className="text-[10px] text-gray-500">{row.do_date}</div>
+                      </td>
+                      <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="text-gray-300 text-sm font-medium">{Number(row.miles || 0).toLocaleString()}</div>
+                        {Number(row.dead_miles || 0) > 0 && (
+                          <div className="text-[10px] text-orange-400">{Number(row.dead_miles).toLocaleString()} DH</div>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
+                        {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
+                          <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
+                        )}
+                      </td>
+                      <td className="py-2.5">
+                        <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {visible.length === 0 && (
+                  <tr><td colSpan={9} className="py-12 text-center text-gray-600">{q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
-              <th className="pb-2 pr-3">St.</th>
-              <th className="pb-2 pr-3">Orden #</th>
-              <th className="pb-2 pr-3">Truck</th>
-              <th className="pb-2 pr-3">Dispatcher</th>
-              <th className="pb-2 pr-3">Origen</th>
-              <th className="pb-2 pr-3">Destino</th>
-              <th className="pb-2 pr-3 text-right">Miles / DH</th>
-              <th className="pb-2 pr-3 text-right">Rate</th>
-              <th className="pb-2 w-8"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(row => {
-              const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
-              const truck = truckMap[row.truck_id]
-              const rowBorder = {
-                booked: 'border-l-orange-500',
-                assigned: 'border-l-yellow-500',
-                in_transit: 'border-l-orange-500',
-                delivered: 'border-l-cyan-500',
-                invoiced: 'border-l-emerald-500',
-                paid: 'border-l-violet-500',
-                tonu: 'border-l-red-500',
-                canceled: 'border-l-gray-600',
-              }[row.status] || 'border-l-gray-700'
-              const rowBg = {
-                booked: 'bg-orange-600/25',
-                assigned: 'bg-yellow-600/25',
-                in_transit: 'bg-orange-600/25',
-                delivered: 'bg-cyan-600/25',
-                invoiced: 'bg-emerald-600/25',
-                paid: 'bg-violet-600/25',
-                tonu: 'bg-red-600/25',
-                canceled: 'bg-gray-600/15',
-              }[row.status] || ''
-              return (
-                <tr
-                  key={row.id}
-                  className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}
-                >
-                  <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
-                    <StatusSelect row={row} onChange={handleStatusChange} />
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="font-semibold text-white">{row.order_number}</div>
-                    {brokers[row.broker_id] && (
-                      <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {truck ? (
-                      <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">
-                        {truck.number}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {row.dispatcher ? (
-                      <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span>
-                    ) : (
-                      <span className="text-gray-700">—</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
-                    <div className="text-[10px] text-gray-500">{row.pu_date}</div>
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
-                    <div className="text-[10px] text-gray-500">{row.do_date}</div>
-                  </td>
-                  <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-300 text-sm font-medium">{Number(row.miles || 0).toLocaleString()}</div>
-                    {Number(row.dead_miles || 0) > 0 && (
-                      <div className="text-[10px] text-orange-400">{Number(row.dead_miles).toLocaleString()} DH</div>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
-                    {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
-                      <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
-                    )}
-                  </td>
-                  <td className="py-2.5">
+        {/* Panel lateral derecho — donut + filtros */}
+        <div className="w-56 shrink-0 sticky top-4">
+          <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3">
+            {/* Todas */}
+            <button
+              onClick={() => setTab('all')}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium mb-2 transition-colors ${tab === 'all' ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800/60'}`}
+            >
+              <span>Todas las ordenes</span>
+              <span className="font-bold tabular-nums">{orders.length}</span>
+            </button>
+
+            {/* Donut + status list */}
+            <div className="flex items-center gap-2">
+              {/* SVG Donut */}
+              <div className="relative shrink-0">
+                <svg width="72" height="72" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="28" fill="none" stroke="#1f2937" strokeWidth="10" />
+                  {(() => {
+                    const r2 = 28
+                    const circ2 = 2 * Math.PI * r2
+                    const DONUT_COLORS = {
+                      booked: '#3b82f6', assigned: '#eab308', in_transit: '#f97316',
+                      delivered: '#06b6d4', invoiced: '#10b981', paid: '#8b5cf6',
+                      tonu: '#ef4444', canceled: '#6b7280',
+                    }
+                    let cum = 0
+                    return ALL_STATUSES.map(s => {
+                      const cnt = counts[s] || 0
+                      if (!cnt || !orders.length) return null
+                      const dashLen = (cnt / orders.length) * circ2
+                      const dashOffset = -cum
+                      cum += dashLen
+                      return (
+                        <circle
+                          key={s}
+                          cx="40" cy="40" r={r2}
+                          fill="none"
+                          stroke={DONUT_COLORS[s]}
+                          strokeWidth="10"
+                          strokeDasharray={`${dashLen} ${circ2}`}
+                          strokeDashoffset={dashOffset}
+                          transform="rotate(-90 40 40)"
+                          className="cursor-pointer hover:opacity-70 transition-opacity"
+                          onClick={() => setTab(s)}
+                        />
+                      )
+                    })
+                  })()}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-sm font-bold text-white tabular-nums">{orders.length}</span>
+                  <span className="text-[8px] text-gray-500 leading-tight">Total</span>
+                </div>
+              </div>
+
+              {/* Status list */}
+              <div className="flex-1 space-y-px min-w-0">
+                {ALL_STATUSES.map(s => {
+                  const sc = STATUS_CONFIG[s]
+                  const count = counts[s] || 0
+                  const isActive = tab === s
+                  const borderColor = {
+                    booked: 'border-blue-500', assigned: 'border-yellow-500', in_transit: 'border-orange-500',
+                    delivered: 'border-cyan-500', invoiced: 'border-emerald-500', paid: 'border-violet-500',
+                    tonu: 'border-red-500', canceled: 'border-gray-500',
+                  }[s]
+                  return (
                     <button
-                      onClick={() => openDrawer(row.id)}
-                      className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100"
+                      key={s}
+                      onClick={() => setTab(s)}
+                      className={`w-full flex items-center gap-1.5 pl-2 pr-1 py-1 rounded text-left transition-colors border-l-2 ${borderColor} ${isActive ? 'bg-gray-800/80' : 'hover:bg-gray-800/40'}`}
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                      </svg>
+                      <span className={`text-[10px] truncate flex-1 ${isActive ? 'text-white font-semibold' : sc.text}`}>{sc.label}</span>
+                      <span className={`text-[10px] font-bold tabular-nums shrink-0 ${count > 0 ? (isActive ? 'text-white' : 'text-gray-400') : 'text-gray-700'}`}>{count || '–'}</span>
                     </button>
-                  </td>
-                </tr>
-              )
-            })}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={9} className="py-12 text-center text-gray-600">
-                  {q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Floating totals bar */}
