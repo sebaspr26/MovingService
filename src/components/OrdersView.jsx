@@ -525,7 +525,7 @@ export default function OrdersView() {
         </div>
 
         {/* Panel lateral derecho — donut + filtros (oculto en móvil) */}
-        <div className="hidden lg:block w-56 shrink-0 sticky top-4">
+        <div className="hidden lg:flex lg:flex-col w-56 shrink-0 sticky top-4 max-h-[calc(100vh-5rem)] overflow-y-auto">
           <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3">
             {/* Todas */}
             <button
