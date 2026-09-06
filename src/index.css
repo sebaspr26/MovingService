@@ -199,3 +199,24 @@ select.sel option {
 .animate-dispatcher-pop {
   animation: dispatcher-pop 0.35s ease-out;
 }
+
+/* ========================
+   THEME TRANSITION — efecto gota
+   ======================== */
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: theme-drop 0.5s ease-out;
+  mix-blend-mode: normal;
+}
+
+@keyframes theme-drop {
+  from {
+    clip-path: circle(0% at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+}
