@@ -71,26 +71,7 @@ export default function ComingSoon() {
           Estamos preparando algo incre&iacute;ble. El sistema estar&aacute; disponible muy pronto.
         </p>
 
-        {/* Countdown */}
-        <div className="flex items-start gap-4 sm:gap-6">
-          <CountUnit value={pad(time.h)} label="Horas" />
-          <Separator />
-          <CountUnit value={pad(time.m)} label="Minutos" />
-          <Separator />
-          <CountUnit value={pad(time.s)} label="Segundos" />
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-10 w-full max-w-xs">
-          <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-1000"
-              style={{ width: `${100 - ((time.h * 3600 + time.m * 60 + time.s) / 86400) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        <p className="mt-10 text-xs text-gray-700 select-none">
+        <p className="mt-2 text-xs text-gray-700 select-none">
           ETG TMS &mdash; Sistema de Gesti&oacute;n de Transporte
         </p>
       </div>
