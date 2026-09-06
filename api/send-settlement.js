@@ -26,31 +26,16 @@ async function getCompanyData(companyId) {
   return { companyName, logoUrl, billing, companyInfo }
 }
 
-// Embed logo as base64 so it renders in all email clients
-async function embedLogo(logoUrl) {
-  if (!logoUrl) return null
-  try {
-    const res = await fetch(logoUrl)
-    if (!res.ok) return null
-    const buffer = await res.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    const mime = res.headers.get('content-type') || 'image/png'
-    return `data:${mime};base64,${base64}`
-  } catch {
-    return null
-  }
-}
-
-function logoBlock(logoDataUrl, companyName) {
-  if (logoDataUrl) {
-    return `<img src="${logoDataUrl}" alt="${companyName}" style="height:56px;max-width:160px;object-fit:contain;display:block;" />`
+function logoBlock(logoUrl, companyName) {
+  if (logoUrl) {
+    return `<img src="${logoUrl}" alt="${companyName}" style="height:56px;max-width:160px;object-fit:contain;display:block;" />`
   }
   const initials = companyName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
   return `<div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#fff3e0;border:2px solid #ea580c;border-radius:10px;font-size:22px;font-weight:800;color:#ea580c;">${initials}</div>`
 }
 
 // Full settlement document — used for preview and to generate the PDF on the client
-function dispatcherSettlementHtml({ companyName, logoDataUrl, billing, companyInfo, paymentNumber, dispatcherName, dispatcherEmail, commissionPct, gross, payout, payDate, periodStart, periodEnd, orders }) {
+function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, dispatcherName, dispatcherEmail, commissionPct, gross, payout, payDate, periodStart, periodEnd, orders }) {
   const ordersRows = orders.map(o => {
     const commission = (Number(o.rate) || 0) * commissionPct / 100
     return `
@@ -91,7 +76,7 @@ function dispatcherSettlementHtml({ companyName, logoDataUrl, billing, companyIn
 
   <!-- Header: Logo + Title -->
   <div style="padding:28px 40px;background:#ffffff;border-bottom:2px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
-    <div>${logoBlock(logoDataUrl, companyName)}</div>
+    <div>${logoBlock(logoUrl, companyName)}</div>
     <div style="text-align:right;">
       <h1 style="margin:0;font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.5px;">Dispatcher Settlement #${paymentNumber}</h1>
       <p style="margin:5px 0 0;font-size:13px;color:#6b7280;">Pay Date: ${fmtDate(payDate)}</p>
@@ -195,7 +180,7 @@ function dispatcherSettlementHtml({ companyName, logoDataUrl, billing, companyIn
 }
 
 // Nice short email body — full settlement is in the PDF attachment
-function settlementEmailBody({ companyName, logoDataUrl, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate }) {
+function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,8 +196,8 @@ function settlementEmailBody({ companyName, logoDataUrl, dispatcherName, payment
     <!-- Orange header -->
     <tr>
       <td style="background:#ea580c;padding:28px 32px;">
-        ${logoDataUrl
-          ? `<img src="${logoDataUrl}" alt="${companyName}" style="height:44px;max-width:130px;object-fit:contain;display:block;margin-bottom:14px;" />`
+        ${logoUrl
+          ? `<img src="${logoUrl}" alt="${companyName}" style="height:44px;max-width:130px;object-fit:contain;display:block;margin-bottom:14px;" />`
           : `<p style="margin:0 0 14px;font-size:15px;font-weight:800;color:#fff;">${companyName}</p>`}
         <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Settlement #${paymentNumber} is Ready</h1>
         <p style="margin:6px 0 0;font-size:13px;color:#fed7aa;">Pay date: ${fmtDate(payDate)}</p>
@@ -322,10 +307,9 @@ export default async function handler(req, res) {
 
   try {
     const { companyName, logoUrl, billing, companyInfo } = await getCompanyData(companyId)
-    const logoDataUrl = await embedLogo(logoUrl)
 
     const settlementHtml = dispatcherSettlementHtml({
-      companyName, logoDataUrl, billing, companyInfo,
+      companyName, logoUrl, billing, companyInfo,
       paymentNumber, dispatcherName, dispatcherEmail,
       commissionPct, gross, payout,
       payDate, periodStart, periodEnd, orders,
@@ -338,7 +322,7 @@ export default async function handler(req, res) {
 
     // Send mode — nice email body + PDF attachment
     const emailBody = settlementEmailBody({
-      companyName, logoDataUrl,
+      companyName, logoUrl,
       dispatcherName, paymentNumber,
       commissionPct, gross, payout,
       periodStart, periodEnd, payDate,
