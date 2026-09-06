@@ -731,7 +731,12 @@ export default function Profiles() {
                     </div>
                     <div className="flex gap-2.5">
                       {MODULES.filter(m => m.key === 'dashboard' || m.key === 'orders').map(mod => {
-                        const driverSubs = mod.subs.filter(s => s.driverOnly || !s.adminOnly)
+                        const isLease = permUser.user_metadata?.role === 'driver_lease'
+                        const driverSubs = mod.subs.filter(s => {
+                          if (s.adminOnly) return false
+                          if (s.key === 'ver_gastos_propietario' && !isLease) return false
+                          return s.driverOnly || !s.adminOnly
+                        })
                         return (
                           <div key={mod.key} className="flex-1 rounded-xl border border-gray-700 bg-gray-800/50 p-3">
                             <div className="flex items-center gap-2 mb-2">
