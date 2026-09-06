@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
+import PdfViewer from './PdfViewer'
 
 function docUrl(filePath) {
   return supabase.storage.from('company-docs').getPublicUrl(filePath).data?.publicUrl
@@ -39,7 +40,7 @@ function DocPreview({ doc, onClose }) {
             {isImage(doc.mime_type)
               ? <img src={url} alt={doc.file_name} className="max-h-[65vh] max-w-full rounded object-contain" />
               : isPdf(doc.mime_type)
-                ? <iframe src={url} className="w-full h-[60vh] rounded" title={doc.file_name} />
+                ? <PdfViewer url={url} className="w-full h-[60vh] rounded" />
                 : <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-sm">Abrir archivo</a>
             }
           </div>

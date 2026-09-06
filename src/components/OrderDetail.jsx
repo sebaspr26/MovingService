@@ -12,6 +12,7 @@ import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
+import PdfViewer from './PdfViewer'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -1837,7 +1838,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     {rcFile?.type?.startsWith('image/') ? (
                       <img src={rcPreviewUrl} alt="Rate Confirmation" className="w-full rounded border border-gray-800" />
                     ) : (
-                      <iframe src={rcPreviewUrl} className="w-full h-[400px] rounded border border-gray-800" title="Rate Confirmation" />
+                      <PdfViewer url={rcPreviewUrl} className="w-full h-[400px] border border-gray-800" />
                     )}
                   </div>
                 </div>
@@ -1866,7 +1867,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             {rcFile?.type?.startsWith('image/') ? (
               <img src={rcPreviewUrl} alt="Rate Confirmation" className="w-full h-full object-contain rounded-lg" />
             ) : (
-              <iframe src={rcPreviewUrl} className="w-full h-full rounded-lg border border-gray-700" title="Rate Confirmation" />
+              <PdfViewer url={rcPreviewUrl} className="w-full h-full rounded-lg border border-gray-700" />
             )}
           </div>
         </div>
