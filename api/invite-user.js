@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   if (!action) {
     return res.status(400).json({ error: 'Falta el campo action' })
   }
-  if (!email && !['list', 'update_permissions', 'delete', 'update_role', 'migrate_dispatchers'].includes(action)) {
+  if (!email && !['list', 'update_permissions', 'delete', 'update_role', 'migrate_dispatchers', 'add_to_company'].includes(action)) {
     return res.status(400).json({ error: 'Falta el campo email' })
   }
 
