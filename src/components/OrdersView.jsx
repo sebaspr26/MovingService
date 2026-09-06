@@ -40,11 +40,30 @@ const TABS = [
   { key: 'canceled', label: 'Canceladas' },
 ]
 
+const STATUS_DOT = {
+  booked:     { dot: 'bg-blue-400',    ring: 'bg-blue-500/10 border-blue-500/25' },
+  assigned:   { dot: 'bg-yellow-400',  ring: 'bg-yellow-500/10 border-yellow-500/25' },
+  in_transit: { dot: 'bg-orange-400',  ring: 'bg-orange-500/10 border-orange-500/25' },
+  delivered:  { dot: 'bg-cyan-400',    ring: 'bg-cyan-500/10 border-cyan-500/25' },
+  invoiced:   { dot: 'bg-emerald-400', ring: 'bg-emerald-500/10 border-emerald-500/25' },
+  paid:       { dot: 'bg-violet-400',  ring: 'bg-violet-500/10 border-violet-500/25' },
+  tonu:       { dot: 'bg-red-400',     ring: 'bg-red-500/10 border-red-500/25' },
+  canceled:   { dot: 'bg-gray-500',    ring: 'bg-gray-500/10 border-gray-500/25' },
+}
+
+function fmtDateGroup(dateStr) {
+  if (!dateStr) return 'Sin fecha'
+  const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  const [, m, d] = dateStr.split('-')
+  return `${MONTHS[parseInt(m, 10) - 1]} ${parseInt(d, 10)}`
+}
+
 function StatusSelect({ row, onChange }) {
   const [open, setOpen] = useState(false)
   const [rect, setRect] = useState(null)
   const btnRef = useRef(null)
   const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
+  const ds = STATUS_DOT[row.status] || STATUS_DOT.booked
 
   function handleOpen(e) {
     e.stopPropagation()
@@ -52,41 +71,38 @@ function StatusSelect({ row, onChange }) {
     setOpen(true)
   }
 
-  function handleSelect(status) {
-    onChange(row.id, status)
-    setOpen(false)
-  }
-
   return (
     <>
       <button
         ref={btnRef}
         onClick={handleOpen}
-        title={st.label}
-        className={`text-[11px] font-bold px-2 py-1 rounded-lg ${st.text} bg-gray-800 border border-gray-700 min-w-[28px] text-center cursor-pointer hover:border-gray-500 transition-colors`}
+        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all whitespace-nowrap ${ds.ring} hover:opacity-80`}
       >
-        {STATUS_ABBREV[row.status] || '?'}
+        <span className={`w-1.5 h-1.5 rounded-full ${ds.dot} shrink-0`} />
+        <span className={st.text}>{st.label}</span>
+        <svg className="w-2.5 h-2.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
       </button>
       {open && rect && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 min-w-[170px]"
-            style={{ top: rect.bottom + 4, left: rect.left }}
+            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 min-w-[180px]"
+            style={{ top: rect.bottom + 4, left: Math.max(8, rect.right - 180) }}
           >
             {ALL_STATUSES.map(s => {
               const sc = STATUS_CONFIG[s]
+              const sd = STATUS_DOT[s] || STATUS_DOT.booked
               const isActive = s === row.status
               return (
                 <button
                   key={s}
-                  onClick={() => handleSelect(s)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${isActive ? 'bg-gray-800/60' : 'hover:bg-gray-800'}`}
+                  onClick={() => { onChange(row.id, s); setOpen(false) }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors ${isActive ? 'bg-gray-800/70' : 'hover:bg-gray-800/50'}`}
                 >
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sc.text} bg-gray-900 border border-gray-700 min-w-[22px] text-center`}>
-                    {STATUS_ABBREV[s]}
-                  </span>
-                  <span className={`${sc.text} flex-1`}>{sc.label}</span>
+                  <span className={`w-2 h-2 rounded-full ${sd.dot} shrink-0`} />
+                  <span className={`${sc.text} flex-1 font-medium`}>{sc.label}</span>
                   {isActive && (
                     <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -332,71 +348,95 @@ export default function OrdersView() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  // Group visible rows by pickup date for date separators
+  const groupedRows = []
+  let lastGroupDate = null
+  for (const row of visible) {
+    if (row.pu_date !== lastGroupDate) {
+      groupedRows.push({ _isHeader: true, date: row.pu_date })
+      lastGroupDate = row.pu_date
+    }
+    groupedRows.push(row)
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-8 bg-gray-800 rounded w-48 animate-pulse" />
-        <div className="h-64 bg-gray-800 rounded animate-pulse" />
+        <div className="flex items-center justify-between">
+          <div className="space-y-1.5">
+            <div className="h-7 bg-gray-800 rounded-lg w-52 animate-pulse" />
+            <div className="h-3.5 bg-gray-800 rounded w-28 animate-pulse" />
+          </div>
+          <div className="h-9 bg-gray-800 rounded-lg w-36 animate-pulse" />
+        </div>
+        <div className="border border-gray-800 rounded-2xl overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-4 border-b border-gray-800/50">
+              <div className="h-3.5 bg-gray-800 rounded w-14 animate-pulse" />
+              <div className="h-3.5 bg-gray-800 rounded w-28 animate-pulse" />
+              <div className="h-5 bg-gray-800 rounded w-10 animate-pulse" />
+              <div className="h-3.5 bg-gray-800 rounded w-24 animate-pulse" />
+              <div className="ml-auto h-6 bg-gray-800 rounded-lg w-24 animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Ordenes / Cargas</h1>
-          <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
+          <p className="text-sm text-gray-500 mt-0.5">{orders.length} ordenes totales</p>
         </div>
         <button
           onClick={() => openDrawer('new')}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
+          className="px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit shadow-lg shadow-orange-900/30"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           Nueva Orden
         </button>
       </div>
 
-      {/* Filter bar */}
+      {/* Tabs + search/filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                tab === t.key
-                  ? 'bg-orange-600/20 text-orange-400'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                tab === t.key ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/60'
               }`}
             >
               {t.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] ${
-                tab === t.key ? 'bg-orange-600/30' : 'bg-gray-800'
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                tab === t.key ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-800 text-gray-500'
               }`}>
                 {counts[t.key] || 0}
               </span>
             </button>
           ))}
         </div>
-
-        <div className="flex gap-2 items-center">
-          <div className={`overflow-hidden transition-all duration-300 ease-out ${showSearch ? 'w-56 sm:w-72 opacity-100' : 'w-0 opacity-0'}`}>
+        <div className="flex gap-2 items-center shrink-0">
+          <div className={`overflow-hidden transition-all duration-300 ease-out ${showSearch ? 'w-64 opacity-100' : 'w-0 opacity-0'}`}>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar orden, ciudad, truck, broker..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500/50"
               autoFocus
             />
           </div>
           <button
             onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearch('') }}
-            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'}`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -404,15 +444,12 @@ export default function OrdersView() {
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-1.5 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300'}`}
-            title="Filtros avanzados"
+            className={`p-1.5 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-orange-600/20 text-orange-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'}`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
             </svg>
-            {hasActiveFilters && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />
-            )}
+            {hasActiveFilters && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />}
           </button>
         </div>
       </div>
@@ -423,183 +460,147 @@ export default function OrdersView() {
           <div className="flex flex-wrap gap-3 items-end">
             <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Truck</label>
-              <MultiSelect
-                value={filterTrucks}
-                onChange={setFilterTrucks}
-                placeholder="Todos"
-                options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))}
-              />
+              <MultiSelect value={filterTrucks} onChange={setFilterTrucks} placeholder="Todos" options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))} />
             </div>
             <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Dispatcher</label>
-              <MultiSelect
-                value={filterDispatchers}
-                onChange={setFilterDispatchers}
-                placeholder="Todos"
-                options={dispatcherOptions}
-              />
+              <MultiSelect value={filterDispatchers} onChange={setFilterDispatchers} placeholder="Todos" options={dispatcherOptions} />
             </div>
             <div className="min-w-[140px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Broker</label>
-              <MultiSelect
-                value={filterBrokers}
-                onChange={setFilterBrokers}
-                placeholder="Todos"
-                options={brokerList.map(b => ({ value: b.id, label: b.name }))}
-              />
+              <MultiSelect value={filterBrokers} onChange={setFilterBrokers} placeholder="Todos" options={brokerList.map(b => ({ value: b.id, label: b.name }))} />
             </div>
             <div className="min-w-[200px]">
               <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide">Rango de fechas</label>
-              <DateRangePicker
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-                onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }}
-              />
+              <DateRangePicker dateFrom={filterDateFrom} dateTo={filterDateTo} onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }} />
             </div>
             {hasActiveFilters && (
-              <button onClick={clearFilters}
-                className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">
-                Limpiar
-              </button>
+              <button onClick={clearFilters} className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">Limpiar</button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Pagination (top) */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Anterior
-            </button>
-            <span className="px-3 py-1 text-gray-400">{page + 1} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-30 transition-colors"
-            >
-              Siguiente
-            </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              className="px-2.5 py-1.5 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-30 transition-colors">‹</button>
+            <span className="px-3 py-1.5 text-gray-400">{page + 1} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              className="px-2.5 py-1.5 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-30 transition-colors">›</button>
           </div>
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-gray-800">
+        <table className="w-full text-sm min-w-[860px]">
           <thead>
-            <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
-              <th className="pb-2 pr-3">St.</th>
-              <th className="pb-2 pr-3">Orden #</th>
-              <th className="pb-2 pr-3">Truck</th>
-              <th className="pb-2 pr-3">Dispatcher</th>
-              <th className="pb-2 pr-3">Origen</th>
-              <th className="pb-2 pr-3">Destino</th>
-              <th className="pb-2 pr-3 text-right">Miles</th>
-              <th className="pb-2 pr-3 text-right">DH</th>
-              <th className="pb-2 pr-3 text-right">Rate</th>
-              <th className="pb-2 w-8"></th>
+            <tr className="bg-gray-900/80 border-b border-gray-800">
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Orden</th>
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Broker / Cliente</th>
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Truck</th>
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Origen</th>
+              <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Miles</th>
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Destino</th>
+              <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Rate</th>
+              <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Estado</th>
             </tr>
           </thead>
           <tbody>
-            {visible.map(row => {
-              const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
+            {groupedRows.map((item, idx) => {
+              if (item._isHeader) {
+                return (
+                  <tr key={`h-${idx}`}>
+                    <td colSpan={8} className="px-4 py-2 bg-gray-950/60">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-orange-400/90 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
+                          {fmtDateGroup(item.date)}
+                        </span>
+                        <div className="flex-1 h-px bg-gray-800/80" />
+                      </div>
+                    </td>
+                  </tr>
+                )
+              }
+              const row = item
               const truck = truckMap[row.truck_id]
-              const rowBorder = {
-                booked: 'border-l-orange-500',
-                assigned: 'border-l-yellow-500',
-                in_transit: 'border-l-orange-500',
-                delivered: 'border-l-cyan-500',
-                invoiced: 'border-l-emerald-500',
-                paid: 'border-l-violet-500',
-                tonu: 'border-l-red-500',
-                canceled: 'border-l-gray-600',
-              }[row.status] || 'border-l-gray-700'
-              const rowBg = {
-                booked: 'bg-orange-600/25',
-                assigned: 'bg-yellow-600/25',
-                in_transit: 'bg-orange-600/25',
-                delivered: 'bg-cyan-600/25',
-                invoiced: 'bg-emerald-600/25',
-                paid: 'bg-violet-600/25',
-                tonu: 'bg-red-600/25',
-                canceled: 'bg-gray-600/15',
-              }[row.status] || ''
+              const broker = brokers[row.broker_id]
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}
+                  className="border-b border-gray-800/40 hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                  onClick={() => openDrawer(row.id)}
                 >
-                  <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
-                    <StatusSelect row={row} onChange={handleStatusChange} />
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="font-semibold text-white">{row.order_number}</div>
-                    {brokers[row.broker_id] && (
-                      <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
+                  <td className="px-4 py-3.5">
+                    <div className="text-orange-400 font-bold text-sm font-mono leading-none tracking-tight">
+                      {row.ref_number ? `R-${row.ref_number}` : `#${row.order_number || '—'}`}
+                    </div>
+                    {row.ref_number && row.order_number && (
+                      <div className="text-[10px] text-gray-500 mt-0.5 font-mono">{row.order_number}</div>
                     )}
                   </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                  <td className="px-4 py-3.5">
+                    {broker
+                      ? <div className="text-gray-200 text-xs font-medium truncate max-w-[160px]">{broker.name}</div>
+                      : <span className="text-gray-700 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5">
                     {truck ? (
-                      <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">
-                        {truck.number}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {row.dispatcher ? (
-                      <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span>
+                      <>
+                        <span className="bg-gray-800 border border-gray-700/80 text-gray-200 text-[11px] font-semibold px-2 py-0.5 rounded-md font-mono">
+                          {truck.number}
+                        </span>
+                        <div className="text-[10px] text-gray-500 mt-0.5 truncate max-w-[90px]">
+                          {row.driver_name || dispatcherName(row.dispatcher) || ''}
+                        </div>
+                      </>
                     ) : (
-                      <span className="text-gray-700">—</span>
+                      <span className="text-[10px] text-gray-600 italic">Sin asignar</span>
                     )}
                   </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
-                    <div className="text-[10px] text-gray-500">{row.pu_date}</div>
+                  <td className="px-4 py-3.5">
+                    <div className="text-gray-200 text-xs font-medium truncate max-w-[140px]">{row.pu_city || '—'}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{row.pu_date || ''}</div>
                   </td>
-                  <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
-                    <div className="text-[10px] text-gray-500">{row.do_date}</div>
-                  </td>
-                  <td className="py-2.5 pr-3 text-right text-gray-300 text-sm font-medium cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {Number(row.miles || 0).toLocaleString()}
-                  </td>
-                  <td className="py-2.5 pr-3 text-right text-sm cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    {Number(row.dead_miles || 0) > 0 ? (
-                      <span className="text-orange-400 font-medium">{Number(row.dead_miles).toLocaleString()}</span>
-                    ) : (
-                      <span className="text-gray-700">-</span>
+                  <td className="px-4 py-3.5 text-right">
+                    <div className="text-gray-200 text-xs font-semibold tabular-nums">{Number(row.miles || 0).toLocaleString()}</div>
+                    {Number(row.dead_miles || 0) > 0 && (
+                      <div className="text-[10px] text-orange-400/60 mt-0.5 tabular-nums">+{Number(row.dead_miles).toLocaleString()} DH</div>
                     )}
                   </td>
-                  <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
-                    <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
+                  <td className="px-4 py-3.5">
+                    <div className="text-gray-200 text-xs font-medium truncate max-w-[140px]">{row.do_city || '—'}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{row.do_date || ''}</div>
+                  </td>
+                  <td className="px-4 py-3.5 text-right">
+                    <div className={`font-semibold text-sm tabular-nums ${row.status === 'tonu' ? 'text-red-400' : 'text-green-400'}`}>
+                      {fmt(row.rate || 0)}
+                    </div>
                     {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
-                      <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
+                      <div className="text-[10px] text-gray-600 mt-0.5 tabular-nums">
+                        ${(Number(row.rate) / (Number(row.miles) + Number(row.dead_miles || 0))).toFixed(2)}/mi
+                      </div>
                     )}
                   </td>
-                  <td className="py-2.5">
-                    <button
-                      onClick={() => openDrawer(row.id)}
-                      className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </button>
+                  <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
+                    <StatusSelect row={row} onChange={handleStatusChange} />
                   </td>
                 </tr>
               )
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-gray-600">
-                  {q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}
+                <td colSpan={8} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="w-8 h-8 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                    </svg>
+                    <p className="text-gray-600 text-sm">{q ? 'Sin resultados para la búsqueda' : 'Sin órdenes'}</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -609,35 +610,41 @@ export default function OrdersView() {
 
       {/* Floating totals bar */}
       {filtered.length > 0 && !drawerId && (
-        <div className="fixed bottom-4 right-4 sm:right-6 z-40 bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg">
-          <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
-          <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
-          <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
-          {(() => { const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0); const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0); return tMi > 0 ? <span className="text-cyan-400"><span className="text-gray-600 mr-1">RPM</span> ${(tRate / tMi).toFixed(2)}</span> : null })()}
+        <div className="fixed bottom-4 right-4 sm:right-6 z-40 bg-gray-950/90 backdrop-blur-md border border-gray-700/80 rounded-2xl px-5 py-3 flex items-center gap-5 text-xs shadow-xl shadow-black/40">
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-600 text-[10px] uppercase tracking-wide">Miles</span>
+            <span className="text-gray-300 font-semibold tabular-nums">{Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-600 text-[10px] uppercase tracking-wide">DH</span>
+            <span className="text-orange-400 font-semibold tabular-nums">{Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
+          </div>
+          {(() => {
+            const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0)
+            const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+            return (
+              <>
+                <div className="w-px h-4 bg-gray-700" />
+                <span className="text-green-400 font-bold text-sm tabular-nums">{fmt(tRate)}</span>
+                {tMi > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600 text-[10px] uppercase tracking-wide">RPM</span>
+                    <span className="text-cyan-400 font-semibold tabular-nums">${(tRate / tMi).toFixed(2)}</span>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
       {/* Order Detail Drawer */}
       {drawerId && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Backdrop */}
-          <div
-            className={`absolute inset-0 transition-opacity duration-300 ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
-            onClick={closeDrawer}
-          />
-          {/* Panel */}
-          <div
-            className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out ${
-              drawerVisible ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
+          <div className={`absolute inset-0 transition-opacity duration-300 ${drawerVisible ? 'opacity-100' : 'opacity-0'}`} onClick={closeDrawer} />
+          <div className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out ${drawerVisible ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="p-4 sm:p-6">
-              <OrderDetail
-                key={drawerId}
-                orderId={drawerId}
-                onClose={closeDrawer}
-                onSaved={() => { fetchData(); closeDrawer() }}
-              />
+              <OrderDetail key={drawerId} orderId={drawerId} onClose={closeDrawer} onSaved={() => { fetchData(); closeDrawer() }} />
             </div>
           </div>
         </div>
@@ -656,9 +663,7 @@ export default function OrdersView() {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={tonuPrice}
+                  type="number" step="0.01" value={tonuPrice}
                   onChange={e => setTonuPrice(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-2.5 text-gray-100 text-lg font-semibold focus:outline-none focus:border-red-500"
                   autoFocus
