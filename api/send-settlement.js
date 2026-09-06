@@ -207,6 +207,11 @@ export default async function handler(req, res) {
       payDate, periodStart, periodEnd, orders,
     })
 
+    // Preview mode: return HTML without sending
+    if (req.body.action === 'preview') {
+      return res.status(200).json({ success: true, html })
+    }
+
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
 import { useToast } from './Toast'
@@ -50,6 +51,9 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sendingId, setSendingId] = useState(null)
+  const [previewHtml, setPreviewHtml] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(null) // paymentId while loading
+  const htmlCache = useRef({}) // { [paymentId]: html }
   const toast = useToast()
 
   const meta = user.user_metadata || {}
@@ -140,6 +144,51 @@ export default function DispatcherPaymentModal({ user, onClose }) {
     setSelectedIds(new Set())
     await fetchData()
     setSaving(false)
+  }
+
+  async function fetchPreview(payment, force = false) {
+    if (!force && htmlCache.current[payment.id]) {
+      setPreviewHtml(htmlCache.current[payment.id])
+      return
+    }
+    setPreviewLoading(payment.id)
+    try {
+      const { data: pOrders } = await supabase
+        .from('orders')
+        .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles')
+        .in('id', payment.order_ids || [])
+
+      const res = await fetch('/api/send-settlement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'preview',
+          type: 'dispatcher',
+          paymentNumber: payment.payment_number,
+          dispatcherEmail,
+          dispatcherName,
+          gross: payment.gross_revenue,
+          commissionPct: payment.commission_pct,
+          payout: payment.payout,
+          payDate: payment.pay_date,
+          periodStart: payment.period_start,
+          periodEnd: payment.period_end,
+          orders: pOrders || [],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.html) throw new Error(data.error || 'Error')
+      htmlCache.current[payment.id] = data.html
+      setPreviewHtml(data.html)
+    } catch (e) {
+      toast.error('Error al generar preview: ' + e.message)
+    }
+    setPreviewLoading(null)
+  }
+
+  function regenerate(payment) {
+    delete htmlCache.current[payment.id]
+    fetchPreview(payment, true)
   }
 
   async function sendSettlement(payment) {
@@ -256,20 +305,47 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                             )}
                           </div>
                         </div>
-                        {/* Right: date + send */}
+                        {/* Right: date + actions */}
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <p className="text-xs text-gray-400">{fmtDate(p.pay_date)}</p>
-                          <button
-                            onClick={() => sendSettlement(p)}
-                            disabled={sendingId === p.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
-                          >
-                            {sendingId === p.id
-                              ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                              : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
-                            }
-                            Enviar
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            {/* Preview */}
+                            <button
+                              onClick={() => fetchPreview(p)}
+                              disabled={previewLoading === p.id}
+                              title="Previsualizar"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                            >
+                              {previewLoading === p.id
+                                ? <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin" />
+                                : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                              }
+                              Ver
+                            </button>
+                            {/* Regenerate */}
+                            <button
+                              onClick={() => regenerate(p)}
+                              disabled={previewLoading === p.id}
+                              title="Regenerar"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                              Regenerar
+                            </button>
+                            {/* Send */}
+                            <button
+                              onClick={() => sendSettlement(p)}
+                              disabled={sendingId === p.id}
+                              title="Enviar email"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                            >
+                              {sendingId === p.id
+                                ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                              }
+                              Enviar
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -389,5 +465,43 @@ export default function DispatcherPaymentModal({ user, onClose }) {
         </div>
       </div>
     </div>
+
+    {/* Preview overlay */}
+    {previewHtml && createPortal(
+      <div className="fixed inset-0 z-[80] flex flex-col bg-black/80">
+        {/* Preview toolbar */}
+        <div className="flex items-center justify-between px-5 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
+          <p className="text-sm font-semibold text-white">Vista previa — Settlement #{payments.find(p => htmlCache.current[p.id] === previewHtml)?.payment_number || ''}</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const match = payments.find(p => htmlCache.current[p.id] === previewHtml)
+                if (match) regenerate(match)
+                setPreviewHtml(null)
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+              Regenerar
+            </button>
+            <button
+              onClick={() => setPreviewHtml(null)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              Cerrar
+            </button>
+          </div>
+        </div>
+        {/* iframe */}
+        <iframe
+          srcDoc={previewHtml}
+          className="flex-1 w-full border-0 bg-white"
+          title="Settlement Preview"
+          sandbox="allow-same-origin"
+        />
+      </div>,
+      document.body
+    )}
   )
 }
