@@ -287,8 +287,12 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-gray-800/50 transition-colors ${
-                    row.paid ? 'hover:bg-gray-800/30' : 'opacity-50 hover:opacity-70 hover:bg-gray-800/20'
+                  className={`border-b transition-colors ${
+                    isLease && row.dispatcher_paid
+                      ? 'border-violet-900/60 bg-violet-950/30 hover:bg-violet-950/50'
+                      : row.paid
+                        ? 'border-gray-800/50 hover:bg-gray-800/30'
+                        : 'border-gray-800/50 opacity-50 hover:opacity-70 hover:bg-gray-800/20'
                   }`}
                 >
                   <td className="py-2.5 pr-2">
@@ -310,40 +314,27 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                     </button>
                   </td>
                   {isLease && (
-                    <td className="py-1 pr-3">
-                      <div className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all ${
-                        row.dispatcher_paid
-                          ? 'bg-violet-900/50 ring-1 ring-violet-600/50'
-                          : 'bg-violet-950/30 ring-1 ring-violet-900/40'
-                      }`}>
-                        <button
-                          onClick={() => handleToggleDispatcherPaid(row)}
-                          disabled={readOnly}
-                          title={row.dispatcher_paid ? 'Pago al conductor registrado' : 'Marcar pago al conductor'}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            row.dispatcher_paid
-                              ? 'bg-violet-600 border-violet-500 text-white'
-                              : 'border-violet-700 hover:border-violet-400 bg-transparent'
-                          } ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
-                            animatingId === row.id ? 'animate-dispatcher-pop' : ''
-                          }`}
-                        >
-                          {row.dispatcher_paid ? (
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                          ) : (
-                            <span className="text-[7px] text-violet-600 font-bold leading-none">$</span>
-                          )}
-                        </button>
-                        {row.dispatcher_paid && (
-                          <span className="text-[7px] text-violet-300 font-medium leading-none whitespace-nowrap">
-                            -{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
-                              Number(row.rate || 0) * (1 - (Number(row.discount_percent) || discountPct || 13) / 100)
-                            )}
-                          </span>
+                    <td className="py-2.5 pr-3">
+                      <button
+                        onClick={() => handleToggleDispatcherPaid(row)}
+                        disabled={readOnly}
+                        title={row.dispatcher_paid ? 'Pago al conductor registrado' : 'Marcar pago al conductor'}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                          row.dispatcher_paid
+                            ? 'bg-violet-600 border-violet-500 text-white'
+                            : 'border-violet-700 hover:border-violet-400 bg-transparent'
+                        } ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
+                          animatingId === row.id ? 'animate-dispatcher-pop' : ''
+                        }`}
+                      >
+                        {row.dispatcher_paid ? (
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                        ) : (
+                          <span className="text-[7px] text-violet-600 font-bold leading-none">$</span>
                         )}
-                      </div>
+                      </button>
                     </td>
                   )}
                   <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
