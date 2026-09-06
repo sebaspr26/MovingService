@@ -382,7 +382,7 @@ export default function OrdersView() {
         </div>
         <button
           onClick={() => openDrawer('new')}
-          className="hidden sm:inline-flex px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors items-center gap-2 w-fit"
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -757,16 +757,40 @@ export default function OrdersView() {
         </div>
       )}
 
-      {/* Mobile FAB — Nueva Orden */}
-      <button
-        onClick={() => openDrawer('new')}
-        className="sm:hidden fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-orange-600 text-white shadow-lg flex items-center justify-center hover:bg-orange-500 active:scale-95 transition-all"
-        style={{ boxShadow: '0 4px 24px rgba(234,88,12,0.5)' }}
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
+      {/* Mobile stats panel — floating bottom bar */}
+      {(() => {
+        const totalRate = filtered.reduce((s, o) => s + (Number(o.rate) || 0), 0)
+        const totalMiles = filtered.reduce((s, o) => s + (Number(o.miles) || 0), 0)
+        const totalDH = filtered.reduce((s, o) => s + (Number(o.dead_miles) || 0), 0)
+        const totalMilesAll = totalMiles + totalDH
+        const rpm = totalMilesAll > 0 ? totalRate / totalMilesAll : 0
+        if (!filtered.length) return null
+        return (
+          <div
+            className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-gray-800/80"
+            style={{ background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(16px)' }}
+          >
+            <div className="grid grid-cols-4 divide-x divide-gray-800/60 px-1 py-2">
+              <div className="flex flex-col items-center px-2">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Rate</span>
+                <span className="text-xs font-bold text-green-400">${Math.round(totalRate).toLocaleString()}</span>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Millas</span>
+                <span className="text-xs font-bold text-blue-400">{Math.round(totalMiles).toLocaleString()}</span>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">DH</span>
+                <span className="text-xs font-bold text-orange-400">{Math.round(totalDH).toLocaleString()}</span>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">RPM</span>
+                <span className="text-xs font-bold text-cyan-400">${rpm.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
