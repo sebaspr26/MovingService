@@ -207,8 +207,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
     for (let i = 0; i < sections.length; i++) {
       if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(sections[i], { scale: 1.5, backgroundColor: '#ffffff', useCORS: true })
-      const imgData = canvas.toDataURL('image/jpeg', 0.6)
+      const canvas = await html2canvas(sections[i], { scale: 3, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
       const imgW = pageW - margin * 2
       const imgH = (canvas.height * imgW) / canvas.width
       // If image is taller than page, scale down to fit
@@ -323,8 +323,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
     for (let i = 0; i < container.children.length; i++) {
       if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(container.children[i], { scale: 1.5, backgroundColor: '#ffffff', useCORS: true })
-      const imgData = canvas.toDataURL('image/jpeg', 0.6)
+      const canvas = await html2canvas(container.children[i], { scale: 3, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
       const imgW = pageW - margin * 2
       const imgH = (canvas.height * imgW) / canvas.width
       const finalH = imgH > pageH - margin * 2 ? pageH - margin * 2 : imgH

@@ -143,7 +143,7 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
     <div>
       {ownerName && (
         <div className="mb-4 flex items-center gap-2">
-          <span className="px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded text-xs font-medium">LIS</span>
+          <span className="px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded text-xs font-medium">LEASE</span>
           <span className="text-sm text-gray-300">Propietario: <span className="text-white font-medium">{ownerName}</span></span>
           <span className="text-gray-600 text-[10px]">(no afecta balance)</span>
         </div>

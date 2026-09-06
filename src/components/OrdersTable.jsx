@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 
-export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
+export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct, isLease }) {
   const toast = useToast()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
@@ -19,6 +19,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
   const [showSearch, setShowSearch] = useState(false)
   const [orderDrawerOpen, setOrderDrawerOpen] = useState(false)
   const [orderDrawerVisible, setOrderDrawerVisible] = useState(false)
+  const [animatingId, setAnimatingId] = useState(null)
 
   // Form state
   const [fOrderNumber, setFOrderNumber] = useState('')
@@ -112,6 +113,21 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     const { error } = await supabase.from('orders').update({ paid: newPaid, status: newStatus }).eq('id', row.id)
     if (error) {
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: wasPaid, status: row.status } : r))
+      toast.error(friendlyError(error.message))
+      return
+    }
+    if (onDataChange) onDataChange()
+  }
+
+  async function handleToggleDispatcherPaid(row) {
+    if (readOnly) return
+    const newVal = !row.dispatcher_paid
+    setRows(prev => prev.map(r => r.id === row.id ? { ...r, dispatcher_paid: newVal } : r))
+    setAnimatingId(row.id)
+    setTimeout(() => setAnimatingId(null), 400)
+    const { error } = await supabase.from('orders').update({ dispatcher_paid: newVal }).eq('id', row.id)
+    if (error) {
+      setRows(prev => prev.map(r => r.id === row.id ? { ...r, dispatcher_paid: row.dispatcher_paid } : r))
       toast.error(friendlyError(error.message))
       return
     }
@@ -253,6 +269,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
               <th className="pb-2 pr-2 w-8"><span className="sr-only">Pagado</span></th>
+              {isLease && <th className="pb-2 pr-2 w-8" title="Pago al conductor LEASE"><span className="sr-only">Conductor</span></th>}
               <th className="pb-2 pr-4">Orden #</th>
               <th className="pb-2 pr-4">PU Date</th>
               <th className="pb-2 pr-4">PU City</th>
@@ -292,6 +309,30 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                       )}
                     </button>
                   </td>
+                  {isLease && (
+                    <td className="py-2.5 pr-2">
+                      <button
+                        onClick={() => handleToggleDispatcherPaid(row)}
+                        disabled={readOnly}
+                        title={row.dispatcher_paid ? 'Pago al conductor registrado' : 'Marcar pago al conductor'}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                          row.dispatcher_paid
+                            ? 'bg-violet-600 border-violet-500 text-white'
+                            : 'border-violet-800 hover:border-violet-500 bg-transparent'
+                        } ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
+                          animatingId === row.id ? 'animate-dispatcher-pop' : ''
+                        }`}
+                      >
+                        {row.dispatcher_paid ? (
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                        ) : (
+                          <span className="text-[7px] text-violet-700 font-bold leading-none">$</span>
+                        )}
+                      </button>
+                    </td>
+                  )}
                   <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>
                     <Link to={`/orders/${row.id}`} className="hover:text-orange-400 transition-colors">
                       {row.order_number}
