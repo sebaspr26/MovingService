@@ -126,7 +126,7 @@ export default function Layout() {
   const showPagosSection = isSuperAdmin(session) || userMeta.role === 'admin'
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex">
+    <div className="h-screen overflow-hidden bg-gray-950 text-gray-100 flex">
       {/* Sidebar — desktop */}
       <aside
         className={`hidden lg:flex fixed inset-y-0 left-0 z-30 bg-gray-900 border-r border-gray-800 flex-col ${collapsed ? 'w-16' : 'w-64'}`}
@@ -683,7 +683,7 @@ export default function Layout() {
 
       {/* Main content */}
       <div
-        className={`flex-1 flex flex-col min-w-0 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
+        className={`flex-1 flex flex-col min-w-0 min-h-0 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
         style={{ transition: 'margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
       >
         {/* Mobile header */}
@@ -710,7 +710,7 @@ export default function Layout() {
           <h1 className="text-lg font-bold text-white flex-1">{companyName}</h1>
         </header>
 
-        <main className="flex-1 p-3 sm:p-6 overflow-auto">
+        <main className="flex-1 min-h-0 p-3 sm:p-6 overflow-auto">
           <Outlet />
         </main>
       </div>
