@@ -410,7 +410,7 @@ export default function UserProfile() {
                         <label className="block text-[10px] text-gray-500 mb-1">Estado</label>
                         <select value={licenseState}
                           onChange={e => { setLicenseState(e.target.value); setDriverDirty(true) }}
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
                           <option value="">—</option>
                           {Object.entries(US_STATE_NAMES).map(([k, v]) => <option key={k} value={k}>{k} — {v}</option>)}
                         </select>
@@ -421,7 +421,7 @@ export default function UserProfile() {
                       <div className="flex items-center gap-2">
                         <input type="date" value={licenseExpiry}
                           onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
-                          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                          className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
                         {licenseExpiry && <span className={`text-xs shrink-0 ${expiryColor(licenseExpiry)}`}>{expiryBadge(licenseExpiry)}</span>}
                       </div>
                     </div>
@@ -436,7 +436,7 @@ export default function UserProfile() {
                     <div className="flex items-center gap-2">
                       <input type="date" value={medicalExpiry}
                         onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
                       {medicalExpiry && <span className={`text-xs shrink-0 ${expiryColor(medicalExpiry)}`}>{expiryBadge(medicalExpiry)}</span>}
                     </div>
                   </div>
@@ -533,7 +533,7 @@ export default function UserProfile() {
                     <p className="text-xs text-gray-500 mb-2">Subir documento</p>
                     <div className="flex gap-2">
                       <select value={selectedTruckDocType} onChange={e => setSelectedTruckDocType(e.target.value)}
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
+                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
                         {Object.entries(TRUCK_DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                       <button onClick={() => truckDocRef.current?.click()} disabled={uploadingTruckDoc}

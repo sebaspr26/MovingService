@@ -924,7 +924,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                     // Auto-calculate DH + loaded miles
                     if (val) { calculateDH(val); autoCalculateRoute() }
                   }}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {trucks.map(t => (
@@ -947,7 +947,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 <select
                   value={equipmentType}
                   onChange={(e) => setEquipmentType(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -959,7 +959,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                 <select
                   value={loadType}
                   onChange={(e) => setLoadType(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
                   <option value="">-- Seleccionar --</option>
                   {LOAD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1047,11 +1047,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                       className="col-span-3 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     {/* Row 2: City, State, Date, Time From, Time To, Schedule */}
                     <input placeholder="Ciudad" value={stop.city || ''} onChange={(e) => updateStop(idx, 'city', e.target.value)} autoComplete="one-time-code"
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
+                      className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input placeholder="ST" value={stop.state || ''} onChange={(e) => updateStop(idx, 'state', e.target.value)} autoComplete="one-time-code"
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
+                      className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input type="date" value={stop.date || ''} onChange={(e) => updateStop(idx, 'date', e.target.value)}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
+                      className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500" />
                     <input type="time" value={stop.time || ''} onChange={(e) => {
                       updateStop(idx, 'time', e.target.value)
                       if (e.target.value && e.target.value === stop.time_end) updateStop(idx, 'schedule_type', 'appointment')
@@ -1205,14 +1205,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                             <td className="px-3 py-2">
                               <select value={item.pay_item} onChange={(e) => {
                                 const u = [...invoiceItems]; u[idx] = { ...u[idx], pay_item: e.target.value }; setInvoiceItems(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
+                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {INVOICE_ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
                             <td className="py-2 pl-3">
                               <select value={item.units_type} onChange={(e) => {
                                 const u = [...invoiceItems]; u[idx] = { ...u[idx], units_type: e.target.value }; setInvoiceItems(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
+                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {UNITS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
@@ -1308,7 +1308,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
                             <td className="px-3 py-2">
                               <select value={item.type} onChange={(e) => {
                                 const u = [...commodities]; u[idx] = { ...u[idx], type: e.target.value }; setCommodities(u)
-                              }} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
+                              }} className="sel bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-orange-500">
                                 {COMMODITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                             </td>
@@ -1809,7 +1809,7 @@ function Field({ label, value, onChange, type = 'text', step, required }) {
         step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+        className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
       />
     </div>
   )
@@ -1874,7 +1874,7 @@ function DispatcherAutocomplete({ label, value, onChange, authDispatchers, requi
         value={inputText}
         onChange={(e) => { setInputText(e.target.value); setOpen(true) }}
         onFocus={() => { setInputText(''); setOpen(true) }}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+        className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
         required={required && !value}
         placeholder="Buscar dispatcher..."
       />

@@ -125,7 +125,7 @@ export default function Scanner() {
         <select
           value={selectedTruck}
           onChange={(e) => setSelectedTruck(e.target.value)}
-          className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500 w-full max-w-xs"
+          className="sel bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500 w-full max-w-xs"
         >
           <option value="">Seleccionar camion...</option>
           {trucks.map(t => (
@@ -227,7 +227,7 @@ export default function Scanner() {
                       <select
                         value={value}
                         onChange={(e) => updateField(key, e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                        className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                       >
                         {['Mantenimiento','Seguro','Peajes','Reparacion','Llantas','Lavado','Parqueo','Multas','Comida','Otros'].map(c => (
                           <option key={c} value={c}>{c}</option>
@@ -239,7 +239,7 @@ export default function Scanner() {
                         step={typeof value === 'number' ? '0.01' : undefined}
                         value={value}
                         onChange={(e) => updateField(key, typeof value === 'number' ? Number(e.target.value) : e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                        className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                       />
                     )}
                   </div>

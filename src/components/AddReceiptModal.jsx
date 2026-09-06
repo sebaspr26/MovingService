@@ -291,7 +291,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
               <select
                 value={selectedTruck}
                 onChange={(e) => setSelectedTruck(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 required
               >
                 <option value="">Seleccionar camion...</option>
@@ -310,7 +310,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                 type="text"
                 value={invoice}
                 onChange={(e) => setInvoice(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
               />
             </div>
             <div>
@@ -319,7 +319,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 required
               />
             </div>
@@ -330,7 +330,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="MIAMI, FL"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
               />
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           step="0.01"
                           value={line.gallons}
                           onChange={(e) => updateLine(i, 'gallons', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                         />
                       </div>
                       <div>
@@ -406,7 +406,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           step="0.01"
                           value={line.value}
                           onChange={(e) => updateLine(i, 'value', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           required
                         />
                       </div>
@@ -420,7 +420,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           value={line.description}
                           onChange={(e) => updateLine(i, 'description', e.target.value)}
                           placeholder="Ej: Sem 11-17 May"
-                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           required
                         />
                       </div>
@@ -431,7 +431,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           step="0.01"
                           value={line.amount}
                           onChange={(e) => updateLine(i, 'amount', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           required
                         />
                       </div>
@@ -444,7 +444,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           <select
                             value={line.category}
                             onChange={(e) => updateLine(i, 'category', e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                            className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           >
                             <option value="">Seleccionar...</option>
                             {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -457,7 +457,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                             step="0.01"
                             value={line.amount}
                             onChange={(e) => updateLine(i, 'amount', e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                            className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                             required
                           />
                         </div>
@@ -468,7 +468,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
                           type="text"
                           value={line.description}
                           onChange={(e) => updateLine(i, 'description', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                          className="sel w-full bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                           required
                         />
                       </div>

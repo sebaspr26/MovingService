@@ -411,7 +411,7 @@ export default function StatisticsMap() {
             <select
               value={driverFilter}
               onChange={e => setDriverFilter(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-100 focus:outline-none focus:border-orange-500"
+              className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-100 focus:outline-none focus:border-orange-500"
             >
               <option value="">Todos</option>
               {drivers.map(d => (

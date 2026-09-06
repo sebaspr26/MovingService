@@ -992,7 +992,7 @@ function SectionChoferes() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Camion Asignado</label>
-              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
+              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="sel w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Sin asignar</option>
                 {trucks.map(t => <option key={t.id} value={t.id}>{t.name} (#{t.number})</option>)}
               </select>
@@ -1377,14 +1377,14 @@ function SectionTrailers() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Tipo</label>
-              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
+              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="sel w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Seleccionar...</option>
                 {TRAILER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Camion Asignado</label>
-              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
+              <select value={form.truck_id} onChange={e => setForm({...form, truck_id: e.target.value})} className="sel w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500">
                 <option value="">Sin asignar</option>
                 {trucks.map(t => <option key={t.id} value={t.id}>{t.name} (#{t.number})</option>)}
               </select>

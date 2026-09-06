@@ -135,6 +135,23 @@ html.light .bg-black\/60 {
   background: #c2410c;
 }
 
+/* ========================
+   CUSTOM SELECT — quita flecha nativa, pone chevron custom
+   ======================== */
+select.sel {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  background-size: 1rem;
+  padding-right: 2rem !important;
+}
+select.sel option {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
 ::-webkit-scrollbar-corner {
   background: #1f2937;
 }

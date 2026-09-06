@@ -955,7 +955,7 @@ export default function Profiles() {
                 <select
                   value={form.role}
                   onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/70"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/70"
                 >
                   <option value="admin">Admin</option>
                   <option value="dispatcher">Dispatcher</option>

@@ -184,7 +184,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                 <select
                   value={formData[field.name] || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                   required={field.required}
                 >
                   <option value="">Seleccionar...</option>
@@ -198,7 +198,7 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                   step={field.step}
                   value={formData[field.name] || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                   required={field.required}
                   placeholder={field.placeholder}
                 />
