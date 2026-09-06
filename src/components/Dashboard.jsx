@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [truckRecurring, setTruckRecurring] = useState([])
   const [truckIsLis, setTruckIsLis] = useState(false)
   const [truckOwnerName, setTruckOwnerName] = useState('')
+  const [truckVin, setTruckVin] = useState('')
 
   // Recurring expenses banner
   const [pendingRecurring, setPendingRecurring] = useState([])
@@ -250,6 +251,7 @@ export default function Dashboard() {
       setTruckNumber(truck.number)
       setTruckIsLis(truck.is_lis || false)
       setTruckOwnerName(truck.owner_name || '')
+      setTruckVin(truck.vin_number || '')
       setTruckDiscount(String(truck.discount_percent || 13))
       setTruckDiscountCustom('')
       if (!['13', '11'].includes(String(truck.discount_percent))) {
@@ -274,6 +276,7 @@ export default function Dashboard() {
       setTruckDriverId('')
       setTruckIsLis(false)
       setTruckOwnerName('')
+      setTruckVin('')
       setTruckPartners([{ name: '', percentage: '' }])
       setTruckRecurring([])
       setTruckDiscount('13')
@@ -350,7 +353,7 @@ export default function Dashboard() {
 
     if (editingTruck) {
       const { error } = await supabase.from('trucks')
-        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null })
+        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null })
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
@@ -376,7 +379,7 @@ export default function Dashboard() {
       await saveRecurringExpenses(editingTruck.id)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
-        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, company_id: getActiveCompanyId() })
+        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, company_id: getActiveCompanyId() })
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
@@ -888,6 +891,17 @@ export default function Dashboard() {
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">VIN #</label>
+                <input
+                  type="text"
+                  value={truckVin}
+                  onChange={(e) => setTruckVin(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500 font-mono"
+                  placeholder="1FUJA6CK07LY12345"
+                />
               </div>
 
               <div>

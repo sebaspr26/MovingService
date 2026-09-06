@@ -5,6 +5,7 @@ import TruckView from './components/TruckView'
 import OrdersView from './components/OrdersView'
 import OrderDetail from './components/OrderDetail'
 import CompanyInfo from './components/CompanyInfo'
+import DispatcherDrivers from './components/DispatcherDrivers'
 import Informacion from './components/InfoDrawer'
 import Settings from './components/Settings'
 import Statistics from './components/Statistics'
@@ -94,6 +95,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="profiles" element={<Profiles />} />
           <Route path="informacion" element={<Informacion />} />
+          <Route path="conductores" element={<DispatcherDrivers />} />
           <Route path="profile" element={<UserProfile />} />
         </Route>
 
