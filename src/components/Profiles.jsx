@@ -147,9 +147,9 @@ export default function Profiles() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'list' }),
         }),
-        supabase.from('drivers').select('id, name, email, phone, status').order('name'),
-        supabase.from('trucks').select('id, name, number').order('number'),
-        supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('id, name, email, phone, status').order('name'); return cId ? q.eq('company_id', cId) : q })(),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); return cId ? q.eq('company_id', cId) : q })(),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''); return cId ? q.eq('company_id', cId) : q })(),
       ])
       const usersData = await usersRes.json().catch(() => ({}))
       if (!usersRes.ok) throw new Error(usersData?.error || `Error ${usersRes.status}`)
