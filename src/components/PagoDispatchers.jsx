@@ -98,7 +98,9 @@ export default function PagoDispatchers() {
             const role = meta.role || 'dispatcher'
             const name = meta.name || user.email || ''
             const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-            const currentRate = meta.dispatcher_rates?.slice(-1)[0]
+            const companyMeta = (activeCompanyId && meta.company_settings?.[activeCompanyId]) || {}
+            const allRates = companyMeta.dispatcher_rates || meta.dispatcher_rates || []
+            const currentRate = allRates.slice(-1)[0]
 
             return (
               <div
@@ -150,9 +152,9 @@ export default function PagoDispatchers() {
                 )}
 
                 {/* Historial de comisiones */}
-                {meta.dispatcher_rates?.length > 1 && (
+                {allRates.length > 1 && (
                   <div className="text-[10px] text-gray-600">
-                    Historial: {meta.dispatcher_rates.slice(-3).reverse().map(r => `${r.month}: ${r.pct}%`).join(' · ')}
+                    Historial: {allRates.slice(-3).reverse().map(r => `${r.month}: ${r.pct}%`).join(' · ')}
                   </div>
                 )}
               </div>

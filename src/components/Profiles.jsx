@@ -304,8 +304,11 @@ export default function Profiles() {
   }
 
   function openPermissions(user) {
+    const activeCompanyId = getActiveCompanyId()
+    // Read per-company settings, fall back to legacy top-level
+    const companyMeta = (activeCompanyId && user.user_metadata?.company_settings?.[activeCompanyId]) || {}
     const defaults = defaultPermissions()
-    const existing = user.user_metadata?.permissions || {}
+    const existing = companyMeta.permissions || user.user_metadata?.permissions || {}
     const merged = {}
     for (const mod of MODULES) {
       merged[mod.key] = {
@@ -314,13 +317,13 @@ export default function Profiles() {
       }
     }
     setPerms(merged)
-    // allowed_companies: si no está definido, default = todas las empresas
+    // allowed_companies: global (which companies the user can access)
     const existingAllowed = user.user_metadata?.allowed_companies
     setAllowedCompanies(existingAllowed ?? companies.map(c => c.id))
-    const existingTrucks = user.user_metadata?.allowed_trucks
+    // allowed_trucks and dispatcher_rates are per-company
+    const existingTrucks = companyMeta.allowed_trucks ?? user.user_metadata?.allowed_trucks
     setAllowedTrucks(existingTrucks ?? dbTrucks.map(t => t.id))
-    // Dispatcher rate history
-    const rates = user.user_metadata?.dispatcher_rates || []
+    const rates = companyMeta.dispatcher_rates || user.user_metadata?.dispatcher_rates || []
     setRateHistory(rates)
     const currentMonth = new Date().toISOString().slice(0, 7)
     const monthEntry = rates.find(r => r.month === currentMonth)
@@ -365,7 +368,7 @@ export default function Profiles() {
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks, dispatcher_rates: newRates }),
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks, dispatcher_rates: newRates, company_id: getActiveCompanyId() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)

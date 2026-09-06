@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
+import { getActiveCompanyId } from '../lib/company'
 import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
@@ -62,8 +63,10 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   const dispatcherName = meta.name || user.email || ''
   const dispatcherEmail = user.email || ''
 
-  // Base commission from profile (current month or latest configured)
-  const rates = meta.dispatcher_rates || []
+  // Base commission from profile — per-company, fallback to legacy top-level
+  const cId = getActiveCompanyId()
+  const companyMeta = (cId && meta.company_settings?.[cId]) || {}
+  const rates = companyMeta.dispatcher_rates || meta.dispatcher_rates || []
   const currentMonth = new Date().toISOString().slice(0, 7)
   const profileRate = (rates.find(r => r.month === currentMonth) || rates[rates.length - 1])?.pct || 0
 

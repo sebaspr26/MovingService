@@ -1,3 +1,20 @@
+import { getActiveCompanyId } from './company'
+
+// Returns the per-company slice of user_metadata (permissions, allowed_trucks, dispatcher_rates)
+// Falls back to legacy top-level fields for users not yet migrated.
+export function getPerCompanyMeta(session) {
+  const meta = session?.user?.user_metadata || {}
+  const companyId = getActiveCompanyId()
+  if (companyId && meta.company_settings?.[companyId]) {
+    return meta.company_settings[companyId]
+  }
+  return {
+    permissions: meta.permissions,
+    allowed_trucks: meta.allowed_trucks,
+    dispatcher_rates: meta.dispatcher_rates,
+  }
+}
+
 export const MODULES = [
   {
     key: 'dashboard',
@@ -106,7 +123,7 @@ export function canAccess(session, moduleKey, subKey = null) {
   // Dispatchers siempre tienen acceso a conductores (solo los suyos)
   if (role === 'dispatcher' && !subKey && moduleKey === 'conductores') return true
   // admins tienen acceso total salvo que tengan permisos explícitos configurados
-  const perms = session?.user?.user_metadata?.permissions
+  const perms = getPerCompanyMeta(session).permissions
   if (!perms && role === 'admin') return true
   if (!perms) return false // sin config = sin acceso (dispatcher/driver/etc)
   const mod = perms[moduleKey]
@@ -119,6 +136,6 @@ export function canAccess(session, moduleKey, subKey = null) {
 // Super admin → null (sin filtro). Otros → solo los asignados; si nunca se asignaron → [] (ninguno).
 export function getAllowedTruckIds(session) {
   if (isSuperAdmin(session)) return null
-  const ids = session?.user?.user_metadata?.allowed_trucks
+  const ids = getPerCompanyMeta(session).allowed_trucks
   return Array.isArray(ids) ? ids : []
 }

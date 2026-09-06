@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getActiveCompanyId } from '../lib/company'
+import { getPerCompanyMeta } from '../lib/permissions'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
@@ -201,7 +202,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const isAdminOrAbove = ['admin', 'super_admin'].includes(userRole)
   // truck IDs this dispatcher is allowed to see (null = all)
   const allowedTruckIds = isDispatcher
-    ? (Array.isArray(userMeta.allowed_trucks) ? userMeta.allowed_trucks : [])
+    ? (() => { const ids = getPerCompanyMeta(session).allowed_trucks; return Array.isArray(ids) ? ids : [] })()
     : null
 
   const [loading, setLoading] = useState(!isNew)

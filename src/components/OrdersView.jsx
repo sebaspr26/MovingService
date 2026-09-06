@@ -7,7 +7,7 @@ import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { getAllowedTruckIds, isSuperAdmin } from '../lib/permissions'
+import { getAllowedTruckIds, isSuperAdmin, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 
 function useCountUp(target, duration = 700) {
@@ -236,7 +236,7 @@ export default function OrdersView() {
     }
     // Dispatchers: solo sus órdenes a menos que tengan permiso "ver_todas_ordenes"
     if (userRole === 'dispatcher' && userEmail) {
-      const canSeeAll = session?.user?.user_metadata?.permissions?.orders?.ver_todas_ordenes === true
+      const canSeeAll = getPerCompanyMeta(session).permissions?.orders?.ver_todas_ordenes === true
       if (!canSeeAll) {
         const userName = (session?.user?.user_metadata?.name || '').trim().toLowerCase()
         filteredOrders = filteredOrders.filter(o => {

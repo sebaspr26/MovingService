@@ -189,16 +189,34 @@ export default async function handler(req, res) {
     }
 
     if (action === 'update_permissions') {
-      const { userId, permissions, allowed_companies, allowed_trucks, name, dispatcher_rates } = req.body
+      const { userId, permissions, allowed_companies, allowed_trucks, name, dispatcher_rates, company_id } = req.body
       const { data: current } = await supabaseAdmin.auth.admin.getUserById(userId)
-      const updated = { ...current?.user?.user_metadata, permissions }
-      if (allowed_companies !== undefined) updated.allowed_companies = allowed_companies
-      if (allowed_trucks !== undefined) updated.allowed_trucks = allowed_trucks
+      const existing = current?.user?.user_metadata || {}
+      const updated = { ...existing }
       if (name !== undefined) updated.name = name
-      if (dispatcher_rates !== undefined) updated.dispatcher_rates = dispatcher_rates
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        user_metadata: updated,
-      })
+      if (allowed_companies !== undefined) updated.allowed_companies = allowed_companies
+
+      if (company_id) {
+        // Per-company: store permissions, allowed_trucks, dispatcher_rates under company_settings[company_id]
+        const existingCS = existing.company_settings || {}
+        const existingForCompany = existingCS[company_id] || {}
+        updated.company_settings = {
+          ...existingCS,
+          [company_id]: {
+            ...existingForCompany,
+            ...(permissions !== undefined ? { permissions } : {}),
+            ...(allowed_trucks !== undefined ? { allowed_trucks } : {}),
+            ...(dispatcher_rates !== undefined ? { dispatcher_rates } : {}),
+          },
+        }
+      } else {
+        // Legacy fallback — top-level
+        if (permissions !== undefined) updated.permissions = permissions
+        if (allowed_trucks !== undefined) updated.allowed_trucks = allowed_trucks
+        if (dispatcher_rates !== undefined) updated.dispatcher_rates = dispatcher_rates
+      }
+
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { user_metadata: updated })
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json({ success: true })
     }
