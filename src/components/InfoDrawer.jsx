@@ -1,15 +1,29 @@
 import { useState, useEffect, useRef } from 'react'
 import { useToast, friendlyError } from './Toast'
 import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
+import { isSuperAdmin } from '../lib/permissions'
 
 export default function Informacion() {
+  const { session } = useAuth()
+  const readonly = !isSuperAdmin(session)
   const [tab, setTab] = useState('empresa')
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Informaci&oacute;n</h1>
-        <p className="text-sm text-gray-500 mt-1">Datos de la empresa y facturaci&oacute;n</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Informaci&oacute;n</h1>
+          <p className="text-sm text-gray-500 mt-1">Datos de la empresa y facturaci&oacute;n</p>
+        </div>
+        {readonly && (
+          <span className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 shrink-0">
+            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+            Solo lectura
+          </span>
+        )}
       </div>
 
       {/* Tabs */}
@@ -36,13 +50,13 @@ export default function Informacion() {
         </button>
       </div>
 
-      {tab === 'empresa' && <FormCompanyInfo />}
-      {tab === 'billing' && <FormBilling />}
+      {tab === 'empresa' && <FormCompanyInfo readonly={readonly} />}
+      {tab === 'billing' && <FormBilling readonly={readonly} />}
     </div>
   )
 }
 
-function FormCompanyInfo() {
+function FormCompanyInfo({ readonly }) {
   const toast = useToast()
   const emptyForm = {
     company_name: '', dba: '', ein: '', mc_number: '', dot_number: '',
@@ -81,12 +95,13 @@ function FormCompanyInfo() {
     }
   }, [isDirty])
 
-  const inputClass = "w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
+  const inputClass = `w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500 ${readonly ? 'opacity-60 cursor-default' : ''}`
 
   if (loading) return <div className="text-sm text-gray-500 py-4">Cargando...</div>
 
   return (
-    <div className="space-y-6">
+    <fieldset disabled={readonly} className="space-y-6">
+      {!readonly && (
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-600">Esta info se muestra en el invoice y sidebar</p>
         <button
@@ -102,6 +117,7 @@ function FormCompanyInfo() {
           Guardar
         </button>
       </div>
+      )}
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -171,11 +187,11 @@ function FormCompanyInfo() {
           </div>
         </div>
       </div>
-    </div>
+    </fieldset>
   )
 }
 
-function FormBilling() {
+function FormBilling({ readonly }) {
   const toast = useToast()
   const emptyBilling = { billing_name: '', billing_address: '', billing_city: '', billing_state: '', billing_zip: '', billing_phone: '', billing_email: '' }
   const emptyRemit = { remit_name: '', remit_address: '', remit_city: '', remit_state: '', remit_zip: '', remit_email: '' }
@@ -223,12 +239,13 @@ function FormBilling() {
     }
   }, [isDirty])
 
-  const inputClass = "w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
+  const inputClass = `w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500 ${readonly ? 'opacity-60 cursor-default' : ''}`
 
   if (loading) return <div className="text-sm text-gray-500 py-4">Cargando...</div>
 
   return (
-    <div className="space-y-6">
+    <fieldset disabled={readonly} className="space-y-6">
+      {!readonly && (
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-600">Datos para facturacion y envio de invoices</p>
         <button
@@ -244,6 +261,7 @@ function FormBilling() {
           Guardar
         </button>
       </div>
+      )}
 
       {/* Logo */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 flex items-center justify-between">
@@ -364,6 +382,6 @@ function FormBilling() {
           </div>
         </div>
       )}
-    </div>
+    </fieldset>
   )
 }
