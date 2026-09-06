@@ -56,11 +56,17 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={
-          !isSuperAdmin(session) && !canAccess(session, 'dashboard')
-            ? <Navigate to="/welcome" replace />
-            : <Dashboard />
-        } />
+          <Route index element={(() => {
+            if (!isSuperAdmin(session) && !canAccess(session, 'dashboard'))
+              return <Navigate to="/welcome" replace />
+            const meta = session?.user?.user_metadata || {}
+            const role = meta.role
+            const isDriver = role === 'driver' || role === 'driver_lease'
+            const trucks = meta.allowed_trucks || []
+            if (isDriver && trucks.length > 0)
+              return <Navigate to={`/truck/${trucks[0]}`} replace />
+            return <Dashboard />
+          })()} />
           <Route path="truck/:id" element={<TruckView />} />
           <Route path="orders" element={<OrdersView />} />
           <Route path="orders/:id" element={<OrderDetail />} />
