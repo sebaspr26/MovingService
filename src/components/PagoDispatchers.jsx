@@ -20,6 +20,7 @@ export default function PagoDispatchers() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
+  const activeCompanyId = getActiveCompanyId()
 
   useEffect(() => { fetchData() }, [])
 
@@ -33,7 +34,6 @@ export default function PagoDispatchers() {
         body: JSON.stringify({ action: 'list' }),
       })
       const data = await res.json()
-      const activeCompanyId = getActiveCompanyId()
       const allUsers = (data.users || []).filter(u =>
         ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role)
       )
