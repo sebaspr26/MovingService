@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
@@ -24,6 +24,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
   const isDrawer = !!propId
   const isNew = id === 'new'
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const { session } = useAuth()
 
@@ -142,6 +143,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
       // Auto-fill dispatcher with current user's email for new orders (all roles)
       if (isNew && userEmail) {
         setDispatcher(userEmail)
+      }
+
+      // Pre-select truck if navigated from TruckView
+      if (isNew && location.state?.truckId) {
+        const preselectedTruck = (allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
+          .find(t => t.id === location.state.truckId)
+        if (preselectedTruck) {
+          setTruckId(preselectedTruck.id)
+          setDiscountPercent(preselectedTruck.discount_percent || 13)
+        }
       }
     })
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
@@ -10,6 +10,7 @@ import { canAccess, isSuperAdmin } from '../lib/permissions'
 
 export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
   const toast = useToast()
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -226,7 +227,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           </button>
           {!readOnly && (
             <button
-              onClick={() => openModal()}
+              onClick={() => navigate('/orders/new', { state: { truckId } })}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
             >
               + Agregar Orden

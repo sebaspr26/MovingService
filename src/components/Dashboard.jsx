@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
 import { useToast, friendlyError } from './Toast'
@@ -58,6 +58,7 @@ const expenseFields = [
 export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [trucks, setTrucks] = useState([])
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -370,8 +371,13 @@ export default function Dashboard() {
       }
     }
 
+    if (!editingTruck && !truckDriverId) {
+      setTruckError('Debes asignar un conductor al camion')
+      return
+    }
+
     if (truckIsLis && !truckOwnerName.trim()) {
-      setTruckError('El nombre del propietario es requerido para trucks LIS')
+      setTruckError('El nombre del propietario es requerido para trucks LEASE')
       return
     }
 
@@ -637,7 +643,7 @@ export default function Dashboard() {
         </button>
         {trucksWithCycles.length > 0 && (
           <>
-            <button onClick={() => openQuickAdd('order')}
+            <button onClick={() => navigate('/orders/new')}
               className="px-4 py-2.5 bg-green-600/20 border border-green-600/40 text-green-400 rounded-xl text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center gap-2 backdrop-blur-sm shadow-lg">
               <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -670,7 +676,7 @@ export default function Dashboard() {
           </button>
           {trucksWithCycles.length > 0 && (
             <>
-              <button onClick={() => { openQuickAdd('order'); setFabOpen(false) }}
+              <button onClick={() => { navigate('/orders/new'); setFabOpen(false) }}
                 className={`px-3 py-2 bg-green-600/20 border border-green-600/40 text-green-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-150' : 'opacity-0 translate-y-3'}`}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -990,18 +996,12 @@ export default function Dashboard() {
                   onChange={(e) => setTruckDriverId(e.target.value)}
                   className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
-                  <option value="">Sin asignar</option>
+                  {editingTruck && <option value="">Sin asignar</option>}
                   {drivers
-                    .filter(d => d.status === 'active')
-                    .map(d => {
-                      const alreadyAssigned = d.truck_id && d.truck_id !== editingTruck?.id
-                      const truck = alreadyAssigned ? trucks.find(t => t.id === d.truck_id) : null
-                      return (
-                        <option key={d.id} value={d.id}>
-                          {d.name}{truck ? ` (${truck.name})` : ''}
-                        </option>
-                      )
-                    })
+                    .filter(d => d.status === 'active' && (!d.truck_id || d.truck_id === editingTruck?.id))
+                    .map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))
                   }
                 </select>
                 <p className="text-[10px] text-gray-600 mt-1">Los choferes se crean en Compania → Choferes</p>
@@ -1009,7 +1009,7 @@ export default function Dashboard() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-400">Truck LIS (propietario externo)</label>
+                  <label className="text-sm font-medium text-gray-400">Truck LEASE (propietario externo)</label>
                   <button
                     type="button"
                     onClick={() => setTruckIsLis(!truckIsLis)}

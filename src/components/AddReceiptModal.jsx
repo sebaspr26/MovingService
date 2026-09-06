@@ -225,9 +225,13 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="absolute right-0 top-0 h-full w-full max-w-lg bg-gray-950 border-l border-gray-800 overflow-y-auto flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">
           <h3 className="text-lg font-semibold text-white">{editRow ? 'Editar Registro' : 'Agregar Gasto'}</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -236,7 +240,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
           {/* Scanner */}
           {!editRow && (
             <div>
