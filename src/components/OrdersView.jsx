@@ -757,7 +757,7 @@ export default function OrdersView() {
         </div>
       )}
 
-      {/* Mobile stats panel — floating bottom bar */}
+      {/* Mobile stats — floating pill above bottom nav */}
       {(() => {
         const totalRate = filtered.reduce((s, o) => s + (Number(o.rate) || 0), 0)
         const totalMiles = filtered.reduce((s, o) => s + (Number(o.miles) || 0), 0)
@@ -767,25 +767,29 @@ export default function OrdersView() {
         if (!filtered.length) return null
         return (
           <div
-            className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-gray-800/80"
-            style={{ background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(16px)' }}
+            className="sm:hidden fixed bottom-20 left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3"
+            style={{
+              background: 'rgba(17,17,24,0.92)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            }}
           >
-            <div className="grid grid-cols-4 divide-x divide-gray-800/60 px-1 py-2">
-              <div className="flex flex-col items-center px-2">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Rate</span>
-                <span className="text-xs font-bold text-green-400">${Math.round(totalRate).toLocaleString()}</span>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Rate</span>
+                <span className="text-sm font-bold text-green-400">${Math.round(totalRate).toLocaleString()}</span>
               </div>
-              <div className="flex flex-col items-center px-2">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Millas</span>
-                <span className="text-xs font-bold text-blue-400">{Math.round(totalMiles).toLocaleString()}</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Millas</span>
+                <span className="text-sm font-bold text-blue-400">{Math.round(totalMiles).toLocaleString()}</span>
               </div>
-              <div className="flex flex-col items-center px-2">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">DH</span>
-                <span className="text-xs font-bold text-orange-400">{Math.round(totalDH).toLocaleString()}</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">DH</span>
+                <span className="text-sm font-bold text-orange-400">{Math.round(totalDH).toLocaleString()}</span>
               </div>
-              <div className="flex flex-col items-center px-2">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">RPM</span>
-                <span className="text-xs font-bold text-cyan-400">${rpm.toFixed(2)}</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">RPM</span>
+                <span className="text-sm font-bold text-cyan-400">${rpm.toFixed(2)}</span>
               </div>
             </div>
           </div>
