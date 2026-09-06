@@ -694,15 +694,10 @@ export default function Layout() {
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2 : 1.5}>
-                      {item.icon}
-                    </svg>
-                    <span className="text-[10px] font-medium leading-none">{item.label}</span>
-                    {isActive && <span className="absolute bottom-0 w-8 h-0.5 rounded-full bg-orange-400" />}
-                  </>
-                )}
+                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  {item.icon}
+                </svg>
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
               </NavLink>
             ))}
           </nav>
