@@ -874,7 +874,7 @@ function SectionChoferes() {
   }
 
   async function fetchTrucks() {
-    const { data } = await supabase.from('trucks').select('id, name, number').order('number')
+    const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); const { data } = cId ? await q.eq('company_id', cId) : await q
     setTrucks(data || [])
   }
 
@@ -1147,7 +1147,7 @@ function SectionCamiones() {
 
   async function fetchTrucks() {
     setLoading(true)
-    const { data } = await supabase.from('trucks').select('*').order('number')
+    const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('*').order('number'); const { data } = cId ? await q.eq('company_id', cId) : await q
     setTrucks(data || [])
     setLoading(false)
   }
@@ -1270,7 +1270,7 @@ function SectionTrailers() {
   }
 
   async function fetchTrucks() {
-    const { data } = await supabase.from('trucks').select('id, name, number').order('number')
+    const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); const { data } = cId ? await q.eq('company_id', cId) : await q
     setTrucks(data || [])
   }
 
