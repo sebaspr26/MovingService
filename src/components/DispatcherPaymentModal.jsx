@@ -226,6 +226,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
       <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
 
@@ -285,80 +286,72 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                 <div className="space-y-3">
                   {payments.map(p => (
                     <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        {/* Left info */}
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-orange-600/15 border border-orange-600/25 flex items-center justify-center shrink-0">
-                            <span className="text-orange-400 text-[11px] font-bold">#{p.payment_number}</span>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-base font-bold text-green-400">{fmt(p.payout)}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              Gross: <span className="text-gray-300">{fmt(p.gross_revenue)}</span>
-                              <span className="mx-1.5 text-gray-700">·</span>
-                              {p.commission_pct}%
-                              <span className="mx-1.5 text-gray-700">·</span>
-                              {(p.order_ids || []).length} orden{(p.order_ids || []).length !== 1 ? 'es' : ''}
-                            </p>
-                            {(p.period_start || p.period_end) && (
-                              <p className="text-[10px] text-gray-600 mt-1">{fmtDate(p.period_start)} — {fmtDate(p.period_end)}</p>
-                            )}
-                          </div>
+                      {/* Top row: badge + info + date */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-orange-600/15 border border-orange-600/25 flex items-center justify-center shrink-0">
+                          <span className="text-orange-400 text-[11px] font-bold">#{p.payment_number}</span>
                         </div>
-                        {/* Right: date + actions */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <p className="text-xs text-gray-400">{fmtDate(p.pay_date)}</p>
-                          <div className="flex items-center gap-1">
-                            {/* Delete */}
-                            <button
-                              onClick={async () => {
-                                const ok = await toast.confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')
-                                if (!ok) return
-                                await supabase.from('dispatcher_payments').delete().eq('id', p.id)
-                                delete htmlCache.current[p.id]
-                                await fetchData()
-                              }}
-                              title="Eliminar pago"
-                              className="w-8 h-8 flex items-center justify-center bg-gray-700 text-red-400 rounded-lg hover:bg-red-600/20 hover:text-red-300 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                            </button>
-                            {/* Preview — icon only */}
-                            <button
-                              onClick={() => fetchPreview(p)}
-                              disabled={previewLoading === p.id}
-                              title="Previsualizar"
-                              className="w-8 h-8 flex items-center justify-center bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
-                            >
-                              {previewLoading === p.id
-                                ? <div className="w-3.5 h-3.5 border border-gray-300 border-t-transparent rounded-full animate-spin" />
-                                : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                              }
-                            </button>
-                            {/* Regenerate — icon only */}
-                            <button
-                              onClick={() => regenerate(p)}
-                              disabled={previewLoading === p.id}
-                              title="Regenerar"
-                              className="w-8 h-8 flex items-center justify-center bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-                            </button>
-                            {/* Send */}
-                            <button
-                              onClick={() => sendSettlement(p)}
-                              disabled={sendingId === p.id}
-                              title="Enviar email"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
-                            >
-                              {sendingId === p.id
-                                ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                                : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
-                              }
-                              Enviar
-                            </button>
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-base font-bold text-green-400">{fmt(p.payout)}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Gross: <span className="text-gray-300">{fmt(p.gross_revenue)}</span>
+                            <span className="mx-1.5 text-gray-700">·</span>
+                            {p.commission_pct}%
+                            <span className="mx-1.5 text-gray-700">·</span>
+                            {(p.order_ids || []).length} orden{(p.order_ids || []).length !== 1 ? 'es' : ''}
+                          </p>
+                          {(p.period_start || p.period_end) && (
+                            <p className="text-[10px] text-gray-600 mt-1">{fmtDate(p.period_start)} — {fmtDate(p.period_end)}</p>
+                          )}
                         </div>
+                        <p className="text-xs text-gray-500 shrink-0">{fmtDate(p.pay_date)}</p>
+                      </div>
+                      {/* Action buttons row */}
+                      <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-800">
+                        <button
+                          onClick={() => fetchPreview(p)}
+                          disabled={previewLoading === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        >
+                          {previewLoading === p.id
+                            ? <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin" />
+                            : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                          }
+                          Previsualizar
+                        </button>
+                        <button
+                          onClick={() => regenerate(p)}
+                          disabled={previewLoading === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                          Regenerar
+                        </button>
+                        <button
+                          onClick={() => sendSettlement(p)}
+                          disabled={sendingId === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                        >
+                          {sendingId === p.id
+                            ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                            : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                          }
+                          Enviar
+                        </button>
+                        <div className="flex-1" />
+                        <button
+                          onClick={async () => {
+                            const ok = await toast.confirm('¿Eliminar este pago?')
+                            if (!ok) return
+                            await supabase.from('dispatcher_payments').delete().eq('id', p.id)
+                            delete htmlCache.current[p.id]
+                            await fetchData()
+                          }}
+                          className="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -515,5 +508,6 @@ export default function DispatcherPaymentModal({ user, onClose }) {
       </div>,
       document.body
     )}
+    </>
   )
 }
