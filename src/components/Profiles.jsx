@@ -125,6 +125,9 @@ export default function Profiles() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' })
   const [submitting, setSubmitting] = useState(false)
   const [resendUser, setResendUser] = useState(null) // usuario original al reenviar
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [linkSearch, setLinkSearch] = useState('')
+  const [linkingId, setLinkingId] = useState(null)
   const [permUser, setPermUser] = useState(null)
   const [perms, setPerms] = useState({})
   const [allowedCompanies, setAllowedCompanies] = useState([])
@@ -390,6 +393,27 @@ export default function Profiles() {
     setShowModal(true)
   }
 
+  async function linkUser(user) {
+    setLinkingId(user.id)
+    try {
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_to_company', userId: user.id, company_id: getActiveCompanyId() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      toast.success(`${user.user_metadata?.name || user.email} vinculado a esta empresa`)
+      setShowLinkModal(false)
+      setLinkSearch('')
+      fetchUsers()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLinkingId(null)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -399,6 +423,15 @@ export default function Profiles() {
           <p className="text-sm text-gray-500 mt-1">Gestiona los usuarios con acceso al sistema</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setLinkSearch(''); setShowLinkModal(true) }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-700/60 text-sm text-cyan-400 hover:bg-cyan-900/20 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+            </svg>
+            Vincular usuario
+          </button>
           <button
             onClick={() => openModal('invite')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
@@ -1005,6 +1038,119 @@ export default function Profiles() {
           </div>
         </div>
       )}
+
+      {showLinkModal && (
+        <LinkUserModal
+          activeCompanyId={getActiveCompanyId()}
+          onLink={linkUser}
+          linkingId={linkingId}
+          onClose={() => setShowLinkModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function LinkUserModal({ activeCompanyId, onLink, linkingId, onClose }) {
+  const [allUsers, setAllUsers] = useState([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
+      .then(r => r.json())
+      .then(data => {
+        const outside = (data.users || []).filter(u => {
+          if (u.user_metadata?.role === 'super_admin') return false
+          const ac = u.user_metadata?.allowed_companies
+          return !Array.isArray(ac) || !ac.includes(activeCompanyId)
+        })
+        setAllUsers(outside)
+      })
+      .catch(() => setAllUsers([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = allUsers.filter(u => {
+    const name = (u.user_metadata?.name || '').toLowerCase()
+    const email = (u.email || '').toLowerCase()
+    const q = search.toLowerCase()
+    return !q || name.includes(q) || email.includes(q)
+  })
+
+  const ROLE_COLORS = { admin: 'text-blue-400', dispatcher: 'text-purple-400', driver: 'text-cyan-400', driver_lease: 'text-green-400' }
+  const ROLE_LABELS = { admin: 'Admin', dispatcher: 'Dispatcher', driver: 'Driver', driver_lease: 'Driver LEASE' }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+            </svg>
+            <h2 className="text-base font-bold text-white">Vincular usuario existente</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="px-6 pt-4 pb-3 border-b border-gray-800">
+          <p className="text-xs text-gray-500 mb-3">Agrega un usuario que ya tiene cuenta en otra empresa. No se le enviará ningún correo.</p>
+          <input
+            autoFocus
+            type="text"
+            placeholder="Buscar por nombre o email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-cyan-500"
+          />
+        </div>
+
+        <div className="px-6 py-3 max-h-72 overflow-y-auto space-y-2">
+          {loading ? (
+            <div className="flex justify-center py-8"><div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" /></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm py-8">{allUsers.length === 0 ? 'Todos los usuarios ya están en esta empresa' : 'Sin resultados'}</p>
+          ) : filtered.map(u => {
+            const meta = u.user_metadata || {}
+            const name = meta.name || u.email || ''
+            const role = meta.role || 'dispatcher'
+            const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+            const companiesCount = (meta.allowed_companies || []).length
+            return (
+              <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-800 hover:border-gray-700 transition-colors">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)' }}>
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white leading-tight truncate">{name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-[10px] font-medium ${ROLE_COLORS[role] || 'text-gray-400'}`}>{ROLE_LABELS[role] || role}</span>
+                    {companiesCount > 0 && <span className="text-[10px] text-gray-600">{companiesCount} empresa{companiesCount !== 1 ? 's' : ''}</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onLink(u)}
+                  disabled={!!linkingId}
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors"
+                  style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)' }}
+                >
+                  {linkingId === u.id
+                    ? <span className="flex items-center gap-1"><span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Vinculando</span>
+                    : 'Vincular'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="px-6 py-3 border-t border-gray-800">
+          <p className="text-[10px] text-gray-600 text-center">Los permisos en esta empresa se configuran por separado desde el modal de permisos</p>
+        </div>
+      </div>
     </div>
   )
 }

@@ -221,6 +221,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    if (action === 'add_to_company') {
+      const { userId, company_id } = req.body
+      if (!userId || !company_id) return res.status(400).json({ error: 'userId and company_id required' })
+      const { data: current } = await supabaseAdmin.auth.admin.getUserById(userId)
+      const existing = current?.user?.user_metadata || {}
+      const existingCompanies = existing.allowed_companies || []
+      if (!existingCompanies.includes(company_id)) {
+        const updated = { ...existing, allowed_companies: [...existingCompanies, company_id] }
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { user_metadata: updated })
+        if (error) return res.status(400).json({ error: error.message })
+      }
+      return res.status(200).json({ success: true })
+    }
+
     if (action === 'update_role') {
       const { userId, role: newRole } = req.body
       const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
