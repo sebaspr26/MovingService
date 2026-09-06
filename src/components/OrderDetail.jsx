@@ -292,7 +292,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   useEffect(() => {
     Promise.all([
       (() => { const q = supabase.from('trucks').select('id, name, number, discount_percent').order('number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      supabase.from('brokers').select('*').order('name'),
+      (() => { const q = supabase.from('brokers').select('*').order('name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ]).then(([tRes, bRes, usersRes]) => {
       const allTrucks = tRes.data || []
@@ -319,7 +319,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
     // Auto-generate ref_number for new orders
     if (isNew) {
-      supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(500)
+      (() => { const q = supabase.from('orders').select('ref_number').not('ref_number', 'is', null).order('created_at', { ascending: false }).limit(500); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })()
         .then(({ data }) => {
           let maxNum = 0
           ;(data || []).forEach(o => {
@@ -576,6 +576,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               phone: d.broker.phone || null,
               email: d.broker.email || null,
             }
+            brokerRecord.company_id = getActiveCompanyId() || null
             const { data: saved, error } = await supabase.from('brokers').insert(brokerRecord).select().single()
             if (saved && !error) {
               setBrokerId(saved.id)
@@ -674,6 +675,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         ...newBroker,
         type: brokerType,
         name: newBroker.name.trim(),
+        company_id: getActiveCompanyId() || null,
       }).select().single()
       if (error) throw error
       setAllBrokers(prev => [...prev, data])

@@ -214,7 +214,7 @@ export default function OrdersView() {
     const [ordersRes, trucksRes, brokersRes] = await Promise.all([
       (() => { const q = supabase.from('orders').select('*').order('pu_date', { ascending: false }); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       (() => { const q = supabase.from('trucks').select('id, name, number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      supabase.from('brokers').select('id, name, type'),
+      (() => { const q = supabase.from('brokers').select('id, name, type'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
     ])
     const allowedIds = getAllowedTruckIds(session)
     const userRole = session?.user?.user_metadata?.role

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 import { analyzeReceipt } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
 
@@ -31,8 +32,9 @@ export default function Scanner() {
   const fileRef = useRef()
 
   useEffect(() => {
-    supabase.from('trucks').select('*').order('number')
-      .then(({ data }) => setTrucks(data || []))
+    const cId = getActiveCompanyId()
+    const q = supabase.from('trucks').select('*').order('number')
+    ;(cId ? q.eq('company_id', cId) : q).then(({ data }) => setTrucks(data || []))
   }, [])
 
   function handleFile(f) {

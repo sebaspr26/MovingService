@@ -88,9 +88,12 @@ export default function Dashboard() {
   async function fetchPendingRecurring() {
     const todayDay = new Date().getDate()
     const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-    const { data } = await supabase.from('recurring_expenses').select('*, trucks(name, number)')
+    const cId = getActiveCompanyId()
+    const rq = supabase.from('recurring_expenses').select('*, trucks!inner(name, number, company_id)')
       .eq('active', true)
       .eq('day_of_month', todayDay)
+    if (cId) rq.eq('trucks.company_id', cId)
+    const { data } = await rq
     if (!data) return
     // Filter out already applied this month
     const notApplied = data.filter(r => r.last_applied_month !== currentMonth)

@@ -87,7 +87,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
         .eq('dispatcher', dispatcherEmail)
         .in('status', ['paid', 'invoiced'])
         .order('pu_date', { ascending: false }),
-      supabase.from('brokers').select('id, name'),
+      (() => { const q = supabase.from('brokers').select('id, name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
     ])
 
     const existingPayments = paymentsRes.data || []
