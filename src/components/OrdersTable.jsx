@@ -269,7 +269,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
               <th className="pb-2 pr-2 w-8"><span className="sr-only">Pagado</span></th>
-              {isLease && <th className="pb-2 pr-2 w-8" title="Pago al conductor LEASE"><span className="sr-only">Conductor</span></th>}
+              {isLease && <th className="pb-2 pr-3 w-16 text-center text-violet-500">Cond.</th>}
               <th className="pb-2 pr-4">Orden #</th>
               <th className="pb-2 pr-4">PU Date</th>
               <th className="pb-2 pr-4">PU City</th>
@@ -310,27 +310,40 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                     </button>
                   </td>
                   {isLease && (
-                    <td className="py-2.5 pr-2">
-                      <button
-                        onClick={() => handleToggleDispatcherPaid(row)}
-                        disabled={readOnly}
-                        title={row.dispatcher_paid ? 'Pago al conductor registrado' : 'Marcar pago al conductor'}
-                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                          row.dispatcher_paid
-                            ? 'bg-violet-600 border-violet-500 text-white'
-                            : 'border-violet-800 hover:border-violet-500 bg-transparent'
-                        } ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
-                          animatingId === row.id ? 'animate-dispatcher-pop' : ''
-                        }`}
-                      >
-                        {row.dispatcher_paid ? (
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                          </svg>
-                        ) : (
-                          <span className="text-[7px] text-violet-700 font-bold leading-none">$</span>
+                    <td className="py-1 pr-3">
+                      <div className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all ${
+                        row.dispatcher_paid
+                          ? 'bg-violet-900/50 ring-1 ring-violet-600/50'
+                          : 'bg-violet-950/30 ring-1 ring-violet-900/40'
+                      }`}>
+                        <button
+                          onClick={() => handleToggleDispatcherPaid(row)}
+                          disabled={readOnly}
+                          title={row.dispatcher_paid ? 'Pago al conductor registrado' : 'Marcar pago al conductor'}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                            row.dispatcher_paid
+                              ? 'bg-violet-600 border-violet-500 text-white'
+                              : 'border-violet-700 hover:border-violet-400 bg-transparent'
+                          } ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
+                            animatingId === row.id ? 'animate-dispatcher-pop' : ''
+                          }`}
+                        >
+                          {row.dispatcher_paid ? (
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                          ) : (
+                            <span className="text-[7px] text-violet-600 font-bold leading-none">$</span>
+                          )}
+                        </button>
+                        {row.dispatcher_paid && (
+                          <span className="text-[7px] text-violet-300 font-medium leading-none whitespace-nowrap">
+                            -{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                              Number(row.rate || 0) * (1 - (Number(row.discount_percent) || discountPct || 13) / 100)
+                            )}
+                          </span>
                         )}
-                      </button>
+                      </div>
                     </td>
                   )}
                   <td className={`py-2.5 pr-4 font-medium ${row.paid ? 'text-white' : 'text-gray-500'}`}>

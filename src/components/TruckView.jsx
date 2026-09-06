@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
@@ -11,6 +11,28 @@ import CashBox from './CashBox'
 import OwnerExpensesTable from './OwnerExpensesTable'
 
 function fmt_d(d) { return d.toISOString().split('T')[0] }
+
+function useCountUp(target, duration = 700) {
+  const [value, setValue] = useState(target)
+  const prevRef = useRef(target)
+  const rafRef = useRef(null)
+  useEffect(() => {
+    const from = prevRef.current
+    if (from === target) return
+    const start = performance.now()
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      else { prevRef.current = target; setValue(target) }
+    }
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, duration])
+  return value
+}
 
 const BASE_TABS = [
   { key: 'orders', label: 'Orders' },
@@ -173,6 +195,12 @@ export default function TruckView() {
   const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
+
+  const animDebito = useCountUp(totalDebito)
+  const animCredito = useCountUp(totalCredito)
+  const animBalance = useCountUp(balance)
+  const animNetIncome = useCountUp(netIncome)
+  const animGross = useCountUp(summary.grossOrders)
 
   if (!isSuperAdmin(session) && !isDriver && !canAccess(session, 'dashboard', 'ver_truck_view')) return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -365,15 +393,15 @@ export default function TruckView() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-red-500">
               <p className="text-xs text-gray-500 mb-2">Total Débito</p>
-              <p className="text-xl sm:text-2xl font-bold text-red-400">{fmt(totalDebito)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-400">{fmt(animDebito)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-green-500">
               <p className="text-xs text-gray-500 mb-2">Total Crédito</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-400">{fmt(totalCredito)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-400">{fmt(animCredito)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 border-l-4 border-l-orange-500">
               <p className="text-xs text-gray-500 mb-2">Balance</p>
-              <p className={`text-xl sm:text-2xl font-bold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(balance)}</p>
+              <p className={`text-xl sm:text-2xl font-bold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(animBalance)}</p>
             </div>
           </div>
 
@@ -381,12 +409,12 @@ export default function TruckView() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Gross Orders</p>
-              <p className="text-sm font-bold text-green-400">{fmt(summary.grossOrders)}</p>
+              <p className="text-sm font-bold text-green-400">{fmt(animGross)}</p>
               <p className="text-[9px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
               <p className="text-[10px] text-gray-500 mb-1">Neto (desc.)</p>
-              <p className="text-sm font-bold text-emerald-400">{fmt(netIncome)}</p>
+              <p className="text-sm font-bold text-emerald-400">{fmt(animNetIncome)}</p>
               <p className="text-[9px] text-gray-600 mt-0.5">desc: -{fmt(discountAmount)}</p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
