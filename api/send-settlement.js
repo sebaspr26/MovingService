@@ -17,7 +17,9 @@ async function getCompanyData(companyId) {
   if (companyId) query.eq('id', companyId)
   const { data } = await query.limit(1).single()
   const companyName = data?.company_info?.company_name || data?.company_info?.dba || 'Moving Services'
-  const logoUrl = data?.logo_path ? `${SUPABASE_URL}/storage/v1/object/public/company-docs/${data.logo_path}` : null
+  const logoUrl = data?.logo_path
+    ? supabaseAdmin.storage.from('company-docs').getPublicUrl(data.logo_path).data?.publicUrl || null
+    : null
   const billing = data?.billing_info || {}
   const companyInfo = data?.company_info || {}
   return { companyName, logoUrl, billing, companyInfo }
