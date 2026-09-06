@@ -10,6 +10,7 @@ export const MODULES = [
       { key: 'ver_ciclos', label: 'Ver ciclos y balance', adminOnly: true },
       { key: 'gastos_recurrentes', label: 'Gastos recurrentes', adminOnly: true },
       { key: 'cashbox', label: 'Cierre de caja (CashBox)', adminOnly: true },
+      { key: 'ver_truck_view', label: 'Ver estadísticas del camión (TruckView)' },
       { key: 'ver_gastos', label: 'Ver pestaña de gastos', driverOnly: true },
       { key: 'ver_contabilidad', label: 'Ver contabilidad', driverOnly: true },
       { key: 'ver_gastos_propietario', label: 'Ver gastos del propietario', driverOnly: true },

@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
-import { canAccess } from '../lib/permissions'
+import { canAccess, isSuperAdmin } from '../lib/permissions'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
@@ -157,6 +157,15 @@ export default function TruckView() {
   const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
+
+  if (!isSuperAdmin(session) && !isDriver && !canAccess(session, 'dashboard', 'ver_truck_view')) return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <svg className="w-12 h-12 text-gray-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+      <p className="text-gray-500 text-sm">No tienes acceso a esta vista</p>
+    </div>
+  )
 
   if (!truck || loading) return (
     <div className="animate-pulse">
