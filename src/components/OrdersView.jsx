@@ -525,7 +525,7 @@ export default function OrdersView() {
         </div>
 
         {/* Panel lateral derecho — donut + filtros (oculto en móvil) */}
-        <div className="hidden lg:flex lg:flex-col w-56 shrink-0 sticky top-4 max-h-[calc(100vh-5rem)] overflow-y-auto">
+        <div className="hidden lg:flex lg:flex-col w-64 shrink-0 sticky top-4 max-h-[calc(100vh-5rem)] overflow-y-auto">
           <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3">
             {/* Todas */}
             <button
@@ -540,8 +540,8 @@ export default function OrdersView() {
             <div className="flex items-center gap-2">
               {/* SVG Donut */}
               <div className="relative shrink-0">
-                <svg width="72" height="72" viewBox="0 0 80 80">
-                  <circle cx="40" cy="40" r="28" fill="none" stroke="#1f2937" strokeWidth="10" />
+                <svg width="92" height="92" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="28" fill="none" stroke="#1f2937" strokeWidth="9" />
                   {(() => {
                     const r2 = 28
                     const circ2 = 2 * Math.PI * r2
@@ -563,7 +563,7 @@ export default function OrdersView() {
                           cx="40" cy="40" r={r2}
                           fill="none"
                           stroke={DONUT_COLORS[s]}
-                          strokeWidth="10"
+                          strokeWidth="9"
                           strokeDasharray={`${dashLen} ${circ2}`}
                           strokeDashoffset={dashOffset}
                           transform="rotate(-90 40 40)"
@@ -575,8 +575,8 @@ export default function OrdersView() {
                   })()}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-sm font-bold text-white tabular-nums"><AnimatedNum value={orders.length} /></span>
-                  <span className="text-[8px] text-gray-500 leading-tight">Total</span>
+                  <span className="text-base font-bold text-white tabular-nums"><AnimatedNum value={orders.length} /></span>
+                  <span className="text-[9px] text-gray-500 leading-tight">Total</span>
                 </div>
               </div>
 
