@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
+import PdfViewer from './PdfViewer'
 
 const SECTIONS = [
   { key: 'company_docs', label: 'Company Documents', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /> },
@@ -553,7 +554,7 @@ function SectionCompanyDocs() {
                   {isImage(doc.mime_type) ? (
                     <img src={doc.url} alt={doc.name} className="max-h-80 mx-auto rounded border border-gray-700" />
                   ) : isPdf(doc.mime_type) ? (
-                    <iframe src={doc.url} className="w-full h-[500px] rounded border border-gray-700" title={doc.name} />
+                    <PdfViewer url={doc.url} className="w-full h-[500px] border border-gray-700" />
                   ) : null}
                 </div>
               )}
@@ -730,7 +731,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
                 {isImage(preview.mime_type) ? (
                   <img src={getPublicUrl(preview.file_path)} alt={preview.file_name} className="max-h-64 mx-auto rounded border border-gray-700" />
                 ) : isPdf(preview.mime_type) ? (
-                  <iframe src={getPublicUrl(preview.file_path)} className="w-full h-[400px] rounded border border-gray-700" title={preview.file_name} />
+                  <PdfViewer url={getPublicUrl(preview.file_path)} className="w-full h-[400px] border border-gray-700" />
                 ) : (
                   <p className="text-center text-gray-500 text-sm py-4">Vista previa no disponible. <a href={getPublicUrl(preview.file_path)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Descargar</a></p>
                 )}
@@ -779,7 +780,7 @@ function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, on
               {isImage(preview.mime_type) ? (
                 <img src={getPublicUrl(preview.file_path)} alt={preview.file_name} className="max-h-64 mx-auto rounded border border-gray-700" />
               ) : isPdf(preview.mime_type) ? (
-                <iframe src={getPublicUrl(preview.file_path)} className="w-full h-[400px] rounded border border-gray-700" title={preview.file_name} />
+                <PdfViewer url={getPublicUrl(preview.file_path)} className="w-full h-[400px] border border-gray-700" />
               ) : (
                 <p className="text-center text-gray-500 text-sm py-4">Vista previa no disponible.</p>
               )}
