@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
 import { useToast } from './Toast'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 function useCountUp(target, duration = 600) {
   const [value, setValue] = useState(target)
@@ -191,6 +193,55 @@ export default function DispatcherPaymentModal({ user, onClose }) {
     fetchPreview(payment, true)
   }
 
+  async function generateSettlementPDF(html) {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+
+    const container = document.createElement('div')
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:880px;background:#f3f4f6;padding:24px;box-sizing:border-box;'
+    container.innerHTML = doc.body.innerHTML
+    document.body.appendChild(container)
+
+    const imgs = container.querySelectorAll('img')
+    await Promise.all(Array.from(imgs).map(img => {
+      if (img.complete) return Promise.resolve()
+      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve })
+    }))
+
+    const mainDiv = container.firstElementChild || container
+    const pdf = new jsPDF('p', 'mm', 'letter')
+    const pageW = 215.9
+    const pageH = 279.4
+    const margin = 10
+
+    const canvas = await html2canvas(mainDiv, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+    const imgW = pageW - margin * 2
+    const imgH = (canvas.height * imgW) / canvas.width
+    const pixPerMM = canvas.height / imgH
+    const maxH = pageH - margin * 2
+
+    if (imgH <= maxH) {
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, imgH)
+    } else {
+      let yMM = 0
+      while (yMM < imgH) {
+        if (yMM > 0) pdf.addPage()
+        const sliceH = Math.min(maxH, imgH - yMM)
+        const sy = Math.round(yMM * pixPerMM)
+        const sh = Math.round(sliceH * pixPerMM)
+        const pageCanvas = document.createElement('canvas')
+        pageCanvas.width = canvas.width
+        pageCanvas.height = sh
+        pageCanvas.getContext('2d').drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh)
+        pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceH)
+        yMM += maxH
+      }
+    }
+
+    document.body.removeChild(container)
+    return pdf.output('datauristring').split(',')[1]
+  }
+
   async function sendSettlement(payment) {
     setSendingId(payment.id)
     try {
@@ -199,11 +250,45 @@ export default function DispatcherPaymentModal({ user, onClose }) {
         .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles')
         .in('id', payment.order_ids || [])
 
+      // Get preview HTML to render as PDF (from cache or fetch)
+      let html = htmlCache.current[payment.id]
+      if (!html) {
+        const previewRes = await fetch('/api/send-settlement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'preview',
+            paymentNumber: payment.payment_number,
+            dispatcherEmail,
+            dispatcherName,
+            gross: payment.gross_revenue,
+            commissionPct: payment.commission_pct,
+            payout: payment.payout,
+            payDate: payment.pay_date,
+            periodStart: payment.period_start,
+            periodEnd: payment.period_end,
+            orders: pOrders || [],
+          }),
+        })
+        const previewData = await previewRes.json()
+        if (!previewRes.ok || !previewData.html) throw new Error(previewData.error || 'Error generando documento')
+        html = previewData.html
+        htmlCache.current[payment.id] = html
+      }
+
+      toast.info('Generando PDF...')
+      let pdfBase64
+      try {
+        pdfBase64 = await generateSettlementPDF(html)
+      } catch (pdfErr) {
+        throw new Error('No se pudo generar el PDF: ' + pdfErr.message)
+      }
+
+      toast.info('Enviando a ' + dispatcherEmail + '...')
       const res = await fetch('/api/send-settlement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'dispatcher',
           paymentNumber: payment.payment_number,
           dispatcherEmail,
           dispatcherName,
@@ -214,11 +299,18 @@ export default function DispatcherPaymentModal({ user, onClose }) {
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
           orders: pOrders || [],
+          pdfBase64,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error')
+
+      await supabase.from('dispatcher_payments')
+        .update({ email_sent_at: new Date().toISOString() })
+        .eq('id', payment.id)
+
       toast.success('Settlement enviado a ' + dispatcherEmail)
+      await fetchData()
     } catch (e) {
       toast.error('Error al enviar: ' + e.message)
     }
@@ -292,7 +384,15 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                           <span className="text-orange-400 text-[11px] font-bold">#{p.payment_number}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-base font-bold text-green-400">{fmt(p.payout)}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-base font-bold text-green-400">{fmt(p.payout)}</p>
+                            {p.email_sent_at && (
+                              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800/40 font-semibold">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                Enviado {fmtDate(p.email_sent_at.split('T')[0])}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 mt-0.5">
                             Gross: <span className="text-gray-300">{fmt(p.gross_revenue)}</span>
                             <span className="mx-1.5 text-gray-700">·</span>
