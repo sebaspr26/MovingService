@@ -382,7 +382,7 @@ export default function OrdersView() {
         </div>
         <button
           onClick={() => openDrawer('new')}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
+          className="hidden sm:inline-flex px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors items-center gap-2 w-fit"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -756,6 +756,17 @@ export default function OrdersView() {
           </div>
         </div>
       )}
+
+      {/* Mobile FAB — Nueva Orden */}
+      <button
+        onClick={() => openDrawer('new')}
+        className="sm:hidden fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-orange-600 text-white shadow-lg flex items-center justify-center hover:bg-orange-500 active:scale-95 transition-all"
+        style={{ boxShadow: '0 4px 24px rgba(234,88,12,0.5)' }}
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
     </div>
   )
 }

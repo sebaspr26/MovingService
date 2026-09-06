@@ -60,7 +60,8 @@ export default function Layout() {
   const navigate = useNavigate()
   const topLevelPaths = ['/', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos/conductores', '/pagos/dispatchers']
   const isSubPage = !topLevelPaths.includes(location.pathname)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [showMobileUserMenu, setShowMobileUserMenu] = useState(false)
+  const [showMobileSwitcher, setShowMobileSwitcher] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
 
   function toggleCollapsed() {
@@ -490,224 +491,153 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Mobile sidebar overlay */}
-      <div
-        className={`lg:hidden fixed inset-0 z-40 ${menuOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        onClick={() => setMenuOpen(false)}
-      >
-        <div
-          className="absolute inset-0 bg-black/60"
-          style={{
-            opacity: menuOpen ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
-        <aside
-          className="absolute inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            transform: menuOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          <div className="p-5 border-b border-gray-800 flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">{companyName}</h1>
-              <p className="text-xs text-gray-500 mt-0.5">{companyDba}</p>
-            </div>
-            <button onClick={() => setMenuOpen(false)} className="text-gray-500 hover:text-white transition-colors p-1">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <nav className="flex-1 p-4 flex flex-col">
-            {/* Main items */}
-            <div className="space-y-1">
-              {navItems.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`
-                  }
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    {item.icon}
-                  </svg>
-                  {item.label}
-                </NavLink>
-              ))}
-
-              {/* Pagos — solo admin/super_admin */}
-              {showPagosSection && (
-                <div>
-                  <button
-                    onClick={() => setShowPagos(v => !v)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
-                      showPagos ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`}
-                    style={{ transition: 'color 0.2s, background 0.2s' }}
-                  >
-                    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                    </svg>
-                    <span className="flex-1 text-left">Pagos</span>
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      style={{
-                        transform: showPagos ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                      }}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  </button>
-
-                  {/* Animated sub-menu */}
-                  <div
-                    style={{
-                      maxHeight: showPagos ? '120px' : '0px',
-                      overflow: 'hidden',
-                      transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >
-                    <div className="mt-1 ml-4 space-y-1 border-l border-gray-700/60 pl-3 pb-1">
-                      <NavLink
-                        to="/pagos/conductores"
-                        onClick={() => setMenuOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            isActive ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                          }`
-                        }
-                      >
-                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
-                        Pago Conductores
-                      </NavLink>
-                      <NavLink
-                        to="/pagos/dispatchers"
-                        onClick={() => setMenuOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            isActive ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                          }`
-                        }
-                      >
-                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-                        </svg>
-                        Pago Dispatchers
-                      </NavLink>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Secondary items (Configuración, Información) — al fondo */}
-            <div className="mt-auto pt-3 space-y-1 border-t border-gray-800/60">
-              {secondaryNavItems.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`
-                  }
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    {item.icon}
-                  </svg>
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          </nav>
-
-          <div className="p-4 border-t border-gray-800 space-y-2">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => { setMenuOpen(false); navigate('/profile') }}
-                className="flex items-center gap-3 flex-1 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors min-w-0"
-              >
-                <div
-                  className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                >
-                  {userAvatarUrl ? (
-                    <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
-                  ) : userInitials}
-                </div>
-                <span className="text-sm text-gray-400 truncate">{userName}</span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-gray-800 transition-colors shrink-0"
-              >
-                {theme === 'dark' ? (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-              </svg>
-              Cerrar Sesión
-            </button>
-            <p className="text-xs text-gray-600">v1.4 - Fase 5</p>
-          </div>
-        </aside>
-      </div>
-
       {/* Main content */}
       <div
         className={`flex-1 flex flex-col min-w-0 min-h-0 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
         style={{ transition: 'margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
       >
-        {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-800 bg-gray-900">
+        {/* Mobile top bar */}
+        <header className="lg:hidden relative flex items-center h-14 px-4 border-b border-gray-800 bg-gray-900 shrink-0">
           {isSubPage ? (
-            <button
-              onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
+            <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
             </button>
           ) : (
             <button
-              onClick={() => setMenuOpen(true)}
-              className="text-gray-400 hover:text-white transition-colors"
+              onClick={canSwitchCompany ? () => setShowMobileSwitcher(v => !v) : undefined}
+              className="flex items-center gap-2 -ml-1 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
+              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-orange-600/20 border border-orange-600/30 shrink-0">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="" className="w-full h-full object-contain p-0.5" />
+                ) : (
+                  <span className="text-xs font-bold text-orange-400">{companyName?.charAt(0)?.toUpperCase() || 'E'}</span>
+                )}
+              </div>
+              <span className="text-sm font-semibold text-white truncate max-w-[140px]">{companyName}</span>
+              {canSwitchCompany && (
+                <svg className="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                </svg>
+              )}
             </button>
           )}
-          <h1 className="text-lg font-bold text-white flex-1">{companyName}</h1>
+
+          <div className="flex-1" />
+
+          {/* User avatar */}
+          <button
+            onClick={() => setShowMobileUserMenu(v => !v)}
+            className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-white text-xs shrink-0"
+            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+          >
+            {userInitials}
+            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+          </button>
+
+          {/* User dropdown */}
+          {showMobileUserMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowMobileUserMenu(false)} />
+              <div className="absolute top-full right-3 mt-1 w-52 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-3 py-2.5 border-b border-gray-800">
+                  <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                  <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
+                </div>
+                <div className="p-1.5 space-y-0.5">
+                  <button
+                    onClick={() => { setShowMobileUserMenu(false); navigate('/profile') }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                    Perfil
+                  </button>
+                  <button
+                    onClick={() => { toggleTheme(); setShowMobileUserMenu(false) }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                  >
+                    {theme === 'dark' ? (
+                      <svg className="w-4 h-4 text-yellow-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                      </svg>
+                    )}
+                    Modo {theme === 'dark' ? 'Claro' : 'Oscuro'}
+                  </button>
+                  <div className="border-t border-gray-800 my-1" />
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                    </svg>
+                    Cerrar Sesión
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Company switcher dropdown */}
+          {showMobileSwitcher && !isSubPage && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowMobileSwitcher(false)} />
+              <div className="absolute top-full left-3 mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="p-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5 font-semibold">Empresas</p>
+                  {visibleCompanies.map(c => {
+                    const name = c.company_info?.company_name || c.display_name || 'Sin nombre'
+                    const logo = c.logo_path ? getLogoUrl(c.logo_path) : null
+                    const isActive = c.id === activeCompany?.id
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => { setShowMobileSwitcher(false); handleSwitchCompany(c.id) }}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors ${
+                          isActive ? 'bg-orange-600/15 text-orange-400' : 'hover:bg-gray-800 text-gray-300'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-gray-800 border border-gray-700 shrink-0">
+                          {logo ? (
+                            <img src={logo} alt="" className="w-full h-full object-contain p-0.5" />
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400">{name?.charAt(0)?.toUpperCase()}</span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium truncate flex-1">{name}</span>
+                        {isActive && (
+                          <svg className="w-4 h-4 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                {isSuperAdmin(session) && (
+                  <div className="border-t border-gray-800 p-2">
+                    <button
+                      onClick={() => { setShowMobileSwitcher(false); setShowWizard(true) }}
+                      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-orange-400 hover:bg-orange-600/10 transition-colors font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                      </svg>
+                      Nueva Compañía
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </header>
 
         <main className="flex-1 min-h-0 p-3 sm:p-6 overflow-auto">
