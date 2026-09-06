@@ -18,7 +18,7 @@ const INVOICE_ITEM_TYPES = ['Flat Rate', 'Linehaul', 'Fuel Surcharge', 'Detentio
 const UNITS_TYPES = ['Flat', 'Gross', 'Per Mile', 'Per Hour', 'Percentage']
 const COMMODITY_TYPES = ['Pail', 'Pallet', 'Box', 'Crate', 'Drum', 'Roll', 'Bag', 'Bundle', 'Piece', 'Other']
 
-export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
+export default function OrderDetail({ orderId: propId, onClose, onSaved, defaultTruckId }) {
   const params = useParams()
   const id = propId || params.id
   const isDrawer = !!propId
@@ -145,10 +145,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved }) {
         setDispatcher(userEmail)
       }
 
-      // Pre-select truck if navigated from TruckView
-      if (isNew && location.state?.truckId) {
+      // Pre-select truck if navigated from TruckView or opened as drawer with defaultTruckId
+      const preSelectId = defaultTruckId || location.state?.truckId
+      if (isNew && preSelectId) {
         const preselectedTruck = (allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
-          .find(t => t.id === location.state.truckId)
+          .find(t => t.id === preSelectId)
         if (preselectedTruck) {
           setTruckId(preselectedTruck.id)
           setDiscountPercent(preselectedTruck.discount_percent || 13)

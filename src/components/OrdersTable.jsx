@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
@@ -7,16 +7,18 @@ import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
+import OrderDetail from './OrderDetail'
 
 export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct }) {
   const toast = useToast()
-  const navigate = useNavigate()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [orderDrawerOpen, setOrderDrawerOpen] = useState(false)
+  const [orderDrawerVisible, setOrderDrawerVisible] = useState(false)
 
   // Form state
   const [fOrderNumber, setFOrderNumber] = useState('')
@@ -46,6 +48,16 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     }
     const advanced = await autoAdvanceStatuses(filtered, supabase)
     setRows(advanced)
+  }
+
+  function openOrderDrawer() {
+    setOrderDrawerOpen(true)
+    requestAnimationFrame(() => setOrderDrawerVisible(true))
+  }
+
+  function closeOrderDrawer() {
+    setOrderDrawerVisible(false)
+    setTimeout(() => setOrderDrawerOpen(false), 300)
   }
 
   function openModal(row = null) {
@@ -227,7 +239,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           </button>
           {!readOnly && (
             <button
-              onClick={() => navigate('/orders/new', { state: { truckId } })}
+              onClick={() => openOrderDrawer()}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
             >
               + Agregar Orden
@@ -468,6 +480,31 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Order Drawer */}
+      {orderDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 ${orderDrawerVisible ? 'opacity-100' : 'opacity-0'}`}
+            onClick={closeOrderDrawer}
+          />
+          <div
+            className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out ${
+              orderDrawerVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="p-4 sm:p-6">
+              <OrderDetail
+                key="new-order-truck"
+                orderId="new"
+                defaultTruckId={truckId}
+                onClose={closeOrderDrawer}
+                onSaved={() => { fetchRows(); closeOrderDrawer() }}
+              />
+            </div>
           </div>
         </div>
       )}

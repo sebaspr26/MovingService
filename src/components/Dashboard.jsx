@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCycle, getLatestClosedCycle, openCycle, computeWeeks } from '../lib/cycles'
 import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 import AddReceiptModal from './AddReceiptModal'
+import OrderDetail from './OrderDetail'
 import DayPicker from './DayPicker'
 import { getActiveCompanyId } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
@@ -58,7 +59,6 @@ const expenseFields = [
 export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
-  const navigate = useNavigate()
   const [trucks, setTrucks] = useState([])
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -71,6 +71,8 @@ export default function Dashboard() {
   const [quickAdd, setQuickAdd] = useState(null)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
+  const [orderDrawerOpen, setOrderDrawerOpen] = useState(false)
+  const [orderDrawerVisible, setOrderDrawerVisible] = useState(false)
 
   const [truckName, setTruckName] = useState('')
   const [truckNumber, setTruckNumber] = useState('')
@@ -523,6 +525,16 @@ export default function Dashboard() {
     setQuickAdd(type)
   }
 
+  function openOrderDrawer() {
+    setOrderDrawerOpen(true)
+    requestAnimationFrame(() => setOrderDrawerVisible(true))
+  }
+
+  function closeOrderDrawer() {
+    setOrderDrawerVisible(false)
+    setTimeout(() => setOrderDrawerOpen(false), 300)
+  }
+
   async function handleQuickSaveWrapped(data) {
     const { _truck_select, ...rest } = data
     if (!_truck_select) return
@@ -643,7 +655,7 @@ export default function Dashboard() {
         </button>
         {trucksWithCycles.length > 0 && (
           <>
-            <button onClick={() => navigate('/orders/new')}
+            <button onClick={() => openOrderDrawer()}
               className="px-4 py-2.5 bg-green-600/20 border border-green-600/40 text-green-400 rounded-xl text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center gap-2 backdrop-blur-sm shadow-lg">
               <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -676,7 +688,7 @@ export default function Dashboard() {
           </button>
           {trucksWithCycles.length > 0 && (
             <>
-              <button onClick={() => { navigate('/orders/new'); setFabOpen(false) }}
+              <button onClick={() => { openOrderDrawer(); setFabOpen(false) }}
                 className={`px-3 py-2 bg-green-600/20 border border-green-600/40 text-green-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-150' : 'opacity-0 translate-y-3'}`}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -1238,6 +1250,30 @@ export default function Dashboard() {
         truckOptions={trucksWithCycles.map(t => ({ value: t.id, label: `${t.name} (#${t.number})` }))}
         truckCycles={truckCycles}
       />
+
+      {/* Order Detail Drawer */}
+      {orderDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 ${orderDrawerVisible ? 'opacity-100' : 'opacity-0'}`}
+            onClick={closeOrderDrawer}
+          />
+          <div
+            className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out ${
+              orderDrawerVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="p-4 sm:p-6">
+              <OrderDetail
+                key="new-order"
+                orderId="new"
+                onClose={closeOrderDrawer}
+                onSaved={() => { fetchCyclesAndSummaries(trucks); closeOrderDrawer() }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
