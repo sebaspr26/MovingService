@@ -364,7 +364,7 @@ export default function OrdersView() {
       <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl px-3 py-2">
         <div className="flex flex-wrap gap-2 items-center">
           {/* Búsqueda */}
-          <div className="relative w-[160px]">
+          <div className="relative w-[260px]">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
@@ -372,7 +372,7 @@ export default function OrdersView() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar..."
+              placeholder="Buscar orden, ciudad, broker..."
               className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
             />
           </div>
@@ -440,43 +440,43 @@ export default function OrdersView() {
                     tonu: 'bg-red-600/10', canceled: 'bg-gray-600/5',
                   }[row.status] || ''
                   return (
-                    <tr key={row.id} className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}>
-                      <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
+                    <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}>
+                      <td className="py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
                         <StatusSelect row={row} onChange={handleStatusChange} />
                       </td>
-                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                         <div className="font-semibold text-white">{row.order_number}</div>
                         {brokers[row.broker_id] && (
                           <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
                         )}
                       </td>
-                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                         {truck ? <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">{truck.number}</span> : '-'}
                       </td>
-                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                         {row.dispatcher ? <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span> : <span className="text-gray-700">—</span>}
                       </td>
-                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                         <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.pu_date}</div>
                       </td>
-                      <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                         <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.do_date}</div>
                       </td>
-                      <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
                         <div className="text-gray-300 text-sm font-medium">{Number(row.miles || 0).toLocaleString()}</div>
                         {Number(row.dead_miles || 0) > 0 && (
                           <div className="text-[10px] text-orange-400">{Number(row.dead_miles).toLocaleString()} DH</div>
                         )}
                       </td>
-                      <td className="py-2.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
                         <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
                         {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
                           <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                         )}
                       </td>
-                      <td className="py-2.5">
+                      <td className="py-3.5">
                         <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -494,8 +494,8 @@ export default function OrdersView() {
           </div>
         </div>
 
-        {/* Panel lateral derecho — donut + filtros */}
-        <div className="w-56 shrink-0 sticky top-4">
+        {/* Panel lateral derecho — donut + filtros (oculto en móvil) */}
+        <div className="hidden lg:block w-56 shrink-0 sticky top-4">
           <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3">
             {/* Todas */}
             <button
@@ -575,12 +575,66 @@ export default function OrdersView() {
               </div>
             </div>
           </div>
+
+          {/* Brokers / Customers treemap */}
+          {(() => {
+            const brokerCounts = {}
+            orders.forEach(o => {
+              if (o.broker_id && brokers[o.broker_id]) {
+                brokerCounts[o.broker_id] = (brokerCounts[o.broker_id] || 0) + 1
+              }
+            })
+            const sorted = Object.entries(brokerCounts)
+              .map(([id, count]) => ({ id, count, name: brokers[id]?.name || '' }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 6)
+            if (!sorted.length) return null
+            const total = sorted.reduce((s, b) => s + b.count, 0)
+            const TILE_COLORS = ['#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa']
+            const [first, ...rest] = sorted
+            const leftPct = Math.max(42, Math.min(62, Math.round((first.count / total) * 100)))
+            return (
+              <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3 mt-2">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-2">Brokers / Customers</p>
+                {/* Treemap tiles */}
+                <div className="flex gap-1 h-28 mb-2">
+                  <div
+                    className="rounded-lg flex items-center justify-center p-1.5 text-center shrink-0"
+                    style={{ width: `${leftPct}%`, background: TILE_COLORS[0] }}
+                  >
+                    <span className="text-white text-[9px] font-bold leading-tight">{first.name.length > 20 ? first.name.slice(0, 18) + '…' : first.name}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1">
+                    {rest.slice(0, 4).map((b, i) => (
+                      <div
+                        key={b.id}
+                        className="rounded-lg flex items-center justify-center p-1 flex-1 text-center overflow-hidden"
+                        style={{ background: TILE_COLORS[i + 1] }}
+                      >
+                        <span className="text-white text-[8px] font-semibold leading-tight">{b.name.length > 12 ? b.name.slice(0, 11) + '…' : b.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* List with counts */}
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  {sorted.map((b, i) => (
+                    <div key={b.id} className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-2 h-2 rounded-sm shrink-0" style={{ background: TILE_COLORS[i] || TILE_COLORS[5] }} />
+                      <span className="text-[9px] text-gray-500 truncate flex-1">{b.name.length > 9 ? b.name.slice(0, 8) + '…' : b.name}</span>
+                      <span className="text-[9px] font-bold text-gray-300 tabular-nums shrink-0">{b.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
       {/* Floating totals bar */}
       {filtered.length > 0 && !drawerId && (
-        <div className="fixed bottom-4 right-4 sm:right-6 z-40 bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg whitespace-nowrap">
           <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
           <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
           <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
