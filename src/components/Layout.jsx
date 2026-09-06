@@ -37,7 +37,7 @@ export default function Layout() {
 
   // Drivers no pueden cambiar de empresa
   const isDriver = ['driver', 'driver_lease'].includes(userMeta.role)
-  const canSwitchCompany = !isDriver && (visibleCompanies.length > 1 || isSuperAdmin(session))
+  const canSwitchCompany = !isDriver
 
   async function handleSwitchCompany(id) {
     setShowSwitcher(false)
@@ -207,7 +207,7 @@ export default function Layout() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    Nueva Empresa
+                    Nueva Compañía
                   </button>
                 </div>
                 )}
