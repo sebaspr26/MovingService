@@ -1,7 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
 import { useToast } from './Toast'
+
+function useCountUp(target, duration = 600) {
+  const [value, setValue] = useState(target)
+  const prevRef = useRef(target)
+  const rafRef = useRef(null)
+  useEffect(() => {
+    const from = prevRef.current
+    if (from === target) return
+    const start = performance.now()
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      else { prevRef.current = target; setValue(target) }
+    }
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, duration])
+  return value
+}
+
+function AnimatedMoney({ value }) {
+  const animated = useCountUp(Number(value) || 0)
+  return <>{fmt(animated)}</>
+}
 
 function fmtDate(d) {
   if (!d) return '—'
@@ -29,11 +56,13 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   const dispatcherName = meta.name || user.email || ''
   const dispatcherEmail = user.email || ''
 
-  // Current commission: match current month, fallback to latest
+  // Base commission from profile (current month or latest configured)
   const rates = meta.dispatcher_rates || []
   const currentMonth = new Date().toISOString().slice(0, 7)
-  const currentRate = rates.find(r => r.month === currentMonth) || rates[rates.length - 1]
-  const commissionPct = currentRate?.pct || 0
+  const profileRate = (rates.find(r => r.month === currentMonth) || rates[rates.length - 1])?.pct || 0
+
+  // Editable commission % — pre-filled from profile, overrideable per payment
+  const [editPct, setEditPct] = useState(String(profileRate))
 
   useEffect(() => { fetchData() }, [])
 
@@ -68,6 +97,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
 
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
   const gross = selectedOrders.reduce((s, o) => s + (Number(o.rate) || 0), 0)
+  const commissionPct = Math.max(0, Math.min(100, Number(editPct) || 0))
   const payout = gross * commissionPct / 100
 
   function toggleOrder(id) {
@@ -158,12 +188,12 @@ export default function DispatcherPaymentModal({ user, onClose }) {
             </div>
             <div>
               <h2 className="text-base font-bold text-white leading-tight">{dispatcherName}</h2>
-              <p className="text-xs text-gray-500">{dispatcherEmail} · Comisión: <span className="text-orange-400 font-semibold">{commissionPct}%</span></p>
+              <p className="text-xs text-gray-500">{dispatcherEmail} · Comisión: <span className="text-orange-400 font-semibold">{profileRate > 0 ? `${profileRate}%` : 'Sin configurar'}</span></p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowNew(v => !v); setSelectedIds(new Set()) }}
+              onClick={() => { setShowNew(v => !v); setSelectedIds(new Set()); setEditPct(String(profileRate)) }}
               className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg font-bold transition-colors ${showNew ? 'bg-gray-700 text-gray-300' : 'bg-orange-600 text-white hover:bg-orange-500'}`}
               title="Nuevo pago"
             >
@@ -259,15 +289,31 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-gray-800/70 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>
-                    <p className="text-sm font-bold text-white">{fmt(gross)}</p>
+                    <p className="text-sm font-bold text-white"><AnimatedMoney value={gross} /></p>
                   </div>
                   <div className="bg-gray-800/70 rounded-xl p-3 text-center">
-                    <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Comisión</p>
-                    <p className="text-sm font-bold text-orange-400">{commissionPct}%</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Comisión %</p>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={editPct}
+                        onChange={e => setEditPct(e.target.value)}
+                        className="w-10 bg-transparent text-sm font-bold text-orange-400 text-center focus:outline-none focus:text-orange-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm font-bold text-orange-400">%</span>
+                    </div>
+                    {profileRate > 0 && Number(editPct) !== profileRate && (
+                      <button onClick={() => setEditPct(String(profileRate))} className="text-[8px] text-gray-600 hover:text-orange-400 transition-colors mt-0.5">
+                        Reset {profileRate}%
+                      </button>
+                    )}
                   </div>
                   <div className="bg-orange-600/15 border border-orange-600/30 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-orange-400 uppercase tracking-wide mb-1">Pago</p>
-                    <p className="text-sm font-bold text-orange-400">{fmt(payout)}</p>
+                    <p className="text-sm font-bold text-orange-400"><AnimatedMoney value={payout} /></p>
                   </div>
                 </div>
                 {orders.length > 0 && (
