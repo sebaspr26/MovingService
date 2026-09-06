@@ -679,7 +679,7 @@ export default function Dashboard() {
       {fabOpen && (
         <div className="fixed inset-0 bg-black/40 z-30 sm:hidden transition-opacity duration-200" onClick={() => setFabOpen(false)} />
       )}
-      <div className="fixed bottom-6 right-6 z-40 sm:hidden flex flex-col items-end gap-3">
+      <div className="fixed bottom-24 right-4 z-40 sm:hidden flex flex-col items-end gap-3">
         <div className={`flex flex-col gap-2 items-end transition-all duration-300 ease-out ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <button onClick={() => { openTruckModal(); setFabOpen(false) }}
             className={`px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 shadow-lg flex items-center gap-2 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-100' : 'opacity-0 translate-y-3'}`}>
