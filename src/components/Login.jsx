@@ -9,10 +9,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 80)
+    // Fallback: show after 2.5s even if video never fires canplay
+    const t = setTimeout(() => setReady(true), 2500)
     return () => clearTimeout(t)
   }, [])
 
@@ -37,7 +38,10 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex">
+    <div
+      className="min-h-screen relative overflow-hidden flex"
+      style={{ opacity: ready ? 1 : 0, transition: 'opacity 0.6s ease' }}
+    >
 
       {/* Video de fondo */}
       <video
@@ -46,6 +50,7 @@ export default function Login() {
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
+        onCanPlay={() => setReady(true)}
       >
         <source src="/truck-bg.mp4" type="video/mp4" />
       </video>
@@ -58,9 +63,8 @@ export default function Login() {
       <div
         className="w-full max-w-md"
         style={{
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? 'translateX(0)' : 'translateX(-30px)',
-          transition: 'opacity 0.7s ease, transform 0.7s ease',
+          transform: ready ? 'translateX(0)' : 'translateX(-20px)',
+          transition: 'transform 0.6s ease',
         }}
       >
         {/* Card con blur */}
