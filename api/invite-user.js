@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         ${name ? `Hola ${name},` : 'Hola,'} te han invitado
       </h1>
       <p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">
-        Has sido agregado como <strong style="color:#9ca3af;">${role || 'usuario'}</strong> en el Sistema de Gestión de Transportes de ETG Moving Services.<br><br>
+        Has sido agregado como <strong style="color:#9ca3af;">${role || 'usuario'}</strong> en el Sistema de Gestión de Transportes de ${companyName}.<br><br>
         Haz clic en el botón para crear tu contraseña y acceder al sistema.
       </p>
 
@@ -133,9 +133,9 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${process.env.RESEND_KEY}`,
         },
         body: JSON.stringify({
-          from: 'ETG Moving Services <noreply@etg-tms.com>',
+          from: `${companyName} <noreply@etg-tms.com>`,
           to: [email],
-          subject: 'Invitación al Sistema ETG Moving Services',
+          subject: `Invitación — ${companyName}`,
           html,
         }),
       })
@@ -175,11 +175,11 @@ export default async function handler(req, res) {
       const inviteUrl = data.properties?.action_link
       if (!inviteUrl) return res.status(500).json({ error: 'No se pudo generar el link' })
       const { companyName: rCompanyName, logoUrl: rLogoUrl } = await getCompanyData(companyId)
-      const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 20px;"><div style="text-align:center;margin-bottom:32px;">${logoBlock(rLogoUrl, rCompanyName)}<p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">${rCompanyName}</p></div><div style="background:#111118;border:1px solid #1f1f2e;border-radius:20px;padding:36px;"><h1 style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:700;">Nueva invitación</h1><p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">Te enviamos un nuevo enlace de acceso. El anterior ya no es válido.</p><a href="${inviteUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#ea580c,#c2410c);color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:12px;font-size:15px;font-weight:700;">Activar mi cuenta &rarr;</a><div style="border-top:1px solid #1f1f2e;margin:28px 0;"></div><p style="margin:0 0 8px;color:#4b5563;font-size:12px;">Si el botón no funciona, copia este enlace:</p><p style="margin:0;color:#ea580c;font-size:11px;word-break:break-all;">${inviteUrl}</p></div><div style="text-align:center;margin-top:24px;"><p style="margin:0;color:#374151;font-size:11px;">ETG TMS — Sistema de Gestión de Transporte</p></div></div></body></html>`
+      const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 20px;"><div style="text-align:center;margin-bottom:32px;">${logoBlock(rLogoUrl, rCompanyName)}<p style="margin:0;color:#ea580c;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">${rCompanyName}</p></div><div style="background:#111118;border:1px solid #1f1f2e;border-radius:20px;padding:36px;"><h1 style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:700;">Nueva invitación</h1><p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.7;">Te enviamos un nuevo enlace de acceso. El anterior ya no es válido.</p><a href="${inviteUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#ea580c,#c2410c);color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:12px;font-size:15px;font-weight:700;">Activar mi cuenta &rarr;</a><div style="border-top:1px solid #1f1f2e;margin:28px 0;"></div><p style="margin:0 0 8px;color:#4b5563;font-size:12px;">Si el botón no funciona, copia este enlace:</p><p style="margin:0;color:#ea580c;font-size:11px;word-break:break-all;">${inviteUrl}</p></div><div style="text-align:center;margin-top:24px;"><p style="margin:0;color:#374151;font-size:11px;">${rCompanyName} — Sistema de Gestión de Transporte</p></div></div></body></html>`
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RESEND_KEY}` },
-        body: JSON.stringify({ from: 'ETG Moving Services <noreply@etg-tms.com>', to: [email], subject: 'Nueva invitación — ETG Moving Services', html }),
+        body: JSON.stringify({ from: `${rCompanyName} <noreply@etg-tms.com>`, to: [email], subject: `Nueva invitación — ${rCompanyName}`, html }),
       })
       if (!resendRes.ok) {
         const err = await resendRes.json()
