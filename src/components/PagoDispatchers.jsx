@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -22,22 +23,39 @@ export default function PagoDispatchers() {
   async function fetchData() {
     setLoading(true)
     try {
+      // Auth users con rol dispatcher/admin/super_admin
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list' }),
       })
       const data = await res.json()
-      const users = data.users || []
-      // Dispatchers + admins (pueden despachar)
-      const filtered = users.filter(u => ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role))
-      setDispatchers(filtered)
+      const authUsers = (data.users || []).filter(u =>
+        ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role)
+      )
+      const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
+
+      // Dispatchers únicos de órdenes (pueden ser emails o nombres legacy)
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('dispatcher')
+        .not('dispatcher', 'is', null)
+        .neq('dispatcher', '')
+
+      const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
+
+      // Legacy: los que aparecen en órdenes pero no tienen cuenta Auth
+      const legacyEntries = uniqueFromOrders
+        .filter(d => !authEmails.has(d.toLowerCase()))
+        .map(d => ({ id: `legacy_${d}`, email: d, isLegacy: true }))
+
+      setDispatchers([...authUsers, ...legacyEntries])
     } catch {}
     setLoading(false)
   }
 
   const filtered = dispatchers.filter(u => {
-    const name = u.user_metadata?.name || ''
+    const name = u.user_metadata?.name || u.email || ''
     const email = u.email || ''
     return !search || name.toLowerCase().includes(search.toLowerCase()) || email.toLowerCase().includes(search.toLowerCase())
   })
@@ -69,25 +87,33 @@ export default function PagoDispatchers() {
           {filtered.map(user => {
             const meta = user.user_metadata || {}
             const role = meta.role || 'dispatcher'
-            const name = meta.name || user.email
+            const name = meta.name || user.email || ''
             const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
             const currentRate = meta.dispatcher_rates?.slice(-1)[0]
 
             return (
-              <div key={user.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3">
+              <div key={user.id} className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 ${user.isLegacy ? 'border-gray-800/50 opacity-70' : 'border-gray-800'}`}>
                 {/* Header */}
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                    style={{ background: user.isLegacy ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-white text-sm leading-tight truncate">{name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    {!user.isLegacy && meta.name && (
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    )}
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${ROLE_COLORS[role] || ROLE_COLORS.dispatcher}`}>
-                    {ROLE_LABELS[role] || role}
-                  </span>
+                  {user.isLegacy ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 bg-gray-800 text-gray-500 border-gray-700">
+                      Sin cuenta
+                    </span>
+                  ) : (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${ROLE_COLORS[role] || ROLE_COLORS.dispatcher}`}>
+                      {ROLE_LABELS[role] || role}
+                    </span>
+                  )}
                 </div>
 
                 {/* Comisión actual */}
