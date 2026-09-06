@@ -351,181 +351,193 @@ export default function UserProfile() {
     )
   }
 
-  // ── Driver layout ──
+  // ── Driver layout — 2 columns on desktop, fits one screen ──
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
+    <div className="max-w-5xl mx-auto">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-white">Mi Perfil</h1>
-        <p className="text-sm text-gray-500 mt-1">Tu información de conductor</p>
+        <p className="text-sm text-gray-500 mt-0.5">Tu información de conductor</p>
       </div>
 
-      <div className="space-y-4">
-        {AvatarBlock}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
-        {/* Personal info */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Información personal</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs text-gray-500 mb-1.5">Nombre completo</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/70" />
+        {/* ── Columna izquierda ── */}
+        <div className="space-y-3">
+
+          {/* Avatar */}
+          {AvatarBlock}
+
+          {/* Datos personales */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Información personal</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1">Nombre</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/70" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1">Teléfono (USA)</label>
+                <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 555-5555"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/70" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] text-gray-500 mb-1">Email</label>
+                <input type="email" value={user?.email || ''} readOnly
+                  className="w-full bg-gray-800/50 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed" />
+              </div>
             </div>
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs text-gray-500 mb-1.5">Teléfono <span className="text-gray-600">(USA)</span></label>
-              <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 555-5555"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/70" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-gray-500 mb-1.5">Email</label>
-              <input type="email" value={user?.email || ''} readOnly
-                className="w-full bg-gray-800/50 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed" />
+            <div className="flex justify-end mt-3">
+              <button onClick={handleSave} disabled={!dirty || saving}
+                className="px-4 py-1.5 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
             </div>
           </div>
-          <div className="flex justify-end mt-4">
-            <button onClick={handleSave} disabled={!dirty || saving}
-              className="px-5 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-              {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+
+          {/* Credenciales de conductor */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Licencia y Medical Card</p>
+              {assignedTruck && (
+                <span className="text-[10px] text-orange-400 bg-orange-600/10 border border-orange-600/20 rounded-full px-2 py-0.5">
+                  {assignedTruck.name} #{assignedTruck.number}
+                </span>
+              )}
+            </div>
+            {driverLoading ? (
+              <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-800 rounded animate-pulse" />)}</div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-gray-500 mb-1">Nº Licencia (CDL)</label>
+                    <input type="text" value={licenseNumber}
+                      onChange={e => { setLicenseNumber(e.target.value); setDriverDirty(true) }}
+                      placeholder="CDL-123456"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/70" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 mb-1">Estado emisor</label>
+                    <select value={licenseState}
+                      onChange={e => { setLicenseState(e.target.value); setDriverDirty(true) }}
+                      className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
+                      <option value="">—</option>
+                      {Object.entries(US_STATE_NAMES).map(([k, v]) => <option key={k} value={k}>{k} — {v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 mb-1">Venc. Licencia</label>
+                    <div className="flex items-center gap-1.5">
+                      <input type="date" value={licenseExpiry}
+                        onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
+                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                      {expiryBadge(licenseExpiry)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 mb-1">Venc. Medical Card</label>
+                    <div className="flex items-center gap-1.5">
+                      <input type="date" value={medicalExpiry}
+                        onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
+                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                      {expiryBadge(medicalExpiry)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button onClick={handleSaveDriverInfo} disabled={!driverDirty || savingDriver}
+                    className="px-4 py-1.5 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                    {savingDriver ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Driver credentials */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Licencia y documentos</p>
-            {assignedTruck && (
-              <span className="text-xs text-orange-400 bg-orange-600/10 border border-orange-600/20 rounded-full px-2.5 py-1">
-                {assignedTruck.name} #{assignedTruck.number}
-              </span>
-            )}
-          </div>
+        {/* ── Columna derecha ── */}
+        <div className="space-y-3">
 
-          {driverLoading ? (
-            <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-9 bg-gray-800 rounded animate-pulse" />)}</div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1.5">Nº Licencia (CDL)</label>
-                  <input type="text" value={licenseNumber}
-                    onChange={e => { setLicenseNumber(e.target.value); setDriverDirty(true) }}
-                    placeholder="CDL-123456"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/70" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1.5">Estado emisor</label>
-                  <select value={licenseState}
-                    onChange={e => { setLicenseState(e.target.value); setDriverDirty(true) }}
-                    className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70">
-                    <option value="">—</option>
-                    {Object.entries(US_STATE_NAMES).map(([k, v]) => <option key={k} value={k}>{k} — {v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1.5">Venc. Licencia</label>
-                  <div className="flex items-center gap-2">
-                    <input type="date" value={licenseExpiry}
-                      onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
-                      className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
-                    {expiryBadge(licenseExpiry)}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1.5">Venc. Tarjeta Médica</label>
-                  <div className="flex items-center gap-2">
-                    <input type="date" value={medicalExpiry}
-                      onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
-                      className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
-                    {expiryBadge(medicalExpiry)}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end pt-1">
-                <button onClick={handleSaveDriverInfo} disabled={!driverDirty || savingDriver}
-                  className="px-5 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-                  {savingDriver ? 'Guardando...' : 'Guardar'}
-                </button>
+          {/* Documentos personales */}
+          {!driverLoading && driverDocs.length > 0 && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Mis documentos</p>
+              <div className="space-y-2">
+                {driverDocs.map(doc => {
+                  const url = getDocUrl(doc.file_path)
+                  const isPdf = doc.mime_type === 'application/pdf' || doc.file_name?.toLowerCase().endsWith('.pdf')
+                  const typeLabel = doc.doc_type === 'license' ? 'Licencia' : doc.doc_type === 'medical_card' ? 'Tarjeta médica' : doc.label || 'Documento'
+                  return (
+                    <a key={doc.id} href={url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-800/50 border border-gray-800 hover:border-orange-600/40 hover:bg-gray-800 transition-colors group">
+                      <div className="w-7 h-7 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center shrink-0">
+                        {isPdf
+                          ? <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                          : <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white font-medium">{typeLabel}</p>
+                        <p className="text-xs text-gray-500 truncate">{doc.file_name}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-600 group-hover:text-orange-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  )
+                })}
               </div>
             </div>
           )}
+
+          {/* Documentos del camión — todos los tipos visibles */}
+          {!driverLoading && assignedTruck && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Documentos del camión</p>
+              <input ref={truckDocRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleUploadTruckDoc} />
+              <div className="divide-y divide-gray-800/60">
+                {Object.entries(TRUCK_DOC_LABELS).map(([type, label]) => {
+                  const doc = truckDocs.find(d => d.doc_type === type)
+                  const url = doc ? getDocUrl(doc.file_path) : null
+                  const isUploading = uploadingTruckDoc && selectedTruckDocType === type
+                  return (
+                    <div key={type} className="flex items-center gap-3 py-2.5">
+                      <p className="text-sm text-gray-300 w-32 shrink-0">{label}</p>
+                      <div className="flex-1 min-w-0">
+                        {doc
+                          ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 truncate block">{doc.file_name}</a>
+                          : <span className="text-xs text-gray-600">Sin documento</span>
+                        }
+                      </div>
+                      <button
+                        onClick={() => { setSelectedTruckDocType(type); setTimeout(() => truckDocRef.current?.click(), 0) }}
+                        disabled={uploadingTruckDoc}
+                        className="shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:text-white hover:border-orange-600/50 transition-colors disabled:opacity-40 flex items-center gap-1"
+                      >
+                        {isUploading
+                          ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                        }
+                        {doc ? 'Reemplazar' : 'Subir'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-gray-600 mt-2">Solo el admin puede eliminar documentos</p>
+            </div>
+          )}
+
+          {!driverLoading && !assignedTruck && (
+            <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center">
+              <p className="text-sm text-gray-600">Sin camión asignado</p>
+              <p className="text-xs text-gray-700 mt-1">Los documentos del camión aparecerán aquí cuando se te asigne uno</p>
+            </div>
+          )}
         </div>
-
-        {/* Personal documents */}
-        {!driverLoading && driverDocs.length > 0 && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Mis documentos</p>
-            <div className="space-y-2">
-              {driverDocs.map(doc => {
-                const url = getDocUrl(doc.file_path)
-                const isPdf = doc.mime_type === 'application/pdf' || doc.file_name?.toLowerCase().endsWith('.pdf')
-                const typeLabel = doc.doc_type === 'license' ? 'Licencia' : doc.doc_type === 'medical_card' ? 'Tarjeta médica' : doc.label || 'Documento'
-                return (
-                  <a key={doc.id} href={url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-800 hover:border-orange-600/40 hover:bg-gray-800 transition-colors group">
-                    <div className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center shrink-0">
-                      {isPdf
-                        ? <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
-                        : <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white font-medium">{typeLabel}</p>
-                      <p className="text-xs text-gray-500 truncate">{doc.file_name}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-orange-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                    </svg>
-                  </a>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Truck documents — one row per type */}
-        {!driverLoading && assignedTruck && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Documentos del camión</p>
-            <input ref={truckDocRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleUploadTruckDoc} />
-            <div className="divide-y divide-gray-800">
-              {Object.entries(TRUCK_DOC_LABELS).map(([type, label]) => {
-                const doc = truckDocs.find(d => d.doc_type === type)
-                const url = doc ? getDocUrl(doc.file_path) : null
-                const isUploading = uploadingTruckDoc && selectedTruckDocType === type
-                return (
-                  <div key={type} className="flex items-center gap-3 py-3">
-                    <p className="text-sm text-gray-300 w-36 shrink-0">{label}</p>
-                    <div className="flex-1 min-w-0">
-                      {doc ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-orange-400 hover:text-orange-300 truncate block">
-                          {doc.file_name}
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-600">Sin documento</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => { setSelectedTruckDocType(type); setTimeout(() => truckDocRef.current?.click(), 0) }}
-                      disabled={uploadingTruckDoc}
-                      className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:text-white hover:border-orange-600/50 transition-colors disabled:opacity-40 flex items-center gap-1.5"
-                    >
-                      {isUploading
-                        ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                      }
-                      {doc ? 'Reemplazar' : 'Subir'}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-            <p className="text-[10px] text-gray-600 mt-3">El administrador puede eliminar documentos desde Compania → Camiones</p>
-          </div>
-        )}
       </div>
     </div>
   )
