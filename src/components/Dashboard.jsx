@@ -1008,7 +1008,7 @@ export default function Dashboard() {
                   onChange={(e) => setTruckDriverId(e.target.value)}
                   className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
                 >
-                  {editingTruck && <option value="">Sin asignar</option>}
+                  <option value="">{editingTruck ? 'Sin asignar' : 'Seleccionar conductor...'}</option>
                   {drivers
                     .filter(d => d.status === 'active' && (!d.truck_id || d.truck_id === editingTruck?.id))
                     .map(d => (
