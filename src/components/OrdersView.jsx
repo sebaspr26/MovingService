@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
 import OrderDetail from './OrderDetail'
@@ -38,6 +39,69 @@ const TABS = [
   { key: 'tonu', label: 'TONU' },
   { key: 'canceled', label: 'Canceladas' },
 ]
+
+function StatusSelect({ row, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [rect, setRect] = useState(null)
+  const btnRef = useRef(null)
+  const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
+
+  function handleOpen(e) {
+    e.stopPropagation()
+    setRect(btnRef.current?.getBoundingClientRect())
+    setOpen(true)
+  }
+
+  function handleSelect(status) {
+    onChange(row.id, status)
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        title={st.label}
+        className={`text-[11px] font-bold px-2 py-1 rounded-lg ${st.text} bg-gray-800 border border-gray-700 min-w-[28px] text-center cursor-pointer hover:border-gray-500 transition-colors`}
+      >
+        {STATUS_ABBREV[row.status] || '?'}
+      </button>
+      {open && rect && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 min-w-[170px]"
+            style={{ top: rect.bottom + 4, left: rect.left }}
+          >
+            {ALL_STATUSES.map(s => {
+              const sc = STATUS_CONFIG[s]
+              const isActive = s === row.status
+              return (
+                <button
+                  key={s}
+                  onClick={() => handleSelect(s)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${isActive ? 'bg-gray-800/60' : 'hover:bg-gray-800'}`}
+                >
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sc.text} bg-gray-900 border border-gray-700 min-w-[22px] text-center`}>
+                    {STATUS_ABBREV[s]}
+                  </span>
+                  <span className={`${sc.text} flex-1`}>{sc.label}</span>
+                  {isActive && (
+                    <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  )
+}
 
 export default function OrdersView() {
   const { session } = useAuth()
@@ -473,20 +537,7 @@ export default function OrdersView() {
                   className={`border-b border-gray-800/50 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}
                 >
                   <td className="py-2.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="relative inline-flex items-center" title={st.label}>
-                      <span className={`text-[11px] font-bold px-2 py-1 rounded-lg select-none ${st.text} bg-gray-800 border border-gray-700 min-w-[28px] text-center`}>
-                        {STATUS_ABBREV[row.status] || '?'}
-                      </span>
-                      <select
-                        value={row.status || 'booked'}
-                        onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                      >
-                        {ALL_STATUSES.map(s => (
-                          <option key={s} value={s} className="bg-gray-800 text-gray-300">{STATUS_CONFIG[s].label}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <StatusSelect row={row} onChange={handleStatusChange} />
                   </td>
                   <td className="py-2.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
                     <div className="font-semibold text-white">{row.order_number}</div>

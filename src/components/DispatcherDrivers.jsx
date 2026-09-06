@@ -31,7 +31,11 @@ export default function DispatcherDrivers() {
   const isAdmin = isSuperAdmin(session) || role === 'admin'
   const userEmail = session?.user?.email
 
-  useEffect(() => { fetchData() }, [])
+  // Esperar a que la sesión cargue antes de fetch (evita queries con email=undefined)
+  useEffect(() => {
+    if (session === undefined) return
+    fetchData()
+  }, [session?.user?.id])
 
   async function fetchData() {
     setLoading(true)
