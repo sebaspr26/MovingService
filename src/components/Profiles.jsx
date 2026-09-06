@@ -153,9 +153,19 @@ export default function Profiles() {
       ])
       const usersData = await usersRes.json().catch(() => ({}))
       if (!usersRes.ok) throw new Error(usersData?.error || `Error ${usersRes.status}`)
-      const sorted = (usersData.users || []).sort((a, b) =>
+      const activeCompanyId = getActiveCompanyId()
+      const allSorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
       )
+      // Filter: super_admin always visible; others must have activeCompanyId in allowed_companies
+      const sorted = activeCompanyId
+        ? allSorted.filter(u => {
+            const role = u.user_metadata?.role
+            if (role === 'super_admin') return true
+            const ac = u.user_metadata?.allowed_companies
+            return Array.isArray(ac) && ac.includes(activeCompanyId)
+          })
+        : allSorted
       setUsers(sorted)
       setDbDrivers(driversRes.data || [])
       setDbTrucks(trucksRes.data || [])

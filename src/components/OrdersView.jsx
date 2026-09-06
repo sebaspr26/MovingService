@@ -8,6 +8,7 @@ import MultiSelect from './MultiSelect'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds, isSuperAdmin } from '../lib/permissions'
+import { getActiveCompanyId } from '../lib/company'
 
 function useCountUp(target, duration = 700) {
   const [value, setValue] = useState(target)
@@ -211,7 +212,7 @@ export default function OrdersView() {
   async function fetchData() {
     setLoading(true)
     const [ordersRes, trucksRes, brokersRes] = await Promise.all([
-      supabase.from('orders').select('*').order('pu_date', { ascending: false }),
+      (() => { const q = supabase.from('orders').select('*').order('pu_date', { ascending: false }); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       supabase.from('trucks').select('id, name, number'),
       supabase.from('brokers').select('id, name, type'),
     ])

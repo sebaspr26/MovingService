@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
-import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
+import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl, getActiveCompanyId } from '../lib/company'
 import PdfViewer from './PdfViewer'
 
 const SECTIONS = [
@@ -866,7 +866,9 @@ function SectionChoferes() {
 
   async function fetchDrivers() {
     setLoading(true)
-    const { data } = await supabase.from('drivers').select('*').order('name')
+    const cId = getActiveCompanyId()
+    const q = supabase.from('drivers').select('*').order('name')
+    const { data } = cId ? await q.eq('company_id', cId) : await q
     setDrivers(data || [])
     setLoading(false)
   }
@@ -912,6 +914,7 @@ function SectionChoferes() {
         if (error) throw error
         toast.success('Chofer actualizado')
       } else {
+        payload.company_id = getActiveCompanyId() || null
         const { error } = await supabase.from('drivers').insert(payload)
         if (error) throw error
         toast.success('Chofer creado')

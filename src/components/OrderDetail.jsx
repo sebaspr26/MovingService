@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { getActiveCompanyId } from '../lib/company'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
@@ -738,6 +739,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           if (!ok) { setSaving(false); return }
         }
 
+        record.company_id = getActiveCompanyId() || null
         const { data, error } = await supabase.from('orders').insert(record).select().single()
         if (error) throw error
         orderId = data.id

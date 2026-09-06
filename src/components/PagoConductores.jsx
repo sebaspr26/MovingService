@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 import DriverPaymentModal from './DriverPaymentModal'
 
 function expiryBadge(dateStr) {
@@ -29,7 +30,7 @@ export default function PagoConductores() {
   async function fetchData() {
     setLoading(true)
     const [{ data: driversData }, { data: trucksData }, authRes] = await Promise.all([
-      supabase.from('drivers').select('*').order('name'),
+      (() => { const q = supabase.from('drivers').select('*').order('name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       supabase.from('trucks').select('id, name, number, vin_number, is_lis').order('name'),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ])
