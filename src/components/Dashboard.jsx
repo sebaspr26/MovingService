@@ -993,8 +993,15 @@ export default function Dashboard() {
                   <option value="">Sin asignar</option>
                   {drivers
                     .filter(d => d.status === 'active')
-                    .filter(d => !d.truck_id || d.truck_id === editingTruck?.id)
-                    .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                    .map(d => {
+                      const alreadyAssigned = d.truck_id && d.truck_id !== editingTruck?.id
+                      const truck = alreadyAssigned ? trucks.find(t => t.id === d.truck_id) : null
+                      return (
+                        <option key={d.id} value={d.id}>
+                          {d.name}{truck ? ` (${truck.name})` : ''}
+                        </option>
+                      )
+                    })
                   }
                 </select>
                 <p className="text-[10px] text-gray-600 mt-1">Los choferes se crean en Compania → Choferes</p>
