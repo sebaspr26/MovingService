@@ -19,7 +19,8 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!email || !password) return
+    if (!email) { setError('El correo es requerido.'); return }
+    if (!password) { setError('La contraseña es requerida.'); return }
     setError('')
     setLoading(true)
     try {
@@ -124,7 +125,6 @@ export default function Login() {
                   e.target.style.background = 'rgba(255,255,255,0.06)'
                 }}
                 autoComplete="email"
-                required
               />
             </div>
           </div>
@@ -159,7 +159,6 @@ export default function Login() {
                   e.target.style.background = 'rgba(255,255,255,0.06)'
                 }}
                 autoComplete="current-password"
-                required
               />
               <button
                 type="button"
