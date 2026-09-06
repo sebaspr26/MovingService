@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
+import { useAuth } from '../context/AuthContext'
+import { canAccess } from '../lib/permissions'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
@@ -18,6 +20,9 @@ const BASE_TABS = [
 
 export default function TruckView() {
   const { id } = useParams()
+  const { session } = useAuth()
+  const userRole = session?.user?.user_metadata?.role
+  const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [truck, setTruck] = useState(null)
   const [tab, setTab] = useState('orders')
   const [cycles, setCycles] = useState([])
@@ -35,14 +40,26 @@ export default function TruckView() {
   const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
   const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
   const hasActiveCycle = cycles.some(c => !c.closed)
-  const TABS = truck?.is_lis
+  // Reset tab if current tab is not available (e.g. driver lacks permission)
+  const allTabs = truck?.is_lis
     ? [...BASE_TABS, { key: 'owner_expenses', label: 'Gastos Propietario' }]
     : BASE_TABS
+  const TABS = isDriver ? allTabs.filter(t => {
+    if (t.key === 'expenses') return canAccess(session, 'dashboard', 'ver_gastos')
+    if (t.key === 'accounting') return canAccess(session, 'dashboard', 'ver_contabilidad')
+    if (t.key === 'owner_expenses') return canAccess(session, 'dashboard', 'ver_gastos_propietario')
+    return true // orders always visible
+  }) : allTabs
 
   useEffect(() => {
     supabase.from('trucks').select('*').eq('id', id).single()
       .then(({ data }) => setTruck(data))
   }, [id])
+
+  // Reset to 'orders' if current tab is not in available tabs
+  useEffect(() => {
+    if (TABS.length > 0 && !TABS.find(t => t.key === tab)) setTab('orders')
+  }, [TABS.length])
 
   useEffect(() => { fetchCycles() }, [id])
 
@@ -190,8 +207,8 @@ export default function TruckView() {
 
       {cycles.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
-          <p className="text-gray-400 mb-4">No hay ciclos para este camion. Abre uno para comenzar.</p>
-          {openingCycle ? (
+          <p className="text-gray-400 mb-4">No hay ciclos para este camion.{isDriver ? ' Contacta al administrador para abrir un ciclo.' : ' Abre uno para comenzar.'}</p>
+          {!isDriver && (openingCycle ? (
             <div className="inline-flex flex-col items-center gap-3">
               <label className="text-sm text-gray-400">Fecha de inicio del ciclo:</label>
               <input
@@ -216,7 +233,7 @@ export default function TruckView() {
               className="px-6 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-500 transition-colors">
               Abrir Nuevo Ciclo
             </button>
-          )}
+          ))}
         </div>
       ) : (
         <>
@@ -248,7 +265,7 @@ export default function TruckView() {
             </button>
           </div>
 
-          {!hasActiveCycle && (
+          {!hasActiveCycle && !isDriver && (
             <div className="mb-4">
               {openingCycle ? (
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 inline-flex items-center gap-3">
@@ -382,9 +399,8 @@ export default function TruckView() {
             {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} ownerName={truck?.owner_name} />}
           </div>
 
-          {/* Cash Box & Dividends */}
-          <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
-            
+          {/* Cash Box & Dividends — hidden for drivers */}
+          {!isDriver && <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
             <CashBox
               truckId={id}
               cycle={cycle}
@@ -397,7 +413,7 @@ export default function TruckView() {
               discountPct={discountPct}
               onCycleClosed={fetchCycles}
             />
-          </div>
+          </div>}
         </>
       )}
     </div>
