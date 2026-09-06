@@ -629,20 +629,45 @@ export default function OrdersView() {
               </div>
             )
           })()}
+
+          {/* Totals — integrado al final del panel */}
+          {filtered.length > 0 && (
+            <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3 mt-2">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-2">Resumen</p>
+              {(() => {
+                const tMiles = Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0))
+                const tDH = Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0))
+                const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+                const tMi = tMiles + tDH
+                const rpm = tMi > 0 ? (tRate / tMi) : 0
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500">Miles</span>
+                      <span className="text-[11px] font-bold text-gray-200 tabular-nums">{tMiles.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500">DH</span>
+                      <span className="text-[11px] font-bold text-orange-400 tabular-nums">{tDH.toLocaleString()}</span>
+                    </div>
+                    <div className="h-px bg-gray-800" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500">Revenue</span>
+                      <span className="text-[12px] font-bold text-green-400 tabular-nums">{fmt(tRate)}</span>
+                    </div>
+                    {rpm > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gray-500">RPM</span>
+                        <span className="text-[11px] font-bold text-cyan-400 tabular-nums">${rpm.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Floating totals bar */}
-      {filtered.length > 0 && !drawerId && (
-        <div className="fixed bottom-4 left-0 right-0 lg:right-60 z-40 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto bg-gray-950/90 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-4 text-xs shadow-lg whitespace-nowrap">
-            <span className="text-gray-400"><span className="text-gray-600 mr-1">Miles</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0)).toLocaleString()}</span>
-            <span className="text-orange-400"><span className="text-gray-600 mr-1">DH</span> {Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0)).toLocaleString()}</span>
-            <span className="text-green-400 font-bold text-sm">{fmt(filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0))}</span>
-            {(() => { const tMi = filtered.reduce((s, r) => s + (Number(r.miles) || 0) + (Number(r.dead_miles) || 0), 0); const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0); return tMi > 0 ? <span className="text-cyan-400"><span className="text-gray-600 mr-1">RPM</span> ${(tRate / tMi).toFixed(2)}</span> : null })()}
-          </div>
-        </div>
-      )}
 
       {/* Order Detail Drawer */}
       {drawerId && (
