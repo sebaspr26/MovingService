@@ -18,6 +18,7 @@ function fmtDate(d) {
 export default function PagoConductores() {
   const [drivers, setDrivers] = useState([])
   const [trucks, setTrucks] = useState({})
+  const [avatarMap, setAvatarMap] = useState({}) // email → publicUrl
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -25,14 +26,24 @@ export default function PagoConductores() {
 
   async function fetchData() {
     setLoading(true)
-    const [{ data: driversData }, { data: trucksData }] = await Promise.all([
+    const [{ data: driversData }, { data: trucksData }, authRes] = await Promise.all([
       supabase.from('drivers').select('*').order('name'),
       supabase.from('trucks').select('id, name, number, vin_number').order('name'),
+      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ])
     const trucksMap = {}
     ;(trucksData || []).forEach(t => { trucksMap[t.id] = t })
     setTrucks(trucksMap)
     setDrivers(driversData || [])
+    // Build email → avatar URL map from auth users
+    const aMap = {}
+    ;(authRes.users || []).forEach(u => {
+      const path = u.user_metadata?.avatar_path
+      if (u.email && path) {
+        aMap[u.email.toLowerCase()] = supabase.storage.from('company-docs').getPublicUrl(path).data?.publicUrl
+      }
+    })
+    setAvatarMap(aMap)
     setLoading(false)
   }
 
@@ -70,11 +81,21 @@ export default function PagoConductores() {
             const licBadge = expiryBadge(driver.license_expiry)
             const medBadge = expiryBadge(driver.medical_card_expiry)
             const isActive = driver.status === 'active'
+            const initials = driver.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+            const avatarUrl = driver.email ? avatarMap[driver.email.toLowerCase()] : null
             return (
               <div key={driver.id} className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 ${isActive ? 'border-gray-800' : 'border-gray-800/40 opacity-60'}`}>
                 {/* Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
+                    style={{ background: isActive ? 'linear-gradient(135deg, #0891b2, #0e7490)' : 'linear-gradient(135deg, #374151, #1f2937)' }}
+                  >
+                    {avatarUrl
+                      ? <img src={avatarUrl} alt={driver.name} className="w-full h-full object-cover" />
+                      : initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-semibold text-white text-sm leading-tight">{driver.name}</p>
                     {truck && (
                       <p className="text-xs text-orange-400 mt-0.5">{truck.name} #{truck.number}</p>

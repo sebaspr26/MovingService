@@ -95,10 +95,22 @@ export default function PagoDispatchers() {
               <div key={user.id} className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 ${user.isLegacy ? 'border-gray-800/50 opacity-70' : 'border-gray-800'}`}>
                 {/* Header */}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: user.isLegacy ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-                    {initials}
-                  </div>
+                  {(() => {
+                    const avatarPath = meta.avatar_path
+                    const avatarUrl = avatarPath
+                      ? supabase.storage.from('company-docs').getPublicUrl(avatarPath).data?.publicUrl
+                      : null
+                    return (
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
+                        style={{ background: user.isLegacy ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+                      >
+                        {avatarUrl
+                          ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                          : initials}
+                      </div>
+                    )
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-white text-sm leading-tight truncate">{name}</p>
                     {!user.isLegacy && meta.name && (
