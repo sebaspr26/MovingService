@@ -89,6 +89,10 @@ export function accessibleModules(session) {
 export function canAccess(session, moduleKey, subKey = null) {
   if (isSuperAdmin(session)) return true
   const role = session?.user?.user_metadata?.role
+  // Drivers siempre tienen acceso a dashboard y orders (filtrado por su camion)
+  if ((role === 'driver' || role === 'driver_lease') && !subKey) {
+    if (moduleKey === 'dashboard' || moduleKey === 'orders') return true
+  }
   // admins tienen acceso total salvo que tengan permisos explícitos configurados
   const perms = session?.user?.user_metadata?.permissions
   if (!perms && role === 'admin') return true

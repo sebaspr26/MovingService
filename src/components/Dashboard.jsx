@@ -182,13 +182,29 @@ export default function Dashboard() {
     const companyId = getActiveCompanyId()
     const query = supabase.from('trucks').select('*').order('number')
     const { data } = companyId ? await query.eq('company_id', companyId) : await query
-    const allowedIds = getAllowedTruckIds(session)
-    const filtered = allowedIds ? (data || []).filter(t => allowedIds.includes(t.id)) : (data || [])
-    setTrucks(filtered)
-    if (data && data.length > 0) {
-      await fetchCyclesAndSummaries(data)
+    const allData = data || []
+
+    const role = session?.user?.user_metadata?.role
+    const isDriver = role === 'driver' || role === 'driver_lease'
+
+    let filtered
+    if (isDriver) {
+      // Drivers only see their assigned truck from the drivers table
+      const { data: driverRecord } = await supabase
+        .from('drivers').select('truck_id').eq('email', session?.user?.email).maybeSingle()
+      filtered = driverRecord?.truck_id
+        ? allData.filter(t => t.id === driverRecord.truck_id)
+        : []
+    } else {
+      const allowedIds = getAllowedTruckIds(session)
+      filtered = allowedIds ? allData.filter(t => allowedIds.includes(t.id)) : allData
     }
-    dashboardCache.trucks = data || []
+
+    setTrucks(filtered)
+    if (filtered.length > 0) {
+      await fetchCyclesAndSummaries(filtered)
+    }
+    dashboardCache.trucks = filtered
     dashboardCache.ts = Date.now()
     setLoading(false)
   }

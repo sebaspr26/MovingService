@@ -131,6 +131,14 @@ export default function OrdersView() {
     let filteredOrders = allowedIds
       ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
       : allOrders
+    // Drivers: solo las órdenes de su camión asignado
+    if ((userRole === 'driver' || userRole === 'driver_lease') && userEmail) {
+      const { data: driverRecord } = await supabase
+        .from('drivers').select('truck_id').eq('email', userEmail).maybeSingle()
+      filteredOrders = driverRecord?.truck_id
+        ? filteredOrders.filter(o => o.truck_id === driverRecord.truck_id)
+        : []
+    }
     // Dispatchers: solo sus órdenes a menos que tengan permiso "ver_todas_ordenes"
     if (userRole === 'dispatcher' && userEmail) {
       const canSeeAll = session?.user?.user_metadata?.permissions?.orders?.ver_todas_ordenes === true

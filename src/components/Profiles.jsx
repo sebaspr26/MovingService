@@ -717,19 +717,43 @@ export default function Profiles() {
             {/* Body — 2 cols */}
             <div className="flex flex-1 overflow-hidden min-h-0">
 
-              {/* Columna izquierda: Permisos en 2 sub-columnas independientes */}
+              {/* Columna izquierda: Permisos */}
               <div className="flex-1 p-5 overflow-y-auto border-r border-gray-800">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
-                <div className="flex gap-2.5">
-                  {/* Sub-col izquierda: dashboard, statistics, informacion */}
-                  <div className="flex-1 flex flex-col gap-2.5">
-                    {MODULES.filter((_, i) => i % 2 === 0).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                {(permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease') ? (
+                  /* Drivers: solo Dashboard y Ordenes, acceso automático */
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 flex items-center gap-2">
+                      <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                      </svg>
+                      <p className="text-[11px] text-orange-300/80">Los conductores acceden automáticamente a su camión y sus órdenes. No requieren configuración de módulos.</p>
+                    </div>
+                    <div className="flex gap-2.5">
+                      {MODULES.filter(m => m.key === 'dashboard' || m.key === 'orders').map(mod => (
+                        <div key={mod.key} className="flex-1 rounded-xl border border-gray-700 bg-gray-800/50 p-3">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-3.5 h-3.5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={mod.icon} />
+                            </svg>
+                            <span className="text-xs font-bold text-white">{mod.label}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 mt-1.5">Acceso automático — solo su camión</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  {/* Sub-col derecha: orders, company, settings */}
-                  <div className="flex-1 flex flex-col gap-2.5">
-                    {MODULES.filter((_, i) => i % 2 === 1).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                ) : (
+                  /* Resto de roles: grid completo */
+                  <div className="flex gap-2.5">
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      {MODULES.filter((_, i) => i % 2 === 0).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      {MODULES.filter((_, i) => i % 2 === 1).map(mod => <ModuleCard key={mod.key} mod={mod} perms={perms} toggleModule={toggleModule} toggleSub={toggleSub} />)}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Columna derecha: Camiones + Comisión + Empresas */}
@@ -758,8 +782,8 @@ export default function Profiles() {
                   </div>
                 )}
 
-                {/* Camiones */}
-                {permUser.user_metadata?.role !== 'super_admin' && dbTrucks.length > 0 && (
+                {/* Camiones — oculto para drivers (su camión es automático) */}
+                {permUser.user_metadata?.role !== 'super_admin' && permUser.user_metadata?.role !== 'driver' && permUser.user_metadata?.role !== 'driver_lease' && dbTrucks.length > 0 && (
                   <div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Camiones asignados</p>
                     <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-3">
