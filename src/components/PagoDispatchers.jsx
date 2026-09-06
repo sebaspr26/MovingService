@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import DispatcherPaymentModal from './DispatcherPaymentModal'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -17,6 +18,7 @@ export default function PagoDispatchers() {
   const [dispatchers, setDispatchers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
 
   useEffect(() => { fetchData() }, [])
 
@@ -92,7 +94,11 @@ export default function PagoDispatchers() {
             const currentRate = meta.dispatcher_rates?.slice(-1)[0]
 
             return (
-              <div key={user.id} className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 ${user.isLegacy ? 'border-gray-800/50 opacity-70' : 'border-gray-800'}`}>
+              <div
+                key={user.id}
+                onClick={() => !user.isLegacy && setSelectedUser(user)}
+                className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 transition-colors ${user.isLegacy ? 'border-gray-800/50 opacity-70' : 'border-gray-800 hover:border-orange-600/50 cursor-pointer hover:bg-gray-900/80'}`}
+              >
                 {/* Header */}
                 <div className="flex items-center gap-3">
                   {(() => {
@@ -146,6 +152,13 @@ export default function PagoDispatchers() {
             )
           })}
         </div>
+      )}
+
+      {selectedUser && (
+        <DispatcherPaymentModal
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+        />
       )}
     </div>
   )
