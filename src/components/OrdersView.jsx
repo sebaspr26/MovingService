@@ -9,6 +9,36 @@ import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds, isSuperAdmin } from '../lib/permissions'
 
+function useCountUp(target, duration = 700) {
+  const [value, setValue] = useState(target)
+  const prevRef = useRef(target)
+  const rafRef = useRef(null)
+  useEffect(() => {
+    const from = prevRef.current
+    if (from === target) return
+    const start = performance.now()
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      else { prevRef.current = target; setValue(target) }
+    }
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, duration])
+  return value
+}
+
+// Wraps useCountUp so it can be used inside maps/IIFEs as a component
+function AnimatedNum({ value, decimals = 0, prefix = '', fmt: fmtFn = null }) {
+  const animated = useCountUp(Number(value) || 0)
+  if (fmtFn) return <>{fmtFn(animated)}</>
+  if (decimals > 0) return <>{prefix}{animated.toFixed(decimals)}</>
+  return <>{prefix}{Math.round(animated).toLocaleString()}</>
+}
+
 const PAGE_SIZE = 30
 
 const STATUS_ABBREV = {
@@ -503,7 +533,7 @@ export default function OrdersView() {
               className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium mb-2 transition-colors ${tab === 'all' ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800/60'}`}
             >
               <span>Todas las ordenes</span>
-              <span className="font-bold tabular-nums">{orders.length}</span>
+              <span className="font-bold tabular-nums"><AnimatedNum value={orders.length} /></span>
             </button>
 
             {/* Donut + status list */}
@@ -545,7 +575,7 @@ export default function OrdersView() {
                   })()}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-sm font-bold text-white tabular-nums">{orders.length}</span>
+                  <span className="text-sm font-bold text-white tabular-nums"><AnimatedNum value={orders.length} /></span>
                   <span className="text-[8px] text-gray-500 leading-tight">Total</span>
                 </div>
               </div>
@@ -568,7 +598,7 @@ export default function OrdersView() {
                       className={`w-full flex items-center gap-1.5 pl-2 pr-1 py-1 rounded text-left transition-colors border-l-2 ${borderColor} ${isActive ? 'bg-gray-800/80' : 'hover:bg-gray-800/40'}`}
                     >
                       <span className={`text-[10px] truncate flex-1 ${isActive ? 'text-white font-semibold' : sc.text}`}>{sc.label}</span>
-                      <span className={`text-[10px] font-bold tabular-nums shrink-0 ${count > 0 ? (isActive ? 'text-white' : 'text-gray-400') : 'text-gray-700'}`}>{count || '–'}</span>
+                      <span className={`text-[10px] font-bold tabular-nums shrink-0 ${count > 0 ? (isActive ? 'text-white' : 'text-gray-400') : 'text-gray-700'}`}>{count > 0 ? <AnimatedNum value={count} /> : '–'}</span>
                     </button>
                   )
                 })}
@@ -644,21 +674,21 @@ export default function OrdersView() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500">Miles</span>
-                      <span className="text-[11px] font-bold text-gray-200 tabular-nums">{tMiles.toLocaleString()}</span>
+                      <span className="text-[11px] font-bold text-gray-200 tabular-nums"><AnimatedNum value={tMiles} /></span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500">DH</span>
-                      <span className="text-[11px] font-bold text-orange-400 tabular-nums">{tDH.toLocaleString()}</span>
+                      <span className="text-[11px] font-bold text-orange-400 tabular-nums"><AnimatedNum value={tDH} /></span>
                     </div>
                     <div className="h-px bg-gray-800" />
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500">Revenue</span>
-                      <span className="text-[12px] font-bold text-green-400 tabular-nums">{fmt(tRate)}</span>
+                      <span className="text-[12px] font-bold text-green-400 tabular-nums"><AnimatedNum value={tRate} fmt={fmt} /></span>
                     </div>
                     {rpm > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-gray-500">RPM</span>
-                        <span className="text-[11px] font-bold text-cyan-400 tabular-nums">${rpm.toFixed(2)}</span>
+                        <span className="text-[11px] font-bold text-cyan-400 tabular-nums"><AnimatedNum value={rpm} decimals={2} prefix="$" /></span>
                       </div>
                     )}
                   </div>
