@@ -84,7 +84,7 @@ html.light :is(
 
 /* Scrollbar adapts to theme — only on desktop with mouse */
 @media (hover: hover) and (pointer: fine) {
-  html.light {
+  html.light * {
     scrollbar-color: #93c5fd #e5e7eb;
   }
 
@@ -113,17 +113,14 @@ html.light .bg-black\/60 {
 /* ========================
    DARK MODE (default)
    ======================== */
-/* Ocultar scrollbar en mobile (touch) — todos los temas */
-@media (hover: none), (pointer: coarse) {
-  * {
-    scrollbar-width: none !important;
-  }
-  *::-webkit-scrollbar {
-    display: none !important;
-  }
+/* Scrollbar: invisible por defecto (mobile), naranja solo en desktop con mouse */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 
-/* Scrollbar naranja en desktop */
 @media (hover: hover) and (pointer: fine) {
   * {
     scrollbar-width: thin;
@@ -131,6 +128,7 @@ html.light .bg-black\/60 {
   }
 
   ::-webkit-scrollbar {
+    display: block;
     width: 6px;
     height: 6px;
   }
