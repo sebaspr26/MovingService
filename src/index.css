@@ -169,6 +169,22 @@ select.sel option {
   background: #1f2937;
 }
 
+/* Tab / section content transition */
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-in {
+  animation: tab-in 0.22s ease-out;
+}
+
 /* Modal animations */
 @keyframes modal-backdrop-in {
   from { opacity: 0; }

@@ -440,7 +440,7 @@ export default function TruckView() {
           </div>
 
           {/* Tab content */}
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5">
+          <div key={tab} className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5 animate-tab-in">
             {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} isLease={truck?.is_lis} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}

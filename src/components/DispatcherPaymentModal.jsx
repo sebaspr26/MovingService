@@ -328,8 +328,8 @@ export default function DispatcherPaymentModal({ user, onClose }) {
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
-      <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4 animate-modal-backdrop">
+      <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-modal-panel">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800 shrink-0 gap-3">

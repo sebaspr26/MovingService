@@ -337,7 +337,7 @@ export default function UserProfile() {
   // ── Non-driver layout ──
   if (!isDriver) {
     return (
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-lg mx-auto animate-tab-in">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Mi Perfil</h1>
           <p className="text-sm text-gray-500 mt-1">Gestiona tu información personal</p>
@@ -352,7 +352,7 @@ export default function UserProfile() {
 
   // ── Driver layout — 2 columns on desktop, fits one screen ──
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto animate-tab-in">
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-white">Mi Perfil</h1>
         <p className="text-sm text-gray-500 mt-0.5">Tu información de conductor</p>

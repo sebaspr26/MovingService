@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import DatePicker from './DatePicker'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl, getActiveCompanyId } from '../lib/company'
@@ -41,7 +42,7 @@ export default function CompanyInfo() {
           ))}
         </nav>
 
-        <div className="flex-1 min-w-0">
+        <div key={activeSection} className="flex-1 min-w-0 animate-tab-in">
           {activeSection === 'company_docs' && <SectionCompanyDocs />}
           {activeSection === 'choferes' && <SectionChoferes />}
           {activeSection === 'camiones' && <SectionCamiones />}
@@ -145,7 +146,7 @@ function SectionCompanyInfo() {
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Date Founded</label>
-            <input type="date" value={form.founded} onChange={e => update('founded', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
+            <DatePicker value={form.founded} onChange={v => update('founded', v)} placeholder="MM/DD/YYYY" />
           </div>
         </div>
 
