@@ -221,15 +221,15 @@ select.sel option {
   mix-blend-mode: normal;
 }
 ::view-transition-new(root) {
-  animation: theme-drop 2.6s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: theme-drop 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   mix-blend-mode: normal;
 }
 
 @keyframes theme-drop {
-  0% {
+  from {
     clip-path: circle(0% at var(--theme-x, 50%) var(--theme-y, 50%));
   }
-  100% {
+  to {
     clip-path: circle(150% at var(--theme-x, 50%) var(--theme-y, 50%));
   }
 }
