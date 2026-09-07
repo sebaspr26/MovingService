@@ -82,25 +82,27 @@ html.light :is(
   --color-white: #ffffff;
 }
 
-/* Scrollbar adapts to theme */
-html.light {
-  scrollbar-color: #93c5fd #e5e7eb;
-}
+/* Scrollbar adapts to theme — only on desktop with mouse */
+@media (hover: hover) and (pointer: fine) {
+  html.light {
+    scrollbar-color: #93c5fd #e5e7eb;
+  }
 
-html.light ::-webkit-scrollbar-track {
-  background: #e5e7eb;
-}
+  html.light ::-webkit-scrollbar-track {
+    background: #e5e7eb;
+  }
 
-html.light ::-webkit-scrollbar-thumb {
-  background: #93c5fd;
-}
+  html.light ::-webkit-scrollbar-thumb {
+    background: #93c5fd;
+  }
 
-html.light ::-webkit-scrollbar-thumb:hover {
-  background: #60a5fa;
-}
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background: #60a5fa;
+  }
 
-html.light ::-webkit-scrollbar-corner {
-  background: #e5e7eb;
+  html.light ::-webkit-scrollbar-corner {
+    background: #e5e7eb;
+  }
 }
 
 /* Modal overlay stays dark in both modes */
@@ -111,7 +113,17 @@ html.light .bg-black\/60 {
 /* ========================
    DARK MODE (default)
    ======================== */
-/* Scrollbar invisible en mobile, naranja en desktop */
+/* Ocultar scrollbar en mobile (touch) — todos los temas */
+@media (hover: none), (pointer: coarse) {
+  * {
+    scrollbar-width: none !important;
+  }
+  *::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+/* Scrollbar naranja en desktop */
 @media (hover: hover) and (pointer: fine) {
   * {
     scrollbar-width: thin;

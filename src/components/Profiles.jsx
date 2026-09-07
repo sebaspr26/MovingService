@@ -761,10 +761,11 @@ export default function Profiles() {
             </div>
 
             {/* Body — 2 cols on desktop, stacked on mobile */}
-            <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
+              <div className="flex flex-col md:flex-row md:h-full">
 
               {/* Columna izquierda: Permisos */}
-              <div className="flex-1 p-4 sm:p-5 overflow-y-auto md:border-r border-b md:border-b-0 border-gray-800">
+              <div className="flex-1 p-4 sm:p-5 md:overflow-y-auto md:border-r border-b md:border-b-0 border-gray-800">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
                 {(permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease') ? (
                   /* Drivers: solo Dashboard y Ordenes, acceso automático */
@@ -827,7 +828,7 @@ export default function Profiles() {
               </div>
 
               {/* Columna derecha: Camiones + Comisión + Empresas */}
-              <div className="w-full md:w-72 p-4 sm:p-5 overflow-y-auto flex flex-col gap-5 md:shrink-0">
+              <div className="w-full md:w-72 p-4 sm:p-5 md:overflow-y-auto flex flex-col gap-5 md:shrink-0">
 
                 {/* Comisión — solo dispatchers */}
                 {permUser.user_metadata?.role === 'dispatcher' && (
@@ -864,7 +865,7 @@ export default function Profiles() {
                         <button type="button" onClick={() => setAllowedTrucks([])}
                           className="text-[10px] text-gray-500 hover:text-gray-400 transition-colors font-semibold">Ninguno</button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                      <div className="flex flex-wrap gap-1.5 md:max-h-48 md:overflow-y-auto">
                         {dbTrucks.map(t => {
                           const checked = allowedTrucks.includes(t.id)
                           return (
@@ -913,6 +914,7 @@ export default function Profiles() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </div>
 
