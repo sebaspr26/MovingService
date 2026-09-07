@@ -736,25 +736,23 @@ export default function Profiles() {
           <div className="relative w-full max-w-5xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-                  {getInitials(permUser.user_metadata?.name, permUser.email)}
-                  {getUserAvatarUrl(permUser) && (
-                    <img src={getUserAvatarUrl(permUser)} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-base font-bold text-white leading-tight">{permUser.user_metadata?.name || permUser.email}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{permUser.email}</p>
-                </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${ROLE_LABELS[permUser.user_metadata?.role]?.color || 'text-gray-400 bg-gray-400/10 border-gray-400/20'}`}>
-                  {ROLE_LABELS[permUser.user_metadata?.role]?.label || permUser.user_metadata?.role}
-                </span>
+            <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-800 shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                {getInitials(permUser.user_metadata?.name, permUser.email)}
+                {getUserAvatarUrl(permUser) && (
+                  <img src={getUserAvatarUrl(permUser)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                )}
               </div>
-              <button onClick={() => setPermUser(null)} className="text-gray-500 hover:text-white transition-colors p-1.5">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm sm:text-base font-bold text-white leading-tight truncate">{permUser.user_metadata?.name || permUser.email}</p>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{permUser.email}</p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${ROLE_LABELS[permUser.user_metadata?.role]?.color || 'text-gray-400 bg-gray-400/10 border-gray-400/20'}`}>
+                {ROLE_LABELS[permUser.user_metadata?.role]?.label || permUser.user_metadata?.role}
+              </span>
+              <button onClick={() => setPermUser(null)} className="shrink-0 w-7 h-7 rounded-lg bg-gray-800 text-gray-400 flex items-center justify-center hover:bg-gray-700 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
