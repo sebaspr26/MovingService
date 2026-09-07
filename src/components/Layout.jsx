@@ -647,64 +647,48 @@ export default function Layout() {
 
       {/* Mobile bottom nav bar */}
       {(() => {
-        const leftItems = [
-          {
-            to: '/inicio', label: 'Inicio',
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />,
-          },
-          canAccess(session, 'orders') && {
-            to: '/orders', label: 'Ordenes',
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />,
-          },
+        // Todos los ítems disponibles según permisos del usuario
+        const allItems = [
+          { to: '/inicio', label: 'Inicio', icon: <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /> },
+          canAccess(session, 'orders') && { to: '/orders', label: 'Ordenes', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /> },
+          canAccess(session, 'conductores') && { to: '/conductores', label: 'Conductores', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /> },
+          canAccess(session, 'company') && { to: '/company', label: 'Compañía', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0" /> },
         ].filter(Boolean)
 
-        const rightItems = [
-          canAccess(session, 'conductores') && {
-            to: '/conductores', label: 'Conductores',
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />,
-          },
-          canAccess(session, 'company') && {
-            to: '/company', label: 'Compañía',
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0" />,
-          },
-        ].filter(Boolean)
+        // Dividir automáticamente alrededor del center: primera mitad izquierda, segunda derecha
+        const half = Math.ceil(allItems.length / 2)
+        const leftItems = allItems.slice(0, half)
+        const rightItems = allItems.slice(half)
+
+        const NavItem = ({ item }) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-1 py-2.5 flex-1 transition-colors ${isActive ? 'text-orange-400' : 'text-gray-500'}`
+            }
+          >
+            <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              {item.icon}
+            </svg>
+            <span className="text-[10px] font-medium leading-none">{item.label}</span>
+          </NavLink>
+        )
 
         return (
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-800/80 flex items-end" style={{ background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(20px)' }}>
-            {/* Left items */}
-            {leftItems.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-2.5 flex-1 transition-colors ${isActive ? 'text-orange-400' : 'text-gray-500'}`
-                }
-              >
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  {item.icon}
-                </svg>
-                <span className="text-[10px] font-medium leading-none">{item.label}</span>
-              </NavLink>
-            ))}
+            {leftItems.map(item => <NavItem key={item.to} item={item} />)}
 
             {/* Center — Dashboard elevated button */}
             <div className="flex flex-col items-center flex-1 relative pb-1.5">
-              <NavLink
-                to="/"
-                end
-                className="flex flex-col items-center gap-1 -translate-y-4"
-              >
+              <NavLink to="/" end className="flex flex-col items-center gap-1 -translate-y-4">
                 {({ isActive }) => (
                   <>
                     <div
                       className="w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-95"
                       style={{
-                        background: isActive
-                          ? 'linear-gradient(135deg, #ea580c, #c2410c)'
-                          : 'linear-gradient(135deg, #374151, #1f2937)',
-                        boxShadow: isActive
-                          ? '0 4px 20px rgba(234,88,12,0.45)'
-                          : '0 4px 12px rgba(0,0,0,0.5)',
+                        background: isActive ? 'linear-gradient(135deg, #ea580c, #c2410c)' : 'linear-gradient(135deg, #374151, #1f2937)',
+                        boxShadow: isActive ? '0 4px 20px rgba(234,88,12,0.45)' : '0 4px 12px rgba(0,0,0,0.5)',
                         border: isActive ? '2px solid rgba(234,88,12,0.4)' : '2px solid rgba(75,85,99,0.4)',
                       }}
                     >
@@ -712,29 +696,13 @@ export default function Layout() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
                       </svg>
                     </div>
-                    <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-orange-400' : 'text-gray-500'}`}>
-                      Dashboard
-                    </span>
+                    <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-orange-400' : 'text-gray-500'}`}>Dashboard</span>
                   </>
                 )}
               </NavLink>
             </div>
 
-            {/* Right items */}
-            {rightItems.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-2.5 flex-1 transition-colors ${isActive ? 'text-orange-400' : 'text-gray-500'}`
-                }
-              >
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  {item.icon}
-                </svg>
-                <span className="text-[10px] font-medium leading-none">{item.label}</span>
-              </NavLink>
-            ))}
+            {rightItems.map(item => <NavItem key={item.to} item={item} />)}
           </nav>
         )
       })()}
