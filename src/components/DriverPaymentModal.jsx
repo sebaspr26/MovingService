@@ -74,7 +74,8 @@ function AnimatedMoney({ value }) {
 
 export default function DriverPaymentModal({ driver, truck, onClose }) {
   const [payments, setPayments] = useState([])
-  const [orders, setOrders] = useState([])
+  const [orders, setOrders] = useState([])       // disponibles (invoiced/paid)
+  const [blockedOrders, setBlockedOrders] = useState([]) // no facturadas
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [payMode, setPayMode] = useState('percentage')
   const [payRate, setPayRate] = useState('0')
@@ -103,16 +104,17 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       supabase.from('orders')
         .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
         .eq('driver_name', driverName)
-        .in('status', ['paid', 'invoiced'])
+        .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
         .order('pu_date', { ascending: false }),
     ])
 
     const existingPayments = paymentsRes.data || []
     const usedIds = new Set(existingPayments.flatMap(p => p.order_ids || []))
-    const unpaid = (ordersRes.data || []).filter(o => !usedIds.has(o.id))
+    const notUsed = (ordersRes.data || []).filter(o => !usedIds.has(o.id))
 
     setPayments(existingPayments)
-    setOrders(unpaid)
+    setOrders(notUsed.filter(o => o.status === 'invoiced' || o.status === 'paid'))
+    setBlockedOrders(notUsed.filter(o => o.status !== 'invoiced' && o.status !== 'paid'))
     setLoading(false)
   }
 
@@ -572,33 +574,77 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
 
               {/* Orders list */}
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-                {orders.length === 0 ? (
+                {orders.length === 0 && blockedOrders.length === 0 ? (
                   <div className="text-center py-16 text-gray-600 text-sm">Sin cargas disponibles<br /><span className="text-xs text-gray-700">Todas las cargas ya tienen pago</span></div>
                 ) : (
-                  orders.map((o, i) => {
-                    const isSelected = selectedIds.has(o.id)
-                    const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
-                    return (
-                      <button key={o.id} onClick={() => toggleOrder(o.id)}
-                        style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}
-                        className={`animate-order-row-in w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${isSelected ? 'bg-cyan-600/10 border-cyan-600/35' : 'border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'}`}>
-                        <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-600 border-cyan-600' : 'border-gray-600'}`}>
-                          {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-white truncate">{o.order_number || o.id.slice(0, 8)}</span>
-                            <span className="text-xs font-bold text-green-400 shrink-0">{fmt(o.rate || 0)}</span>
+                  <>
+                    {/* Cargas disponibles */}
+                    {orders.map((o, i) => {
+                      const isSelected = selectedIds.has(o.id)
+                      const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
+                      return (
+                        <button key={o.id} onClick={() => toggleOrder(o.id)}
+                          style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}
+                          className={`animate-order-row-in w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${isSelected ? 'bg-cyan-600/10 border-cyan-600/35' : 'border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'}`}>
+                          <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-600 border-cyan-600' : 'border-gray-600'}`}>
+                            {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>}
                           </div>
-                          <div className="flex items-center justify-between gap-2 mt-0.5">
-                            <span className="text-[10px] text-gray-500 truncate">{o.pu_city || '—'} → {o.do_city || '—'}</span>
-                            <span className="text-[10px] text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-white truncate">{o.order_number || o.id.slice(0, 8)}</span>
+                              <span className="text-xs font-bold text-green-400 shrink-0">{fmt(o.rate || 0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-0.5">
+                              <span className="text-[10px] text-gray-500 truncate">{o.pu_city || '—'} → {o.do_city || '—'}</span>
+                              <span className="text-[10px] text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>
+                            </div>
+                            <p className="text-[9px] text-gray-700 mt-0.5">{miles.toLocaleString()} mi total · {Number(o.miles||0).toLocaleString()} loaded + {Number(o.dead_miles||0).toLocaleString()} DH</p>
                           </div>
-                          <p className="text-[9px] text-gray-700 mt-0.5">{miles.toLocaleString()} mi total · {Number(o.miles||0).toLocaleString()} loaded + {Number(o.dead_miles||0).toLocaleString()} DH</p>
-                        </div>
-                      </button>
-                    )
-                  })
+                        </button>
+                      )
+                    })}
+
+                    {/* Cargas bloqueadas (no facturadas) */}
+                    {blockedOrders.length > 0 && (
+                      <>
+                        {orders.length > 0 && <div className="h-px bg-gray-800/80 my-2" />}
+                        <p className="text-[9px] text-gray-600 uppercase tracking-widest font-semibold px-1 pb-1">Pendientes de facturar ({blockedOrders.length})</p>
+                        {blockedOrders.map((o, i) => {
+                          const STATUS_LABEL = { booked: 'Reservada', assigned: 'Asignada', in_transit: 'En Tránsito', delivered: 'Entregada' }
+                          const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
+                          return (
+                            <div key={o.id} className="relative group">
+                              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-gray-800 opacity-45 cursor-not-allowed select-none">
+                                {/* Ícono candado */}
+                                <div className="w-4 h-4 shrink-0 flex items-center justify-center text-gray-600">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-semibold text-gray-500 truncate">{o.order_number || o.id.slice(0, 8)}</span>
+                                    <span className="text-xs font-bold text-gray-600 shrink-0">{fmt(o.rate || 0)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                                    <span className="text-[10px] text-gray-600 truncate">{o.pu_city || '—'} → {o.do_city || '—'}</span>
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-gray-800 text-gray-500 rounded">{STATUS_LABEL[o.status] || o.status}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Tooltip */}
+                              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-8 hidden group-hover:flex items-center gap-1.5 z-20 whitespace-nowrap bg-gray-900 border border-red-900/50 text-gray-300 text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xl">
+                                <svg className="w-3 h-3 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                </svg>
+                                Carga no ha sido facturada
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
+                  </>
                 )}
               </div>
 
