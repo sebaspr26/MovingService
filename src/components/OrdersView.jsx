@@ -7,7 +7,7 @@ import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { getAllowedTruckIds, isSuperAdmin, getPerCompanyMeta } from '../lib/permissions'
+import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 
 function useCountUp(target, duration = 700) {
@@ -770,7 +770,7 @@ export default function OrdersView() {
         if (!filtered.length) return null
         return (
           <div
-            className="sm:hidden fixed bottom-[66px] left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3"
+            className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3 ${isSuperAdmin(session) || canAccess(session, 'dashboard') ? 'bottom-[88px]' : 'bottom-[66px]'}`}
             style={{
               background: 'rgba(17,17,24,0.92)',
               backdropFilter: 'blur(20px)',
