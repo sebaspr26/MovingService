@@ -169,6 +169,31 @@ select.sel option {
   background: #1f2937;
 }
 
+/* Modal animations */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-backdrop {
+  animation: modal-backdrop-in 0.2s ease-out;
+}
+
+.animate-modal-panel {
+  animation: modal-panel-in 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
 /* Toast animations */
 @keyframes toast-slide-in {
   from {

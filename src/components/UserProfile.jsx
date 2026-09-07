@@ -428,21 +428,17 @@ export default function UserProfile() {
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">Venc. Licencia</label>
-                    <div className="flex items-center gap-1.5">
-                      <input type="date" value={licenseExpiry}
-                        onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
-                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
-                      {expiryBadge(licenseExpiry)}
-                    </div>
+                    <input type="date" value={licenseExpiry}
+                      onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
+                      className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                    {expiryBadge(licenseExpiry) && <div className="mt-1">{expiryBadge(licenseExpiry)}</div>}
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">Venc. Medical Card</label>
-                    <div className="flex items-center gap-1.5">
-                      <input type="date" value={medicalExpiry}
-                        onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
-                        className="sel flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
-                      {expiryBadge(medicalExpiry)}
-                    </div>
+                    <input type="date" value={medicalExpiry}
+                      onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
+                      className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                    {expiryBadge(medicalExpiry) && <div className="mt-1">{expiryBadge(medicalExpiry)}</div>}
                   </div>
                 </div>
                 <div className="flex justify-end pt-1">

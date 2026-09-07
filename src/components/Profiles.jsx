@@ -732,8 +732,8 @@ export default function Profiles() {
       {/* Modal Permisos — 2 columnas */}
       {permUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPermUser(null)} />
-          <div className="relative w-full max-w-5xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-modal-backdrop" onClick={() => setPermUser(null)} />
+          <div className="relative w-full max-w-5xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col animate-modal-panel" style={{ maxHeight: '90vh' }}>
 
             {/* Header */}
             <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-800 shrink-0">
@@ -934,8 +934,8 @@ export default function Profiles() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setResendUser(null) }} />
-          <div className="relative w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-modal-backdrop" onClick={() => { setShowModal(false); setResendUser(null) }} />
+          <div className="relative w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl animate-modal-panel">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">
                 {modalMode === 'invite' ? 'Enviar Invitación' : 'Nuevo Usuario'}
@@ -1051,9 +1051,9 @@ export default function Profiles() {
       {/* Modal — Entrar como usuario */}
       {impersonateUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setImpersonateUser(null); setImpersonateLink(null) }} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-modal-backdrop" onClick={() => { setImpersonateUser(null); setImpersonateLink(null) }} />
           <div
-            className="relative w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden"
+            className="relative w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden animate-modal-panel"
             style={{ background: 'rgba(10,10,18,0.97)', backdropFilter: 'blur(32px)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}
           >
             {/* Header con gradiente sutil */}
