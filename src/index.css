@@ -214,22 +214,43 @@ select.sel option {
 }
 
 /* ========================
-   THEME TRANSITION — efecto gota
+   THEME TRANSITION — efecto gota 3D
    ======================== */
 ::view-transition-old(root) {
   animation: none;
   mix-blend-mode: normal;
 }
 ::view-transition-new(root) {
-  animation: theme-drop 0.5s ease-out;
+  animation: theme-drop 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   mix-blend-mode: normal;
 }
 
 @keyframes theme-drop {
-  from {
+  0% {
     clip-path: circle(0% at var(--theme-x, 50%) var(--theme-y, 50%));
+    filter: brightness(3) blur(16px) saturate(0.4);
   }
-  to {
+  18% {
+    filter: brightness(1.6) blur(6px) saturate(0.7);
+  }
+  50% {
+    filter: brightness(1.1) blur(1px) saturate(0.95);
+  }
+  100% {
     clip-path: circle(150% at var(--theme-x, 50%) var(--theme-y, 50%));
+    filter: brightness(1) blur(0) saturate(1);
   }
+}
+
+/* Anillos de onda de la gota */
+@keyframes drop-ring {
+  0%   { width: 0; height: 0; opacity: 0.9; }
+  100% { width: 140vmax; height: 140vmax; opacity: 0; }
+}
+
+/* Flash del impacto */
+@keyframes drop-flash {
+  0%   { width: 0; height: 0; opacity: 1; }
+  35%  { width: 90px; height: 90px; opacity: 0.85; }
+  100% { width: 260px; height: 260px; opacity: 0; }
 }
