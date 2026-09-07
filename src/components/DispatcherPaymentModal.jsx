@@ -483,7 +483,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
 
           {/* Right: New payment panel — full width on mobile, 380px on desktop */}
           {showNew && (
-            <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30">
+            <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-slide-in">
 
               {/* Summary cards */}
               <div className="px-5 py-4 border-b border-gray-800 shrink-0">

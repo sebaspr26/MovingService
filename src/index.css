@@ -169,6 +169,22 @@ select.sel option {
   background: #1f2937;
 }
 
+/* Side panel slide-in (nuevo pago, etc.) */
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-panel-slide-in {
+  animation: panel-slide-in 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
 /* Tab / section content transition */
 @keyframes tab-in {
   from {

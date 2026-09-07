@@ -474,7 +474,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
 
           {/* Right: New payment */}
           {showNew && (
-            <div className="flex-1 lg:flex-none lg:w-[400px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30">
+            <div className="flex-1 lg:flex-none lg:w-[400px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-slide-in">
 
               {/* Pay mode selector */}
               <div className="px-5 pt-4 pb-3 border-b border-gray-800 shrink-0">

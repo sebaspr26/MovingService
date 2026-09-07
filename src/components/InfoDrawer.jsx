@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import DatePicker from './DatePicker'
 import { useToast, friendlyError } from './Toast'
 import { getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
@@ -50,8 +51,10 @@ export default function Informacion() {
         </button>
       </div>
 
-      {tab === 'empresa' && <FormCompanyInfo readonly={readonly} />}
-      {tab === 'billing' && <FormBilling readonly={readonly} />}
+      <div key={tab} className="animate-tab-in">
+        {tab === 'empresa' && <FormCompanyInfo readonly={readonly} />}
+        {tab === 'billing' && <FormBilling readonly={readonly} />}
+      </div>
     </div>
   )
 }
@@ -135,7 +138,7 @@ function FormCompanyInfo({ readonly }) {
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Date Founded</label>
-            <input type="date" value={form.founded} onChange={e => update('founded', e.target.value)} className={inputClass} />
+            <DatePicker value={form.founded} onChange={v => update('founded', v)} placeholder="MM/DD/YYYY" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">MC Number</label>

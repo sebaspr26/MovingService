@@ -175,7 +175,7 @@ export default function Layout() {
           {showSwitcher && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowSwitcher(false)} />
-              <div className="absolute left-0 top-full mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute left-0 top-full mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in">
                 <div className="p-2">
                   <p className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5 font-semibold">Empresas</p>
                   {visibleCompanies.map(c => {
@@ -590,7 +590,7 @@ export default function Layout() {
           {showMobileSwitcher && !isSubPage && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowMobileSwitcher(false)} />
-              <div className="absolute top-full left-3 mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute top-full left-3 mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in">
                 <div className="p-2">
                   <p className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5 font-semibold">Empresas</p>
                   {visibleCompanies.map(c => {
@@ -641,7 +641,9 @@ export default function Layout() {
         </header>
 
         <main className="flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-20 lg:pb-6">
-          <Outlet />
+          <div key={location.pathname} className="animate-tab-in">
+            <Outlet />
+          </div>
         </main>
       </div>
 
