@@ -84,7 +84,7 @@ function App() {
         >
           <Route index element={(() => {
             if (!isSuperAdmin(session) && !canAccess(session, 'dashboard'))
-              return <Navigate to="/welcome" replace />
+              return <Navigate to="/inicio" replace />
             const role = session?.user?.user_metadata?.role
             const isDriver = role === 'driver' || role === 'driver_lease'
             if (isDriver) return <DriverRedirect />
