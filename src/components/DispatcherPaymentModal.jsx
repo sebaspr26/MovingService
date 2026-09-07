@@ -78,14 +78,10 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   async function fetchData() {
     setLoading(true)
     const [paymentsRes, ordersRes, brokersRes] = await Promise.all([
-      (() => {
-        let q = supabase.from('dispatcher_payments')
-          .select('*')
-          .eq('dispatcher_email', dispatcherEmail)
-          .order('created_at', { ascending: false })
-        if (cId) q = q.eq('company_id', cId)
-        return q
-      })(),
+      supabase.from('dispatcher_payments')
+        .select('*')
+        .eq('dispatcher_email', dispatcherEmail)
+        .order('created_at', { ascending: false }),
       (() => {
         let q = supabase.from('orders')
           .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id')
@@ -334,25 +330,38 @@ export default function DispatcherPaymentModal({ user, onClose }) {
       <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800 shrink-0 gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
               {dispatcherName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white leading-tight">{dispatcherName}</h2>
-              <p className="text-xs text-gray-500">{dispatcherEmail} · Comisión: <span className="text-orange-400 font-semibold">{profileRate > 0 ? `${profileRate}%` : 'Sin configurar'}</span></p>
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{dispatcherName}</h2>
+              <p className="text-xs text-gray-500 truncate">
+                <span className="hidden sm:inline">{dispatcherEmail} · </span>
+                Comisión: <span className="text-orange-400 font-semibold">{profileRate > 0 ? `${profileRate}%` : 'Sin configurar'}</span>
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => { setShowNew(v => !v); setSelectedIds(new Set()); setEditPct(String(profileRate)) }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg font-bold transition-colors ${showNew ? 'bg-gray-700 text-gray-300' : 'bg-orange-600 text-white hover:bg-orange-500'}`}
-              title="Nuevo pago"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showNew ? 'bg-gray-700 text-gray-300' : 'bg-orange-600 text-white hover:bg-orange-500'}`}
+              title={showNew ? 'Ver historial' : 'Nuevo pago'}
             >
-              {showNew ? '×' : '+'}
+              {showNew ? (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                  <span className="hidden sm:inline">Historial</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                  Nuevo
+                </>
+              )}
             </button>
-            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-800 text-gray-400 flex items-center justify-center hover:bg-gray-700 transition-colors">
+            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-800 text-gray-400 flex items-center justify-center hover:bg-gray-700 transition-colors shrink-0">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
@@ -361,10 +370,10 @@ export default function DispatcherPaymentModal({ user, onClose }) {
         </div>
 
         {/* Body */}
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
-          {/* Left: Payment history */}
-          <div className={`flex flex-col overflow-hidden ${showNew ? 'flex-1 border-r border-gray-800' : 'flex-1'}`}>
+          {/* Left: Payment history — oculto en mobile cuando showNew está abierto */}
+          <div className={`flex-col overflow-hidden ${showNew ? 'hidden lg:flex lg:flex-1 lg:border-r lg:border-gray-800' : 'flex flex-1'}`}>
             <div className="px-5 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos</p>
               <span className="text-[10px] text-gray-600">{payments.length} registro{payments.length !== 1 ? 's' : ''}</span>
@@ -471,9 +480,9 @@ export default function DispatcherPaymentModal({ user, onClose }) {
             </div>
           </div>
 
-          {/* Right: New payment panel */}
+          {/* Right: New payment panel — full width on mobile, 380px on desktop */}
           {showNew && (
-            <div className="w-[380px] shrink-0 flex flex-col overflow-hidden bg-gray-900/30">
+            <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30">
 
               {/* Summary cards */}
               <div className="px-5 py-4 border-b border-gray-800 shrink-0">

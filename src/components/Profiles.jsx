@@ -352,7 +352,9 @@ export default function Profiles() {
     // allowed_trucks and dispatcher_rates are per-company
     const existingTrucks = companyMeta.allowed_trucks ?? user.user_metadata?.allowed_trucks
     setAllowedTrucks(existingTrucks ?? dbTrucks.map(t => t.id))
-    const rates = companyMeta.dispatcher_rates || user.user_metadata?.dispatcher_rates || []
+    const rates = (companyMeta.dispatcher_rates?.length ? companyMeta.dispatcher_rates : null)
+      || (user.user_metadata?.dispatcher_rates?.length ? user.user_metadata.dispatcher_rates : null)
+      || []
     setRateHistory(rates)
     const currentMonth = new Date().toISOString().slice(0, 7)
     const monthEntry = rates.find(r => r.month === currentMonth)
@@ -397,7 +399,7 @@ export default function Profiles() {
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks, dispatcher_rates: newRates, company_id: getActiveCompanyId() }),
+        body: JSON.stringify({ action: 'update_permissions', email: permUser.email, userId: permUser.id, permissions: perms, allowed_companies: allowedCompanies, allowed_trucks: allowedTrucks, ...(newRates.length > 0 ? { dispatcher_rates: newRates } : {}), company_id: getActiveCompanyId() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
