@@ -767,7 +767,7 @@ export default function OrdersView() {
         if (!filtered.length) return null
         return (
           <div
-            className="sm:hidden fixed bottom-28 left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3"
+            className="sm:hidden fixed bottom-[66px] left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3"
             style={{
               background: 'rgba(17,17,24,0.92)',
               backdropFilter: 'blur(20px)',
