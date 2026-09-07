@@ -8,6 +8,7 @@ import CompanyInfo from './components/CompanyInfo'
 import DispatcherDrivers from './components/DispatcherDrivers'
 import PagoConductores from './components/PagoConductores'
 import PagoDispatchers from './components/PagoDispatchers'
+import PagosMenu from './components/PagosMenu'
 import Informacion from './components/InfoDrawer'
 import Settings from './components/Settings'
 import Statistics from './components/Statistics'
@@ -99,6 +100,7 @@ function App() {
           <Route path="profiles" element={<Profiles />} />
           <Route path="informacion" element={<Informacion />} />
           <Route path="conductores" element={<DispatcherDrivers />} />
+          <Route path="pagos" element={<PagosMenu />} />
           <Route path="pagos/conductores" element={<PagoConductores />} />
           <Route path="pagos/dispatchers" element={<PagoDispatchers />} />
           <Route path="inicio" element={<Inicio />} />

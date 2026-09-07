@@ -58,7 +58,7 @@ export default function Layout() {
   }
   const location = useLocation()
   const navigate = useNavigate()
-  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos/conductores', '/pagos/dispatchers']
+  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers']
   const isSubPage = !topLevelPaths.includes(location.pathname)
   const [showMobileUserMenu, setShowMobileUserMenu] = useState(false)
   const [showMobileSwitcher, setShowMobileSwitcher] = useState(false)
