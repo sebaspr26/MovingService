@@ -448,10 +448,10 @@ export default function OrdersView() {
                   <th className="pb-2 pr-3">St.</th>
                   <th className="pb-2 pr-3">Orden #</th>
                   <th className="pb-2 pr-3">Truck</th>
-                  <th className="pb-2 pr-3">Dispatcher</th>
-                  <th className="pb-2 pr-3">Origen</th>
+                  <th className="pb-2 pr-3 hidden sm:table-cell">Dispatcher</th>
+                  <th className="pb-2 pr-3 hidden sm:table-cell">Origen</th>
                   <th className="pb-2 pr-3">Destino</th>
-                  <th className="pb-2 pr-3 text-right">Miles / DH</th>
+                  <th className="pb-2 pr-3 text-right hidden sm:table-cell">Miles / DH</th>
                   <th className="pb-2 pr-3 text-right">Rate</th>
                   <th className="pb-2 w-8"></th>
                 </tr>
@@ -472,42 +472,42 @@ export default function OrdersView() {
                   }[row.status] || ''
                   return (
                     <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}>
-                      <td className="py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-2 sm:py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
                         <StatusSelect row={row} onChange={handleStatusChange} />
                       </td>
-                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                        <div className="font-semibold text-white">{row.order_number}</div>
+                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="font-semibold text-white text-xs sm:text-sm">{row.order_number}</div>
                         {brokers[row.broker_id] && (
-                          <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{brokers[row.broker_id].name}</div>
+                          <div className="text-[10px] text-gray-500 truncate max-w-[120px]">{brokers[row.broker_id].name}</div>
                         )}
                       </td>
-                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                        {truck ? <span className="text-sm bg-gray-800 text-gray-200 font-medium px-2 py-0.5 rounded">{truck.number}</span> : '-'}
+                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        {truck ? <span className="text-xs sm:text-sm bg-gray-800 text-gray-200 font-medium px-1.5 sm:px-2 py-0.5 rounded">{truck.number}</span> : '-'}
                       </td>
-                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
                         {row.dispatcher ? <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span> : <span className="text-gray-700">—</span>}
                       </td>
-                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
                         <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.pu_date}</div>
                       </td>
-                      <td className="py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
-                        <div className="text-gray-200 text-sm font-medium">{row.do_city || '-'}</div>
+                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <div className="text-gray-200 text-xs sm:text-sm font-medium">{row.do_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.do_date}</div>
                       </td>
-                      <td className="py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className="py-2 sm:py-3.5 pr-3 text-right cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
                         <div className="text-gray-300 text-sm font-medium">{Number(row.miles || 0).toLocaleString()}</div>
                         {Number(row.dead_miles || 0) > 0 && (
                           <div className="text-[10px] text-orange-400">{Number(row.dead_miles).toLocaleString()} DH</div>
                         )}
                       </td>
-                      <td className="py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
-                        <span className="text-green-400 font-semibold text-sm">{fmt(row.rate || 0)}</span>
+                      <td className="py-2 sm:py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                        <span className="text-green-400 font-semibold text-xs sm:text-sm">{fmt(row.rate || 0)}</span>
                         {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
                           <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                         )}
                       </td>
-                      <td className="py-3.5">
+                      <td className="py-2 sm:py-3.5">
                         <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
