@@ -474,7 +474,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
 
           {/* Right: New payment */}
           {showNew && (
-            <div className="flex-1 lg:flex-none lg:w-[400px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-slide-in">
+            <div className="flex-1 lg:flex-none lg:w-[400px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-stretch-in">
 
               {/* Pay mode selector */}
               <div className="px-5 pt-4 pb-3 border-b border-gray-800 shrink-0">
@@ -575,12 +575,13 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                 {orders.length === 0 ? (
                   <div className="text-center py-16 text-gray-600 text-sm">Sin cargas disponibles<br /><span className="text-xs text-gray-700">Todas las cargas ya tienen pago</span></div>
                 ) : (
-                  orders.map(o => {
+                  orders.map((o, i) => {
                     const isSelected = selectedIds.has(o.id)
                     const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
                     return (
                       <button key={o.id} onClick={() => toggleOrder(o.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${isSelected ? 'bg-cyan-600/10 border-cyan-600/35' : 'border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'}`}>
+                        style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}
+                        className={`animate-order-row-in w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${isSelected ? 'bg-cyan-600/10 border-cyan-600/35' : 'border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'}`}>
                         <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-600 border-cyan-600' : 'border-gray-600'}`}>
                           {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>}
                         </div>

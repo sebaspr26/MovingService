@@ -483,7 +483,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
 
           {/* Right: New payment panel — full width on mobile, 380px on desktop */}
           {showNew && (
-            <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-slide-in">
+            <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-stretch-in">
 
               {/* Summary cards */}
               <div className="px-5 py-4 border-b border-gray-800 shrink-0">
@@ -534,14 +534,15 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                 {orders.length === 0 ? (
                   <div className="text-center py-16 text-gray-600 text-sm">Sin órdenes disponibles<br /><span className="text-xs text-gray-700">Todas las órdenes ya tienen pago</span></div>
                 ) : (
-                  orders.map(o => {
+                  orders.map((o, i) => {
                     const isSelected = selectedIds.has(o.id)
                     const broker = brokers[o.broker_id]
                     return (
                       <button
                         key={o.id}
                         onClick={() => toggleOrder(o.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${
+                        style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}
+                        className={`animate-order-row-in w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border ${
                           isSelected
                             ? 'bg-orange-600/10 border-orange-600/35 shadow-sm'
                             : 'border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'

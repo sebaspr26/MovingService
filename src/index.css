@@ -185,6 +185,42 @@ select.sel option {
   animation: panel-slide-in 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
+/* Panel stretch-in — nuevo pago (expansión elástica con cascada de filas) */
+@keyframes panel-stretch-in {
+  0% {
+    opacity: 0;
+    transform: translateX(52px) scaleY(0.88);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scaleY(1);
+  }
+}
+
+.animate-panel-stretch-in {
+  animation: panel-stretch-in 0.48s cubic-bezier(0.34, 1.55, 0.64, 1);
+  transform-origin: top right;
+}
+
+/* Order row cascade — filas del panel de nuevo pago */
+@keyframes order-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-order-row-in {
+  animation: order-row-in 0.28s ease-out both;
+}
+
 /* Tab / section content transition */
 @keyframes tab-in {
   from {
