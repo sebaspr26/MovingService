@@ -43,14 +43,19 @@ export default function PagoDispatchers() {
 
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
 
-      // Solo incluir Auth users que hayan despachado en esta empresa
+      // Auth users asignados a esta empresa (via allowed_companies) — fuente principal
       const authUsers = allUsers.filter(u => {
-        const email = u.email?.toLowerCase()
-        return email && uniqueFromOrders.some(d => d.toLowerCase() === email)
+        if (!u.email) return false
+        const allowedCompanies = u.user_metadata?.allowed_companies
+        // Sin restricción de empresa activa: mostrar todos
+        if (!activeCompanyId) return true
+        // Sin allowed_companies en metadata: mostrar en todas (super_admin/admin sin filtro)
+        if (!allowedCompanies) return true
+        return allowedCompanies.includes(activeCompanyId)
       })
       const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
 
-      // Legacy: los que aparecen en órdenes pero no tienen cuenta Auth
+      // Legacy: aparecen en órdenes pero sin cuenta Auth
       const legacyEntries = uniqueFromOrders
         .filter(d => !authEmails.has(d.toLowerCase()))
         .map(d => ({ id: `legacy_${d}`, email: d, isLegacy: true }))
