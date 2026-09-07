@@ -607,11 +607,11 @@ export default function Profiles() {
                           </div>
 
                           <div className="flex items-center gap-1 ml-auto">
-                            {/* Entrar como — solo super_admin, no en su propia cuenta ni en otros super_admin */}
-                            {session?.user?.user_metadata?.role === 'super_admin' && role !== 'super_admin' && user.id !== session?.user?.id && (
+                            {/* Entrar como — solo super_admin, no en otros super_admin */}
+                            {session?.user?.user_metadata?.role === 'super_admin' && role !== 'super_admin' && (
                               <button
                                 onClick={() => handleImpersonate(user)}
-                                className="p-1.5 rounded-lg text-gray-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                                className="p-1.5 rounded-lg text-cyan-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
                                 title="Entrar como este usuario"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
