@@ -718,13 +718,19 @@ export default function Layout() {
                         style={{
                           background: isActive
                             ? 'linear-gradient(145deg, #ea580c, #b91c1c)'
-                            : 'linear-gradient(145deg, #1c1c28, #13131e)',
+                            : theme === 'light'
+                              ? 'linear-gradient(145deg, #e5e7eb, #d1d5db)'
+                              : 'linear-gradient(145deg, #1c1c28, #13131e)',
                           boxShadow: isActive
                             ? '0 8px 24px rgba(234,88,12,0.5), 0 2px 8px rgba(0,0,0,0.5)'
-                            : '0 4px 16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
+                            : theme === 'light'
+                              ? '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.8)'
+                              : '0 4px 16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
                           border: isActive
                             ? '1.5px solid rgba(234,88,12,0.45)'
-                            : '1.5px solid rgba(255,255,255,0.07)',
+                            : theme === 'light'
+                              ? '1.5px solid rgba(0,0,0,0.1)'
+                              : '1.5px solid rgba(255,255,255,0.07)',
                           transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
                         }}
                       >
