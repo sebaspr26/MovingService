@@ -37,21 +37,18 @@ export default function PagoDispatchers() {
       const allUsers = (data.users || []).filter(u =>
         ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role)
       )
-      // Filter by company: super_admin always visible, others must have activeCompanyId in allowed_companies
-      const authUsers = activeCompanyId
-        ? allUsers.filter(u => {
-            if (u.user_metadata?.role === 'super_admin') return true
-            const ac = u.user_metadata?.allowed_companies
-            return Array.isArray(ac) && ac.includes(activeCompanyId)
-          })
-        : allUsers
-      const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
-
-      // Dispatchers únicos de órdenes (pueden ser emails o nombres legacy) — filtrados por empresa
+      // Dispatchers únicos de órdenes filtrados por empresa — fuente de verdad
       const ordersQ = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
       const { data: orders } = activeCompanyId ? await ordersQ.eq('company_id', activeCompanyId) : await ordersQ
 
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
+
+      // Solo incluir Auth users que hayan despachado en esta empresa
+      const authUsers = allUsers.filter(u => {
+        const email = u.email?.toLowerCase()
+        return email && uniqueFromOrders.some(d => d.toLowerCase() === email)
+      })
+      const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
 
       // Legacy: los que aparecen en órdenes pero no tienen cuenta Auth
       const legacyEntries = uniqueFromOrders
@@ -99,7 +96,7 @@ export default function PagoDispatchers() {
             const name = meta.name || user.email || ''
             const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
             const companyMeta = (activeCompanyId && meta.company_settings?.[activeCompanyId]) || {}
-            const allRates = companyMeta.dispatcher_rates || meta.dispatcher_rates || []
+            const allRates = companyMeta.dispatcher_rates || []
             const currentRate = allRates.slice(-1)[0]
 
             return (

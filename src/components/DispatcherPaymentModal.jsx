@@ -66,7 +66,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   // Base commission from profile — per-company, fallback to legacy top-level
   const cId = getActiveCompanyId()
   const companyMeta = (cId && meta.company_settings?.[cId]) || {}
-  const rates = companyMeta.dispatcher_rates || meta.dispatcher_rates || []
+  const rates = companyMeta.dispatcher_rates || []
   const currentMonth = new Date().toISOString().slice(0, 7)
   const profileRate = (rates.find(r => r.month === currentMonth) || rates[rates.length - 1])?.pct || 0
 
@@ -78,15 +78,23 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   async function fetchData() {
     setLoading(true)
     const [paymentsRes, ordersRes, brokersRes] = await Promise.all([
-      supabase.from('dispatcher_payments')
-        .select('*')
-        .eq('dispatcher_email', dispatcherEmail)
-        .order('created_at', { ascending: false }),
-      supabase.from('orders')
-        .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id')
-        .eq('dispatcher', dispatcherEmail)
-        .in('status', ['paid', 'invoiced'])
-        .order('pu_date', { ascending: false }),
+      (() => {
+        let q = supabase.from('dispatcher_payments')
+          .select('*')
+          .eq('dispatcher_email', dispatcherEmail)
+          .order('created_at', { ascending: false })
+        if (cId) q = q.eq('company_id', cId)
+        return q
+      })(),
+      (() => {
+        let q = supabase.from('orders')
+          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id')
+          .eq('dispatcher', dispatcherEmail)
+          .in('status', ['paid', 'invoiced'])
+          .order('pu_date', { ascending: false })
+        if (cId) q = q.eq('company_id', cId)
+        return q
+      })(),
       (() => { const q = supabase.from('brokers').select('id, name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
     ])
 

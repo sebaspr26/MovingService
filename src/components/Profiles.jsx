@@ -417,39 +417,42 @@ export default function Profiles() {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between mb-6 gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Perfiles de Usuario</h1>
-          <p className="text-sm text-gray-500 mt-1">Gestiona los usuarios con acceso al sistema</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Perfiles de Usuario</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Gestiona los usuarios del sistema</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => { setLinkSearch(''); setShowLinkModal(true) }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-700/60 text-sm text-cyan-400 hover:bg-cyan-900/20 transition-colors"
+            className="p-2 sm:px-3 sm:py-2 rounded-lg border border-cyan-700/60 text-cyan-400 hover:bg-cyan-900/20 transition-colors flex items-center gap-1.5"
+            title="Vincular usuario"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
-            Vincular usuario
+            <span className="hidden sm:inline text-sm">Vincular</span>
           </button>
           <button
             onClick={() => openModal('invite')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+            className="p-2 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors flex items-center gap-1.5"
+            title="Enviar invitación"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
             </svg>
-            Enviar Invitación
+            <span className="hidden sm:inline text-sm">Invitar</span>
           </button>
           <button
             onClick={() => openModal('create')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors"
+            className="p-2 sm:px-3 sm:py-2 rounded-lg text-white flex items-center gap-1.5 transition-colors"
             style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 2px 12px rgba(234,88,12,0.3)' }}
+            title="Nuevo usuario"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Nuevo Usuario
+            <span className="hidden sm:inline text-sm font-semibold">Nuevo</span>
           </button>
         </div>
       </div>
@@ -517,110 +520,88 @@ export default function Profiles() {
                     return (
                       <div
                         key={user.id}
-                        className={`flex items-center gap-4 p-4 rounded-xl border bg-gray-900 hover:border-gray-700 transition-colors ${inactive ? 'border-gray-800/60 opacity-50 grayscale' : 'border-gray-800'}`}
+                        className={`p-3 sm:p-4 rounded-xl border bg-gray-900 hover:border-gray-700 transition-colors ${inactive ? 'border-gray-800/60 opacity-50 grayscale' : 'border-gray-800'}`}
                       >
-                        {/* Avatar */}
-                        <div
-                          className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                        >
-                          {getInitials(name, user.email)}
-                          {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                        {/* Row 1: Avatar + Name + Status */}
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+                          >
+                            {getInitials(name, user.email)}
+                            {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-white truncate">{name || user.email}</p>
-                            <select
-                              value={role}
-                              onChange={e => handleUpdateRole(user.id, e.target.value)}
-                              className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
-                            >
-                              {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
-                                <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
-                              ))}
-                            </select>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <CopyChip text={user.email} icon="email" />
+                              {user.user_metadata?.phone && <CopyChip text={user.user_metadata.phone} icon="phone" />}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <CopyChip text={user.email} icon="email" />
-                            {user.user_metadata?.phone && <CopyChip text={user.user_metadata.phone} icon="phone" />}
-                          </div>
-                        </div>
-
-                        {/* Último acceso */}
-                        <div className="hidden md:block text-right shrink-0">
-                          <p className="text-xs text-gray-600">Último acceso</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{lastSignIn}</p>
-                        </div>
-
-                        {/* Estado + Acciones */}
-                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Status dot (always visible) */}
                           {status === 'active' ? (
-                            <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                              Activo
-                            </span>
+                            <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" title="Activo" />
                           ) : status === 'pending' ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="flex items-center gap-1.5 text-xs text-yellow-400 font-medium">
-                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                                Solicitud enviada
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setResendUser(user)
-                                  setModalMode('invite')
-                                  setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
-                                  setShowModal(true)
-                                }}
-                                className="px-2 py-0.5 text-xs rounded-md bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30 transition-colors font-medium"
-                                title="Reenviar invitación"
-                              >
-                                Reenviar
-                              </button>
-                            </div>
+                            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0" title="Solicitud enviada" />
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                                Expirado
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setResendUser(user)
-                                  setModalMode('invite')
-                                  setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
-                                  setShowModal(true)
-                                }}
-                                className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
-                                title="Reenviar invitación"
-                              >
-                                Reenviar
-                              </button>
-                            </div>
+                            <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" title="Expirado" />
                           )}
+                        </div>
 
-                          {role !== 'super_admin' && (
+                        {/* Row 2: Role select + Last access + Actions */}
+                        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                          <select
+                            value={role}
+                            onChange={e => handleUpdateRole(user.id, e.target.value)}
+                            className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
+                          >
+                            {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
+                              <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
+                            ))}
+                          </select>
+
+                          {/* Status label + resend on mobile */}
+                          {status !== 'active' && (
                             <button
-                              onClick={() => openPermissions(user)}
-                              className="p-2 rounded-lg text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
-                              title="Configurar permisos"
+                              onClick={() => {
+                                setResendUser(user)
+                                setModalMode('invite')
+                                setForm({ name: user.user_metadata?.name || '', email: user.email, password: '', role: user.user_metadata?.role || 'admin' })
+                                setShowModal(true)
+                              }}
+                              className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${status === 'pending' ? 'bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30' : 'bg-orange-600/20 text-orange-400 hover:bg-orange-600/30'}`}
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                              </svg>
+                              Reenviar
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDelete(user.id, user.email)}
-                            className="p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                            title="Eliminar usuario"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                            </svg>
-                          </button>
+
+                          <div className="hidden md:flex items-center gap-1 text-xs text-gray-500">
+                            <span className="text-gray-700">·</span>
+                            <span>{lastSignIn}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 ml-auto">
+                            {role !== 'super_admin' && (
+                              <button
+                                onClick={() => openPermissions(user)}
+                                className="p-1.5 rounded-lg text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
+                                title="Configurar permisos"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                                </svg>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(user.id, user.email)}
+                              className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                              title="Eliminar usuario"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )
@@ -630,31 +611,24 @@ export default function Profiles() {
                   {unlinkedDispatchers.map(name => (
                     <div
                       key={`dispatcher-${name}`}
-                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
+                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
                     >
-                      <div
-                        className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
-                      >
-                        {getInitials(name, '')}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-white truncate">{name}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.dispatcher.color}`}>
-                            {ROLE_LABELS.dispatcher.label}
-                          </span>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
+                        >
+                          {getInitials(name, '')}
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">Registrado en órdenes</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Registrado en órdenes</p>
+                        </div>
+                        <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" title="Sin cuenta" />
                       </div>
-                      <div className="hidden md:block text-right shrink-0">
-                        <p className="text-xs text-gray-600">Último acceso</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Nunca</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                          Sin cuenta
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.dispatcher.color}`}>
+                          {ROLE_LABELS.dispatcher.label}
                         </span>
                         <button
                           onClick={() => {
@@ -662,7 +636,7 @@ export default function Profiles() {
                             setForm({ name, email: '', password: '', role: 'dispatcher' })
                             setShowModal(true)
                           }}
-                          className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                          className="ml-auto px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
                         >
                           Invitar
                         </button>
@@ -674,38 +648,24 @@ export default function Profiles() {
                   {unlinkedDrivers.map(driver => (
                     <div
                       key={`driver-${driver.id}`}
-                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
+                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
                     >
-                      {/* Avatar */}
-                      <div
-                        className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
-                      >
-                        {getInitials(driver.name, driver.email)}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-white truncate">{driver.name}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.driver.color}`}>
-                            {ROLE_LABELS.driver.label}
-                          </span>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
+                        >
+                          {getInitials(driver.name, driver.email)}
                         </div>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{driver.email || driver.phone || 'Sin contacto registrado'}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{driver.name}</p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{driver.email || driver.phone || 'Sin contacto registrado'}</p>
+                        </div>
+                        <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" title="Sin cuenta" />
                       </div>
-
-                      {/* Último acceso */}
-                      <div className="hidden md:block text-right shrink-0">
-                        <p className="text-xs text-gray-600">Último acceso</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Nunca</p>
-                      </div>
-
-                      {/* Estado */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                          Sin cuenta
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.driver.color}`}>
+                          {ROLE_LABELS.driver.label}
                         </span>
                         {driver.email && (
                           <button
@@ -714,7 +674,7 @@ export default function Profiles() {
                               setForm({ name: driver.name, email: driver.email, password: '', role: 'driver' })
                               setShowModal(true)
                             }}
-                            className="px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                            className="ml-auto px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
                           >
                             Invitar
                           </button>
@@ -760,11 +720,11 @@ export default function Profiles() {
               </button>
             </div>
 
-            {/* Body — 2 cols */}
-            <div className="flex flex-1 overflow-hidden min-h-0">
+            {/* Body — 2 cols on desktop, stacked on mobile */}
+            <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden min-h-0">
 
               {/* Columna izquierda: Permisos */}
-              <div className="flex-1 p-5 overflow-y-auto border-r border-gray-800">
+              <div className="flex-1 p-4 sm:p-5 overflow-y-auto md:border-r border-b md:border-b-0 border-gray-800">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
                 {(permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease') ? (
                   /* Drivers: solo Dashboard y Ordenes, acceso automático */
@@ -827,7 +787,7 @@ export default function Profiles() {
               </div>
 
               {/* Columna derecha: Camiones + Comisión + Empresas */}
-              <div className="w-72 p-5 overflow-y-auto flex flex-col gap-5 shrink-0">
+              <div className="w-full md:w-72 p-4 sm:p-5 overflow-y-auto flex flex-col gap-5 md:shrink-0">
 
                 {/* Comisión — solo dispatchers */}
                 {permUser.user_metadata?.role === 'dispatcher' && (

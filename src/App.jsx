@@ -16,6 +16,7 @@ import Profiles from './components/Profiles'
 import SetPassword from './components/SetPassword'
 import ComingSoon from './components/ComingSoon'
 import Welcome from './components/Welcome'
+import Inicio from './components/Inicio'
 import UserProfile from './components/UserProfile'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
@@ -100,6 +101,7 @@ function App() {
           <Route path="conductores" element={<DispatcherDrivers />} />
           <Route path="pagos/conductores" element={<PagoConductores />} />
           <Route path="pagos/dispatchers" element={<PagoDispatchers />} />
+          <Route path="inicio" element={<Inicio />} />
           <Route path="profile" element={<UserProfile />} />
         </Route>
 
