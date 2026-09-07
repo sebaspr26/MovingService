@@ -68,17 +68,17 @@ export default function PagoDispatchers() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Pago Dispatchers</h1>
-          <p className="text-sm text-gray-500 mt-1">{dispatchers.length} dispatcher{dispatchers.length !== 1 ? 's' : ''} registrados</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Pago Dispatchers</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{dispatchers.length} dispatcher{dispatchers.length !== 1 ? 's' : ''} registrados</p>
         </div>
         <input
           type="text"
           placeholder="Buscar..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500 w-48"
+          className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500 w-full sm:w-48"
         />
       </div>
 

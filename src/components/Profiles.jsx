@@ -579,7 +579,7 @@ export default function Profiles() {
                           <select
                             value={role}
                             onChange={e => handleUpdateRole(user.id, e.target.value)}
-                            className={`text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
+                            className={`sel text-xs px-2 py-0.5 rounded-full border font-medium bg-transparent cursor-pointer focus:outline-none ${roleConfig.color}`}
                           >
                             {Object.entries(ROLE_LABELS).map(([key, { label }]) => (
                               <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
