@@ -692,9 +692,9 @@ export default function Layout() {
           <nav
             className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-end"
             style={{
-              background: 'rgba(9,9,14,0.97)',
+              background: theme === 'light' ? 'rgba(243,244,246,0.97)' : 'rgba(9,9,14,0.97)',
               backdropFilter: 'blur(24px)',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderTop: theme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.06)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >

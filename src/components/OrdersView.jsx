@@ -9,6 +9,7 @@ import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
+import { useTheme } from '../lib/theme'
 
 function useCountUp(target, duration = 700) {
   const [value, setValue] = useState(target)
@@ -136,6 +137,7 @@ function StatusSelect({ row, onChange }) {
 
 export default function OrdersView() {
   const { session } = useAuth()
+  const { theme } = useTheme()
   const [orders, setOrders] = useState([])
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
@@ -772,9 +774,9 @@ export default function OrdersView() {
           <div
             className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3 ${isSuperAdmin(session) || canAccess(session, 'dashboard') ? 'bottom-[88px]' : 'bottom-[66px]'}`}
             style={{
-              background: 'rgba(17,17,24,0.92)',
+              background: theme === 'light' ? 'rgba(243,244,246,0.95)' : 'rgba(17,17,24,0.92)',
               backdropFilter: 'blur(20px)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              boxShadow: theme === 'light' ? '0 8px 32px rgba(0,0,0,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
             }}
           >
             <div className="grid grid-cols-4 gap-2">

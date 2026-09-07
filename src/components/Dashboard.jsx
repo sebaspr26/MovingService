@@ -9,6 +9,7 @@ import DayPicker from './DayPicker'
 import { getActiveCompanyId } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
+import { useTheme } from '../lib/theme'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -23,6 +24,7 @@ const EXPENSE_CATEGORIES = [
 export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
+  const { theme } = useTheme()
   const [trucks, setTrucks] = useState([])
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -586,14 +588,16 @@ export default function Dashboard() {
           {trucksWithCycles.length > 0 && (
             <>
               <button onClick={() => { openOrderDrawer(); setFabOpen(false) }}
-                className={`px-3 py-2 bg-green-600/20 border border-green-600/40 text-green-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-150' : 'opacity-0 translate-y-3'}`}>
+                className={`px-3 py-2 border text-green-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-150' : 'opacity-0 translate-y-3'}`}
+                style={{ background: theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(22,163,74,0.2)', borderColor: theme === 'light' ? 'rgba(22,163,74,0.4)' : 'rgba(22,163,74,0.4)' }}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 Orden
               </button>
               <button onClick={() => { setShowExpenseModal(true); setFabOpen(false) }}
-                className={`px-3 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-200' : 'opacity-0 translate-y-3'}`}>
+                className={`px-3 py-2 border text-red-400 rounded-lg text-xs font-medium shadow-lg flex items-center gap-1.5 backdrop-blur-sm transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-200' : 'opacity-0 translate-y-3'}`}
+                style={{ background: theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(220,38,38,0.2)', borderColor: theme === 'light' ? 'rgba(220,38,38,0.4)' : 'rgba(220,38,38,0.4)' }}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>

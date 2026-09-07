@@ -136,7 +136,7 @@ export default function Inicio() {
               {/* Icono */}
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center"
-                style={{ background: `rgba(0,0,0,0.15)`, border: `1px solid ${card.border}` }}
+                style={{ background: `rgba(128,128,128,0.15)`, border: `1px solid ${card.border}` }}
               >
                 <svg className="w-5 h-5" style={{ color: card.iconColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   {card.icon}
@@ -144,7 +144,7 @@ export default function Inicio() {
               </div>
               <div>
                 <p className="text-sm font-bold text-white leading-tight">{card.label}</p>
-                <p className="text-xs mt-0.5 leading-snug" style={{ color: 'rgba(255,255,255,0.4)' }}>{card.description}</p>
+                <p className="text-xs mt-0.5 leading-snug text-gray-500">{card.description}</p>
               </div>
             </Link>
           ))}
