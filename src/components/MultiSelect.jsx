@@ -45,9 +45,14 @@ export default function MultiSelect({ options, value = [], onChange, placeholder
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center justify-between gap-2 bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-orange-500 transition-colors ${label ? 'text-gray-100' : 'text-gray-500'}`}
+        className={`w-full flex items-center justify-between gap-2 bg-gray-800 border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none transition-colors ${value.length > 0 ? 'border-orange-500/60 text-gray-100' : 'border-gray-700 text-gray-500'}`}
       >
-        <span className="truncate">{label || placeholder}</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {value.length > 0 && (
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" style={{ transition: 'transform 0.2s, opacity 0.2s' }} />
+          )}
+          <span className="truncate">{label || placeholder}</span>
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {value.length > 0 && (
             <span

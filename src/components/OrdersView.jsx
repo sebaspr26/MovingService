@@ -153,6 +153,8 @@ export default function OrdersView() {
   const [filterDateTo, setFilterDateTo] = useState('')
   const [authDispatchers, setAuthDispatchers] = useState([]) // [{email, name}]
   const [page, setPage] = useState(0)
+  const [listKey, setListKey] = useState(0)
+  const searchDebounceRef = useRef(null)
   const [drawerId, setDrawerId] = useState(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [tonuTarget, setTonuTarget] = useState(null)
@@ -167,10 +169,10 @@ export default function OrdersView() {
       setTrucks(cached.trucks || [])
       setBrokers(cached.brokers || {})
       setLoading(false)
-      return
+    } else {
+      fetchData()
     }
-    fetchData()
-    // Fetch auth users for dispatcher display + migrate legacy names → emails
+    // Always fetch auth users for dispatcher name display (runs even on cache hit)
     fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
       .then(r => r.json())
       .then(async data => {
@@ -200,6 +202,13 @@ export default function OrdersView() {
       .catch(() => {})
   }, [])
   useEffect(() => { setPage(0) }, [tab, search, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
+  // Smooth list animation on tab/filter changes (immediate) or search (debounced)
+  useEffect(() => { setListKey(k => k + 1) }, [tab, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
+  useEffect(() => {
+    clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => setListKey(k => k + 1), 300)
+    return () => clearTimeout(searchDebounceRef.current)
+  }, [search])
 
   const openDrawer = useCallback((id) => {
     setDrawerId(id)
@@ -331,9 +340,17 @@ export default function OrdersView() {
     setFilterDateTo('')
   }
 
-  // Counts per status
-  const counts = { all: orders.length }
-  ALL_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.status === s).length })
+  // Base filtered (for donut/counts) — applies all non-status filters so panel is reactive
+  let baseFiltered = orders
+  if (filterTrucks.length) baseFiltered = baseFiltered.filter(o => filterTrucks.includes(o.truck_id))
+  if (filterDispatchers.length) baseFiltered = baseFiltered.filter(o => filterDispatchers.includes(o.dispatcher))
+  if (filterBrokers.length) baseFiltered = baseFiltered.filter(o => filterBrokers.includes(o.broker_id))
+  if (filterDateFrom) baseFiltered = baseFiltered.filter(o => (o.pu_date || '') >= filterDateFrom)
+  if (filterDateTo) baseFiltered = baseFiltered.filter(o => (o.pu_date || '') <= filterDateTo)
+
+  // Counts per status (from base filtered so donut/list react to filters)
+  const counts = { all: baseFiltered.length }
+  ALL_STATUSES.forEach(s => { counts[s] = baseFiltered.filter(o => o.status === s).length })
 
   // Filter by tab
   let filtered = tab === 'all' ? orders : orders.filter(o => o.status === tab)
@@ -446,7 +463,7 @@ export default function OrdersView() {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          <div key={listKey} className="overflow-x-auto animate-tab-in">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
@@ -539,7 +556,7 @@ export default function OrdersView() {
               className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium mb-2 transition-colors ${tab === 'all' ? 'bg-orange-600/20 text-orange-400' : 'text-gray-400 hover:bg-gray-800/60'}`}
             >
               <span>Todas las ordenes</span>
-              <span className="font-bold tabular-nums"><AnimatedNum value={orders.length} /></span>
+              <span className="font-bold tabular-nums"><AnimatedNum value={baseFiltered.length} /></span>
             </button>
 
             {/* Donut + status list */}
@@ -574,6 +591,7 @@ export default function OrdersView() {
                           strokeDashoffset={dashOffset}
                           transform="rotate(-90 40 40)"
                           className="cursor-pointer hover:opacity-70 transition-opacity"
+                          style={{ transition: 'stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease, opacity 0.2s' }}
                           onClick={() => setTab(s)}
                         />
                       )
@@ -581,7 +599,7 @@ export default function OrdersView() {
                   })()}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-base font-bold text-white tabular-nums"><AnimatedNum value={orders.length} /></span>
+                  <span className="text-base font-bold text-white tabular-nums"><AnimatedNum value={baseFiltered.length} /></span>
                   <span className="text-[9px] text-gray-500 leading-tight">Total</span>
                 </div>
               </div>
@@ -615,7 +633,7 @@ export default function OrdersView() {
           {/* Brokers / Customers treemap */}
           {(() => {
             const brokerCounts = {}
-            orders.forEach(o => {
+            baseFiltered.forEach(o => {
               if (o.broker_id && brokers[o.broker_id]) {
                 brokerCounts[o.broker_id] = (brokerCounts[o.broker_id] || 0) + 1
               }
