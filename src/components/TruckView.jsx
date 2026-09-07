@@ -245,13 +245,6 @@ export default function TruckView() {
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link to="/" className="hover:text-gray-300 transition-colors">Dashboard</Link>
-        <span>/</span>
-        <span className="text-white">{truck.name}</span>
-      </div>
-
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-white">{truck.name}</h2>

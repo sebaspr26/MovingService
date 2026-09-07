@@ -703,8 +703,15 @@ export default function Layout() {
             {/* Center — Dashboard elevated button (solo si tiene acceso) */}
             {hasDashboard && (
               <div className="flex flex-col items-center flex-1 pb-2">
-                <NavLink to="/" end className="flex flex-col items-center gap-1.5" style={{ marginTop: '-20px' }}>
-                  {({ isActive }) => (
+                <NavLink
+                  to="/"
+                  end
+                  className="flex flex-col items-center gap-1.5"
+                  style={{ marginTop: '-20px' }}
+                >
+                  {({ isActive: navActive }) => {
+                  const isActive = navActive || location.pathname.startsWith('/truck/')
+                  return (
                     <>
                       <div
                         className="w-14 h-14 rounded-2xl flex items-center justify-center active:scale-95"
@@ -727,7 +734,7 @@ export default function Layout() {
                       </div>
                       <span className="text-[10px] font-semibold leading-none" style={{ color: isActive ? '#f97316' : '#6b7280' }}>Dashboard</span>
                     </>
-                  )}
+                  )}}
                 </NavLink>
               </div>
             )}
