@@ -135,8 +135,12 @@ export default function Profiles() {
   const [savingPerms, setSavingPerms] = useState(false)
   const [dispatcherRate, setDispatcherRate] = useState('')
   const [rateHistory, setRateHistory] = useState([])
+  const [impersonateUser, setImpersonateUser] = useState(null)
+  const [impersonateLink, setImpersonateLink] = useState(null)
+  const [impersonateLoading, setImpersonateLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
   const toast = useToast()
-  const { refreshSession } = useAuth()
+  const { refreshSession, session } = useAuth()
   const { companies } = useCompany()
 
   useEffect(() => { fetchUsers() }, [])
@@ -285,6 +289,28 @@ export default function Profiles() {
       fetchUsers()
     } catch (err) {
       toast.error(err.message)
+    }
+  }
+
+  async function handleImpersonate(user) {
+    setImpersonateUser(user)
+    setImpersonateLink(null)
+    setCopied(false)
+    setImpersonateLoading(true)
+    try {
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'impersonate', email: user.email }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.link) throw new Error(data.error || 'Error generando link')
+      setImpersonateLink(data.link)
+    } catch (e) {
+      toast.error(e.message)
+      setImpersonateUser(null)
+    } finally {
+      setImpersonateLoading(false)
     }
   }
 
@@ -581,6 +607,18 @@ export default function Profiles() {
                           </div>
 
                           <div className="flex items-center gap-1 ml-auto">
+                            {/* Entrar como — solo super_admin, no en su propia cuenta ni en otros super_admin */}
+                            {session?.user?.user_metadata?.role === 'super_admin' && role !== 'super_admin' && user.id !== session?.user?.id && (
+                              <button
+                                onClick={() => handleImpersonate(user)}
+                                className="p-1.5 rounded-lg text-gray-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                                title="Entrar como este usuario"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                </svg>
+                              </button>
+                            )}
                             {role !== 'super_admin' && (
                               <button
                                 onClick={() => openPermissions(user)}
@@ -1006,6 +1044,139 @@ export default function Profiles() {
           linkingId={linkingId}
           onClose={() => setShowLinkModal(false)}
         />
+      )}
+
+      {/* Modal — Entrar como usuario */}
+      {impersonateUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setImpersonateUser(null); setImpersonateLink(null) }} />
+          <div
+            className="relative w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden"
+            style={{ background: 'rgba(10,10,18,0.97)', backdropFilter: 'blur(32px)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}
+          >
+            {/* Header con gradiente sutil */}
+            <div className="relative px-6 pt-6 pb-5 border-b border-gray-800/60">
+              <button
+                onClick={() => { setImpersonateUser(null); setImpersonateLink(null) }}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-600 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Avatar grande */}
+              <div className="flex flex-col items-center text-center gap-3">
+                <div
+                  className="w-16 h-16 rounded-2xl overflow-hidden relative flex items-center justify-center text-xl font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 8px 24px rgba(234,88,12,0.35)' }}
+                >
+                  {getInitials(impersonateUser.user_metadata?.name, impersonateUser.email)}
+                  {getUserAvatarUrl(impersonateUser) && (
+                    <img src={getUserAvatarUrl(impersonateUser)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-base font-bold text-white">{impersonateUser.user_metadata?.name || impersonateUser.email}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{impersonateUser.email}</p>
+                  <span className={`inline-block mt-1.5 text-[11px] px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS[impersonateUser.user_metadata?.role]?.color || 'text-gray-400 bg-gray-400/10 border-gray-400/20'}`}>
+                    {ROLE_LABELS[impersonateUser.user_metadata?.role]?.label || impersonateUser.user_metadata?.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Instrucción */}
+              <div className="flex items-start gap-3 p-3.5 rounded-xl" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)' }}>
+                <svg className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p className="text-xs text-cyan-300/80 leading-relaxed">
+                  Se generará un link de acceso válido por <strong>1 hora</strong>. Ábrelo en una <strong>ventana de incógnito</strong> para no cerrar tu sesión actual.
+                </p>
+              </div>
+
+              {/* Link generado */}
+              {impersonateLink ? (
+                <div className="space-y-3">
+                  <div
+                    className="rounded-xl p-3 flex items-center gap-2"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 1 1.242 7.244" />
+                    </svg>
+                    <span className="text-xs text-gray-400 truncate flex-1">Link de acceso generado</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(impersonateLink)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2500)
+                      }}
+                      className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${copied ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                    >
+                      {copied ? (
+                        <>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                          Copiado
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                          </svg>
+                          Copiar
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <a
+                    href={impersonateLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)', boxShadow: '0 4px 20px rgba(8,145,178,0.35)' }}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                    Abrir en nueva pestaña
+                  </a>
+
+                  <p className="text-center text-[11px] text-gray-600">
+                    Usa <span className="text-gray-500 font-medium">Ctrl+Shift+N</span> (incógnito) para no cerrar tu sesión
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleImpersonate(impersonateUser)}
+                  disabled={impersonateLoading}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)', boxShadow: '0 4px 20px rgba(8,145,178,0.3)' }}
+                >
+                  {impersonateLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generando link...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                      </svg>
+                      Generar link de acceso
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

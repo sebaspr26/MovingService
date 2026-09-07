@@ -244,6 +244,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    if (action === 'impersonate') {
+      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+        options: { redirectTo: 'https://www.etg-tms.com/' },
+      })
+      if (error) return res.status(400).json({ error: error.message })
+      const link = data?.properties?.action_link
+      if (!link) return res.status(500).json({ error: 'No se pudo generar el link' })
+      return res.status(200).json({ success: true, link })
+    }
+
     if (action === 'migrate_dispatchers') {
       const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
       const nameToEmail = {}
