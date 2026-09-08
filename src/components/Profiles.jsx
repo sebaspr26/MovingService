@@ -720,7 +720,7 @@ export default function Profiles() {
                   {unlinkedDrivers.map(driver => (
                     <div
                       key={`driver-${driver.id}`}
-                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors"
+                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
                     >
                       <div className="flex items-center gap-3">
                         <div
