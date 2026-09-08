@@ -96,9 +96,11 @@ function rolePriority(role) {
 }
 
 const ROLE_GROUPS = [
-  { label: 'Administradores', roles: ['super_admin', 'admin'] },
+  { label: 'Super Admin', roles: ['super_admin'] },
+  { label: 'Administradores', roles: ['admin'] },
   { label: 'Dispatchers', roles: ['dispatcher'] },
-  { label: 'Conductores', roles: ['driver', 'driver_lease'] },
+  { label: 'Conductores', roles: ['driver'] },
+  { label: 'Lease', roles: ['driver_lease'] },
 ]
 
 function getInitials(name, email) {
@@ -577,9 +579,11 @@ export default function Profiles() {
         <div className="space-y-8">
           {ROLE_GROUPS.map(group => {
             const groupUsers = users.filter(u => group.roles.includes(u.user_metadata?.role || 'admin'))
-            // For Conductores, add drivers from DB without Auth account
-            const isDriverGroup = group.roles.includes('driver')
+            // For Conductores/Lease, add drivers from DB without Auth account
+            const isDriverGroup = group.roles.includes('driver') && !group.roles.includes('driver_lease')
+            const isLeaseGroup = group.roles.includes('driver_lease')
             const isDispatcherGroup = group.roles.includes('dispatcher')
+            const allAuthEmails2 = new Set(users.map(u => u.email?.toLowerCase()).filter(Boolean))
             const authEmails = new Set(groupUsers.map(u => u.email?.toLowerCase()))
             // Compare dispatcher names against ALL auth users — full name + tokens + email prefix
             const allAuthNames = new Set(users.map(u => (u.user_metadata?.name || '').toLowerCase()).filter(Boolean))
@@ -589,9 +593,12 @@ export default function Profiles() {
                 u.email?.toLowerCase().split('@')[0] || '',
               ]).filter(Boolean)
             )
+            const unlinkedAll = dbDrivers.filter(d => !d.email || !allAuthEmails2.has(d.email?.toLowerCase()))
             const unlinkedDrivers = isDriverGroup
-              ? dbDrivers.filter(d => !d.email || !authEmails.has(d.email?.toLowerCase()))
-              : []
+              ? unlinkedAll.filter(d => !d.is_lease)
+              : isLeaseGroup
+                ? unlinkedAll.filter(d => d.is_lease)
+                : []
             const allAuthEmails = new Set(users.map(u => u.email?.toLowerCase()).filter(Boolean))
             const unlinkedDispatchers = isDispatcherGroup
               ? dbDispatchers.filter(val => {
@@ -738,24 +745,6 @@ export default function Profiles() {
                         </div>
                       </div>
                     )
-                    }
-                    if (isDriverGroup) {
-                      const regularDrivers = groupUsers.filter(u => u.user_metadata?.role === 'driver')
-                      const leaseDrivers = groupUsers.filter(u => u.user_metadata?.role === 'driver_lease')
-                      return (
-                        <>
-                          {regularDrivers.map(u => renderUser(u))}
-                          {leaseDrivers.length > 0 && (
-                            <>
-                              <div className="flex items-center gap-2 pt-1">
-                                <span className="text-[10px] font-bold text-green-500/70 uppercase tracking-widest">Lease</span>
-                                <div className="flex-1 h-px bg-green-900/30" />
-                              </div>
-                              {leaseDrivers.map(u => renderUser(u))}
-                            </>
-                          )}
-                        </>
-                      )
                     }
                     return groupUsers.map(u => renderUser(u))
                   })()}
