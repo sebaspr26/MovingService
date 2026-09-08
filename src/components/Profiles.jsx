@@ -1084,23 +1084,16 @@ export default function Profiles() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Rol</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'admin', label: 'Admin', color: 'text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20' },
-                    { value: 'dispatcher', label: 'Dispatcher', color: 'text-purple-400 border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20' },
-                    { value: 'driver', label: 'Driver', color: 'text-cyan-400 border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20' },
-                    { value: 'driver_lease', label: 'Driver LEASE', color: 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' },
-                  ].map(r => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, role: r.value }))}
-                      className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${r.color} ${form.role === r.value ? 'ring-2 ring-offset-1 ring-offset-gray-900 ring-current opacity-100' : 'opacity-60'}`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  value={form.role}
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                  className="sel w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="dispatcher">Dispatcher</option>
+                  <option value="driver">Driver</option>
+                  <option value="driver_lease">Driver LEASE</option>
+                </select>
               </div>
 
               {modalMode === 'invite' && (
