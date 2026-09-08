@@ -138,6 +138,8 @@ function StatusSelect({ row, onChange }) {
 export default function OrdersView() {
   const { session } = useAuth()
   const { theme } = useTheme()
+  const userRole = session?.user?.user_metadata?.role
+  const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [orders, setOrders] = useState([])
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
@@ -399,15 +401,17 @@ export default function OrdersView() {
           <h1 className="text-2xl font-bold text-white">Ordenes / Cargas</h1>
           <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
         </div>
-        <button
-          onClick={() => openDrawer('new')}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nueva Orden
-        </button>
+        {!isDriver && (
+          <button
+            onClick={() => openDrawer('new')}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nueva Orden
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -492,49 +496,52 @@ export default function OrdersView() {
                     delivered: 'bg-cyan-600/10', invoiced: 'bg-emerald-600/10', paid: 'bg-violet-600/10',
                     tonu: 'bg-red-600/10', canceled: 'bg-gray-600/5',
                   }[row.status] || ''
+                  const canOpen = !isDriver
                   return (
-                    <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} hover:bg-gray-800/30 transition-colors group`}>
+                    <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} ${canOpen ? 'hover:bg-gray-800/30 group' : ''} transition-colors`}>
                       <td className="py-2 sm:py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
                         <StatusSelect row={row} onChange={handleStatusChange} />
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <div className="font-semibold text-white text-xs sm:text-sm">{row.order_number}</div>
                         {brokers[row.broker_id] && (
                           <div className="text-[10px] text-gray-500 truncate max-w-[120px]">{brokers[row.broker_id].name}</div>
                         )}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         {truck ? <span className="text-xs sm:text-sm bg-gray-800 text-gray-200 font-medium px-1.5 sm:px-2 py-0.5 rounded">{truck.number}</span> : '-'}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 hidden sm:table-cell ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         {row.dispatcher ? <span className="text-xs text-gray-300 font-medium">{dispatcherName(row.dispatcher)}</span> : <span className="text-gray-700">—</span>}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 hidden sm:table-cell ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <div className="text-gray-200 text-sm font-medium">{row.pu_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.pu_date}</div>
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <div className="text-gray-200 text-xs sm:text-sm font-medium">{row.do_city || '-'}</div>
                         <div className="text-[10px] text-gray-500">{row.do_date}</div>
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 text-right cursor-pointer hidden sm:table-cell" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 text-right hidden sm:table-cell ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <div className="text-gray-300 text-sm font-medium">{Number(row.miles || 0).toLocaleString()}</div>
                         {Number(row.dead_miles || 0) > 0 && (
                           <div className="text-[10px] text-orange-400">{Number(row.dead_miles).toLocaleString()} DH</div>
                         )}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 text-right cursor-pointer" onClick={() => openDrawer(row.id)}>
+                      <td className={`py-2 sm:py-3.5 pr-3 text-right ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <span className="text-green-400 font-semibold text-xs sm:text-sm">{fmt(row.rate || 0)}</span>
                         {Number(row.rate) > 0 && (Number(row.miles || 0) + Number(row.dead_miles || 0)) > 0 && (
                           <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                         )}
                       </td>
                       <td className="py-2 sm:py-3.5">
-                        <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                          </svg>
-                        </button>
+                        {canOpen && (
+                          <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )
