@@ -207,8 +207,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
     for (let i = 0; i < sections.length; i++) {
       if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(sections[i], { scale: 3, backgroundColor: '#ffffff', useCORS: true })
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const canvas = await html2canvas(sections[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/jpeg', 0.80)
       const imgW = pageW - margin * 2
       const imgH = (canvas.height * imgW) / canvas.width
       // If image is taller than page, scale down to fit
@@ -253,9 +253,11 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       }
 
       const fileName = `Invoice_${order.order_number || 'ETG'}.pdf`
-      const sizeMB = (pdfBase64.length / 1024 / 1024).toFixed(1)
+      // base64 es ~33% más grande que el binario real
+      const actualBytes = pdfBase64.length * 0.75
+      const sizeMB = (actualBytes / 1024 / 1024).toFixed(1)
 
-      if (pdfBase64.length > 3 * 1024 * 1024) {
+      if (actualBytes > 8 * 1024 * 1024) {
         toast.warning(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
         setSendingEmail(false)
         return
