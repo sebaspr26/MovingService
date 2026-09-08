@@ -64,8 +64,8 @@ export default function PagoConductores() {
     !search || d.name?.toLowerCase().includes(search.toLowerCase()) ||
     trucks[d.truck_id]?.name?.toLowerCase().includes(search.toLowerCase())
   )
-  const normalDrivers = filtered.filter(d => roleMap[d.email?.toLowerCase()] !== 'driver_lease')
-  const leaseDrivers = filtered.filter(d => roleMap[d.email?.toLowerCase()] === 'driver_lease')
+  const normalDrivers = filtered.filter(d => !d.is_lease && roleMap[d.email?.toLowerCase()] !== 'driver_lease')
+  const leaseDrivers = filtered.filter(d => d.is_lease || roleMap[d.email?.toLowerCase()] === 'driver_lease')
 
   return (
     <div>

@@ -861,7 +861,7 @@ function SectionChoferes() {
   const [expanded, setExpanded] = useState(null)
   const [docs, setDocs] = useState({})
 
-  const [form, setForm] = useState({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active', is_lease: false })
 
   useEffect(() => { fetchDrivers(); fetchTrucks() }, [])
 
@@ -886,7 +886,7 @@ function SectionChoferes() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active' })
+    setForm({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active', is_lease: false })
     setShowForm(true)
   }
 
@@ -902,6 +902,7 @@ function SectionChoferes() {
       medical_card_expiry: driver.medical_card_expiry || '',
       truck_id: driver.truck_id || '',
       status: driver.status || 'active',
+      is_lease: driver.is_lease || false,
     })
     setShowForm(true)
   }
@@ -1019,13 +1020,20 @@ function SectionChoferes() {
               <input value={form.medical_card_expiry} onChange={e => setForm({...form, medical_card_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-3 pt-2 flex-wrap">
             <label className="text-xs text-gray-500">Estado:</label>
             <button
               onClick={() => setForm({...form, status: form.status === 'active' ? 'inactive' : 'active'})}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${form.status === 'active' ? 'bg-green-900/40 text-green-400' : 'bg-gray-700 text-gray-400'}`}
             >
               {form.status === 'active' ? 'Activo' : 'Inactivo'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({...form, is_lease: !form.is_lease})}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${form.is_lease ? 'bg-green-900/40 text-green-400 border-green-700/40' : 'bg-gray-800 text-gray-500 border-gray-700 hover:text-gray-300'}`}
+            >
+              LEASE{form.is_lease ? ' ✓' : ''}
             </button>
           </div>
           <div className="flex justify-end gap-2 pt-2">
