@@ -133,6 +133,9 @@ export default function Profiles() {
   const [allowedCompanies, setAllowedCompanies] = useState([])
   const [allowedTrucks, setAllowedTrucks] = useState([])
   const [savingPerms, setSavingPerms] = useState(false)
+  const [driverPayMode, setDriverPayMode] = useState('')
+  const [driverPayRate, setDriverPayRate] = useState('')
+  const [driverDbId, setDriverDbId] = useState(null)
   const [dispatcherRate, setDispatcherRate] = useState('')
   const [rateHistory, setRateHistory] = useState([])
   const [impersonateUser, setImpersonateUser] = useState(null)
@@ -154,7 +157,7 @@ export default function Profiles() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'list' }),
         }),
-        (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('id, name, email, phone, status').order('name'); return cId ? q.eq('company_id', cId) : q })(),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('id, name, email, phone, status, pay_mode, pay_rate').order('name'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''); return cId ? q.eq('company_id', cId) : q })(),
       ])
@@ -360,6 +363,16 @@ export default function Profiles() {
     const monthEntry = rates.find(r => r.month === currentMonth)
     const lastEntry = rates[rates.length - 1]
     setDispatcherRate(monthEntry ? String(monthEntry.pct) : lastEntry ? String(lastEntry.pct) : '')
+    // Load driver pay mode/rate from DB record
+    const isDriverRole = user.user_metadata?.role === 'driver' || user.user_metadata?.role === 'driver_lease'
+    if (isDriverRole) {
+      const rec = dbDrivers.find(d => d.email?.toLowerCase() === user.email?.toLowerCase())
+      setDriverPayMode(rec?.pay_mode || '')
+      setDriverPayRate(rec?.pay_rate ? String(rec.pay_rate) : '')
+      setDriverDbId(rec?.id || null)
+    } else {
+      setDriverPayMode(''); setDriverPayRate(''); setDriverDbId(null)
+    }
     setPermUser(user)
   }
 
@@ -403,6 +416,14 @@ export default function Profiles() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      // For drivers, also save pay_mode/pay_rate to drivers table
+      const isDriverRole = permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease'
+      if (isDriverRole && driverDbId) {
+        await supabase.from('drivers').update({
+          pay_mode: driverPayMode || null,
+          pay_rate: driverPayRate ? Number(driverPayRate) : 0,
+        }).eq('id', driverDbId)
+      }
       toast.success('Permisos guardados')
       setPermUser(null)
       fetchUsers()
@@ -541,6 +562,9 @@ export default function Profiles() {
                     const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.admin
                     const status = getInviteStatus(user)
                     const inactive = status !== 'active'
+                    const isDriverRole = role === 'driver' || role === 'driver_lease'
+                    const driverDbRecord = isDriverRole ? dbDrivers.find(d => d.email?.toLowerCase() === user.email?.toLowerCase()) : null
+                    const missingPayMode = isDriverRole && (!driverDbRecord || !driverDbRecord.pay_mode)
                     const lastSignIn = user.last_sign_in_at
                       ? new Date(user.last_sign_in_at).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' })
                       : 'Nunca'
@@ -587,6 +611,14 @@ export default function Profiles() {
                               <option key={key} value={key} className="bg-gray-900 text-gray-200">{label}</option>
                             ))}
                           </select>
+
+                          {/* Badge: sin modo de pago (solo conductores) */}
+                          {missingPayMode && (
+                            <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40 font-medium">
+                              <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
+                              Sin modo de pago
+                            </span>
+                          )}
 
                           {/* Status label + resend on mobile */}
                           {status !== 'active' && (
@@ -684,11 +716,11 @@ export default function Profiles() {
                     </div>
                   ))}
 
-                  {/* Drivers from DB without Auth account */}
+                  {/* Drivers from DB without Auth account (active + inactive) */}
                   {unlinkedDrivers.map(driver => (
                     <div
                       key={`driver-${driver.id}`}
-                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
+                      className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -703,10 +735,19 @@ export default function Profiles() {
                         </div>
                         <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" title="Sin cuenta" />
                       </div>
-                      <div className="flex items-center gap-2 mt-2.5">
+                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROLE_LABELS.driver.color}`}>
                           {ROLE_LABELS.driver.label}
                         </span>
+                        {driver.status === 'inactive' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 border border-gray-700 font-medium">Inactivo</span>
+                        )}
+                        {!driver.pay_mode && (
+                          <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40 font-medium">
+                            <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
+                            Sin modo de pago
+                          </span>
+                        )}
                         {driver.email && (
                           <button
                             onClick={() => {
@@ -847,6 +888,48 @@ export default function Profiles() {
                         />
                         <span className="text-gray-400 text-sm">%</span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modo de Pago — solo conductores */}
+                {(permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease') && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Modo de Pago</p>
+                    <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-3">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { key: 'flat_rate', label: 'Flat Rate', sub: 'Monto fijo' },
+                          { key: 'percentage', label: '% Gross', sub: 'Del gross' },
+                          { key: 'per_mile', label: '¢/Milla', sub: 'Por milla' },
+                        ].map(m => (
+                          <button key={m.key} type="button" onClick={() => setDriverPayMode(m.key)}
+                            className={`px-2 py-2 rounded-lg border text-center transition-all ${driverPayMode === m.key ? 'bg-cyan-600/20 border-cyan-500/50 text-cyan-400' : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300'}`}>
+                            <p className="text-[10px] font-bold">{m.label}</p>
+                            <p className="text-[9px] opacity-60">{m.sub}</p>
+                          </button>
+                        ))}
+                      </div>
+                      {!driverPayMode && (
+                        <p className="text-[10px] text-yellow-500/80 flex items-center gap-1">
+                          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
+                          Sin modo de pago configurado
+                        </p>
+                      )}
+                      {driverPayMode && (
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-400 flex-1">
+                            {driverPayMode === 'flat_rate' ? 'Monto fijo ($)' : driverPayMode === 'percentage' ? 'Porcentaje del gross' : 'Centavos por milla'}
+                          </label>
+                          <input
+                            type="number" min="0" step="0.5"
+                            value={driverPayRate}
+                            onChange={e => setDriverPayRate(e.target.value)}
+                            className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cyan-500 text-center"
+                          />
+                          <span className="text-gray-400 text-sm">{driverPayMode === 'flat_rate' ? '$' : driverPayMode === 'percentage' ? '%' : '¢'}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

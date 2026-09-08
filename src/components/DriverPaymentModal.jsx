@@ -6,16 +6,16 @@ import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
-const PAY_MODES = [
-  { key: 'flat_rate',   label: 'Flat Rate',   desc: 'Salario fijo',      color: 'blue' },
-  { key: 'percentage',  label: 'Porcentaje',  desc: '% del gross',       color: 'orange' },
-  { key: 'per_mile',    label: 'Por Milla',   desc: '¢ por milla',       color: 'green' },
-]
-
 const MODE_COLORS = {
-  flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   btn: 'bg-blue-600 text-white hover:bg-blue-500',   ring: 'border-blue-500' },
-  percentage: { badge: 'bg-orange-900/30 text-orange-400 border-orange-800/40', btn: 'bg-orange-600 text-white hover:bg-orange-500', ring: 'border-orange-500' },
-  per_mile:   { badge: 'bg-green-900/30 text-green-400 border-green-800/40',  btn: 'bg-green-700 text-white hover:bg-green-600',   ring: 'border-green-500' },
+  flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   payout: 'text-blue-400',   payoutBg: 'bg-blue-600/15 border-blue-600/30' },
+  percentage: { badge: 'bg-orange-900/30 text-orange-400 border-orange-800/40', payout: 'text-orange-400', payoutBg: 'bg-orange-600/15 border-orange-600/30' },
+  per_mile:   { badge: 'bg-green-900/30 text-green-400 border-green-800/40',  payout: 'text-green-400',  payoutBg: 'bg-green-700/15 border-green-700/30' },
+}
+
+const MODE_LABELS = {
+  flat_rate: { label: 'Flat Rate', desc: 'Monto fijo' },
+  percentage: { label: 'Porcentaje', desc: '% del gross' },
+  per_mile: { label: 'Por Milla', desc: '¢ por milla' },
 }
 
 function calcPayout(mode, rate, orders) {
@@ -77,8 +77,6 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   const [orders, setOrders] = useState([])       // disponibles (invoiced/paid)
   const [blockedOrders, setBlockedOrders] = useState([]) // no facturadas
   const [selectedIds, setSelectedIds] = useState(new Set())
-  const [payMode, setPayMode] = useState('percentage')
-  const [payRate, setPayRate] = useState('0')
   const [showNew, setShowNew] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -118,10 +116,13 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
     setLoading(false)
   }
 
+  // Pay mode/rate come from driver profile (configured in Perfiles by super_admin)
+  const payMode = driver.pay_mode || ''
+  const payRate = driver.pay_rate || 0
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
   const gross = grossOf(selectedOrders)
   const totalMiles = totalMilesOf(selectedOrders)
-  const payout = calcPayout(payMode, payRate, selectedOrders)
+  const payout = payMode ? calcPayout(payMode, payRate, selectedOrders) : 0
 
   function toggleOrder(id) {
     setSelectedIds(prev => {
@@ -136,9 +137,9 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   }
 
   async function savePayment() {
+    if (!payMode) return toast.warning('Este conductor no tiene modo de pago configurado. Configúralo en Perfiles.')
     if (payMode !== 'flat_rate' && !selectedIds.size)
       return toast.warning('Selecciona al menos una orden')
-    if (!Number(payRate)) return toast.warning('Ingresa el monto / tasa de pago')
     setSaving(true)
 
     const today = new Date().toISOString().split('T')[0]
@@ -478,85 +479,77 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
           {showNew && (
             <div className="flex-1 lg:flex-none lg:w-[400px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-stretch-in">
 
-              {/* Pay mode selector */}
+              {/* Pay mode — read-only from driver profile */}
               <div className="px-5 pt-4 pb-3 border-b border-gray-800 shrink-0">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago</p>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {PAY_MODES.map(m => {
-                    const mc = MODE_COLORS[m.key]
-                    const active = payMode === m.key
-                    return (
-                      <button
-                        key={m.key}
-                        onClick={() => { setPayMode(m.key); setPayRate('0') }}
-                        className={`px-2 py-2.5 rounded-xl border text-center transition-all ${active ? `${mc.badge} ${mc.ring} border` : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300'}`}
-                      >
-                        <p className="text-xs font-bold leading-tight">{m.label}</p>
-                        <p className="text-[9px] mt-0.5 opacity-70">{m.desc}</p>
-                      </button>
-                    )
-                  })}
-                </div>
 
-                {/* Summary cards */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {payMode === 'flat_rate' && (
-                    <>
-                      <div className="col-span-2 bg-gray-800/70 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Monto Fijo</p>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <span className="text-sm font-bold text-blue-400">$</span>
-                          <input type="number" min="0" step="0.01" value={payRate} onChange={e => setPayRate(e.target.value)}
-                            className="w-20 bg-transparent text-sm font-bold text-blue-400 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        </div>
-                      </div>
-                      <div className="bg-blue-600/15 border border-blue-600/30 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-blue-400 uppercase tracking-wide mb-1">Pago</p>
-                        <p className="text-sm font-bold text-blue-400"><AnimatedMoney value={payout} /></p>
-                      </div>
-                    </>
-                  )}
-                  {payMode === 'percentage' && (
-                    <>
-                      <div className="bg-gray-800/70 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>
-                        <p className="text-sm font-bold text-white"><AnimatedMoney value={gross} /></p>
-                      </div>
-                      <div className="bg-gray-800/70 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">%</p>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <input type="number" min="0" max="100" step="0.5" value={payRate} onChange={e => setPayRate(e.target.value)}
-                            className="w-10 bg-transparent text-sm font-bold text-orange-400 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                          <span className="text-sm font-bold text-orange-400">%</span>
-                        </div>
-                      </div>
-                      <div className="bg-orange-600/15 border border-orange-600/30 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-orange-400 uppercase tracking-wide mb-1">Pago</p>
-                        <p className="text-sm font-bold text-orange-400"><AnimatedMoney value={payout} /></p>
-                      </div>
-                    </>
-                  )}
-                  {payMode === 'per_mile' && (
-                    <>
-                      <div className="bg-gray-800/70 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Millas</p>
-                        <p className="text-sm font-bold text-white">{totalMiles.toLocaleString()}</p>
-                      </div>
-                      <div className="bg-gray-800/70 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">¢/Milla</p>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <input type="number" min="0" step="0.5" value={payRate} onChange={e => setPayRate(e.target.value)}
-                            className="w-10 bg-transparent text-sm font-bold text-green-400 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                          <span className="text-sm font-bold text-green-400">¢</span>
-                        </div>
-                      </div>
-                      <div className="bg-green-700/15 border border-green-700/30 rounded-xl p-3 text-center">
-                        <p className="text-[9px] text-green-400 uppercase tracking-wide mb-1">Pago</p>
-                        <p className="text-sm font-bold text-green-400"><AnimatedMoney value={payout} /></p>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {!payMode ? (
+                  <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-800/40 rounded-xl px-3 py-2.5 mb-3">
+                    <svg className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" />
+                    </svg>
+                    <div>
+                      <p className="text-xs font-semibold text-yellow-400">Modo de pago no configurado</p>
+                      <p className="text-[10px] text-yellow-400/70 mt-0.5">Ve a Perfiles → este conductor → configura el modo de pago</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Modo de pago badge (solo lectura) */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full border font-semibold ${MODE_COLORS[payMode]?.badge}`}>
+                        {MODE_LABELS[payMode]?.label} · {payMode === 'flat_rate' ? fmt(payRate) : payMode === 'percentage' ? `${payRate}%` : `${payRate}¢/mi`}
+                      </span>
+                      <span className="text-[10px] text-gray-600">desde perfil</span>
+                    </div>
+
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {payMode === 'flat_rate' ? (
+                        <>
+                          <div className="col-span-2 bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Monto Fijo</p>
+                            <p className="text-sm font-bold text-blue-400">{fmt(payRate)}</p>
+                          </div>
+                          <div className={`${MODE_COLORS.flat_rate.payoutBg} border rounded-xl p-3 text-center`}>
+                            <p className="text-[9px] text-blue-400 uppercase tracking-wide mb-1">Pago</p>
+                            <p className="text-sm font-bold text-blue-400"><AnimatedMoney value={payout} /></p>
+                          </div>
+                        </>
+                      ) : payMode === 'percentage' ? (
+                        <>
+                          <div className="bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>
+                            <p className="text-sm font-bold text-white"><AnimatedMoney value={gross} /></p>
+                          </div>
+                          <div className="bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">%</p>
+                            <p className="text-sm font-bold text-orange-400">{payRate}%</p>
+                          </div>
+                          <div className={`${MODE_COLORS.percentage.payoutBg} border rounded-xl p-3 text-center`}>
+                            <p className="text-[9px] text-orange-400 uppercase tracking-wide mb-1">Pago</p>
+                            <p className="text-sm font-bold text-orange-400"><AnimatedMoney value={payout} /></p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Millas</p>
+                            <p className="text-sm font-bold text-white">{totalMiles.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">¢/Milla</p>
+                            <p className="text-sm font-bold text-green-400">{payRate}¢</p>
+                          </div>
+                          <div className={`${MODE_COLORS.per_mile.payoutBg} border rounded-xl p-3 text-center`}>
+                            <p className="text-[9px] text-green-400 uppercase tracking-wide mb-1">Pago</p>
+                            <p className="text-sm font-bold text-green-400"><AnimatedMoney value={payout} /></p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {orders.length > 0 && payMode !== 'flat_rate' && (
                   <button onClick={toggleAll} className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors text-left">
@@ -650,7 +643,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
 
               {/* Save */}
               <div className="px-5 py-4 border-t border-gray-800 shrink-0">
-                <button onClick={savePayment} disabled={saving || (!Number(payRate))}
+                <button onClick={savePayment} disabled={saving || !payMode}
                   className="w-full py-2.5 bg-cyan-600 text-white text-sm font-bold rounded-xl hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                   {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                   {saving ? 'Guardando...' : `Guardar Pago${payout > 0 ? ` (${fmt(payout)})` : ''}`}
