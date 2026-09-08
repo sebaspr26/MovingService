@@ -625,7 +625,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
           srcDoc={previewHtml}
           className="flex-1 w-full border-0 bg-white"
           title="Settlement Preview"
-          sandbox="allow-same-origin"
+          sandbox="allow-same-origin allow-scripts"
         />
       </div>,
       document.body

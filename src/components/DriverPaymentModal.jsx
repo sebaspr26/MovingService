@@ -675,7 +675,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
             </button>
           </div>
         </div>
-        <iframe srcDoc={previewHtml} className="flex-1 w-full border-0 bg-white" title="Driver Settlement Preview" sandbox="allow-same-origin" />
+        <iframe srcDoc={previewHtml} className="flex-1 w-full border-0 bg-white" title="Driver Settlement Preview" sandbox="allow-same-origin allow-scripts" />
       </div>,
       document.body
     )}
