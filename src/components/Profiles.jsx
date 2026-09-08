@@ -936,14 +936,19 @@ export default function Profiles() {
                         {new Date().toLocaleDateString('es-US', { month: 'long', year: 'numeric' })}
                       </label>
                       <div className="flex items-center gap-2 mb-4">
-                        <input
-                          type="number"
-                          min="0" max="100" step="0.5"
-                          value={dispatcherRate}
-                          onChange={e => setDispatcherRate(e.target.value)}
-                          placeholder="0"
-                          className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center"
-                        />
+                        <div className="flex items-center bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-orange-500 transition-colors">
+                          <button type="button" onClick={() => setDispatcherRate(v => Math.max(0, (Number(v) || 0) - 0.5).toString())}
+                            className="px-2.5 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-base leading-none select-none">−</button>
+                          <input
+                            type="number" min="0" max="100" step="0.5"
+                            value={dispatcherRate}
+                            onChange={e => setDispatcherRate(e.target.value)}
+                            placeholder="0"
+                            className="w-14 bg-transparent py-1.5 text-sm text-white focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <button type="button" onClick={() => setDispatcherRate(v => Math.min(100, (Number(v) || 0) + 0.5).toString())}
+                            className="px-2.5 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-base leading-none select-none">+</button>
+                        </div>
                         <span className="text-gray-400 text-sm">%</span>
                       </div>
                     </div>
@@ -979,12 +984,18 @@ export default function Profiles() {
                           <label className="text-xs text-gray-400 flex-1">
                             {driverPayMode === 'flat_rate' ? 'Monto fijo ($)' : driverPayMode === 'percentage' ? 'Porcentaje del gross' : 'Centavos por milla'}
                           </label>
-                          <input
-                            type="number" min="0" step="0.5"
-                            value={driverPayRate}
-                            onChange={e => setDriverPayRate(e.target.value)}
-                            className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cyan-500 text-center"
-                          />
+                          <div className="flex items-center bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-cyan-500 transition-colors">
+                            <button type="button" onClick={() => setDriverPayRate(v => Math.max(0, (Number(v) || 0) - 0.5).toString())}
+                              className="px-2.5 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-base leading-none select-none">−</button>
+                            <input
+                              type="number" min="0" step="0.5"
+                              value={driverPayRate}
+                              onChange={e => setDriverPayRate(e.target.value)}
+                              className="w-14 bg-transparent py-1.5 text-sm text-white focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button type="button" onClick={() => setDriverPayRate(v => ((Number(v) || 0) + 0.5).toString())}
+                              className="px-2.5 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-base leading-none select-none">+</button>
+                          </div>
                           <span className="text-gray-400 text-sm">{driverPayMode === 'flat_rate' ? '$' : driverPayMode === 'percentage' ? '%' : '¢'}</span>
                         </div>
                       )}
@@ -1032,8 +1043,8 @@ export default function Profiles() {
                   </div>
                 )}
 
-                {/* Empresas */}
-                {companies.length > 1 && (
+                {/* Empresas — oculto para conductores */}
+                {companies.length > 1 && permUser.user_metadata?.role !== 'driver' && permUser.user_metadata?.role !== 'driver_lease' && (
                   <div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Empresas</p>
                     <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-3 space-y-2">
