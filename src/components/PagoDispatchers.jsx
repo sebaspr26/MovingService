@@ -94,8 +94,23 @@ export default function PagoDispatchers() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-500 text-sm">No hay dispatchers</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(user => {
+        <div className="space-y-6">
+        {[
+          { key: 'super_admin', label: 'Super Admin' },
+          { key: 'admin', label: 'Administradores' },
+          { key: 'dispatcher', label: 'Dispatchers' },
+        ].map(group => {
+          const groupUsers = filtered.filter(u => (u.user_metadata?.role || 'dispatcher') === group.key)
+          if (groupUsers.length === 0) return null
+          return (
+            <div key={group.key}>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group.label}</h2>
+                <div className="flex-1 h-px bg-gray-800" />
+                <span className="text-xs text-gray-700">{groupUsers.length}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {groupUsers.map(user => {
             const meta = user.user_metadata || {}
             const role = meta.role || 'dispatcher'
             const name = meta.name || user.email || ''
@@ -162,6 +177,10 @@ export default function PagoDispatchers() {
               </div>
             )
           })}
+              </div>
+            </div>
+          )
+        })}
         </div>
       )}
 
