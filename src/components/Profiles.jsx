@@ -748,18 +748,16 @@ export default function Profiles() {
                             Sin modo de pago
                           </span>
                         )}
-                        {driver.email && (
-                          <button
-                            onClick={() => {
-                              setModalMode('invite')
-                              setForm({ name: driver.name, email: driver.email, password: '', role: 'driver' })
-                              setShowModal(true)
-                            }}
-                            className="ml-auto px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
-                          >
-                            Invitar
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setModalMode('invite')
+                            setForm({ name: driver.name, email: driver.email || '', password: '', role: 'driver' })
+                            setShowModal(true)
+                          }}
+                          className="ml-auto px-2 py-0.5 text-xs rounded-md bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 transition-colors font-medium"
+                        >
+                          Invitar
+                        </button>
                       </div>
                     </div>
                   ))}
