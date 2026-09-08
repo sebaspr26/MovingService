@@ -157,7 +157,7 @@ export default function Profiles() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'list' }),
         }),
-        (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('id, name, email, phone, status, pay_mode, pay_rate').order('name'); return cId ? q.eq('company_id', cId) : q })(),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('*').order('name'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''); return cId ? q.eq('company_id', cId) : q })(),
       ])
