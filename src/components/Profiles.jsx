@@ -635,6 +635,7 @@ export default function Profiles() {
                     const isDriverRole = role === 'driver' || role === 'driver_lease'
                     const driverDbRecord = isDriverRole ? dbDrivers.find(d => d.email?.toLowerCase() === user.email?.toLowerCase()) : null
                     const missingPayMode = isDriverRole && (!driverDbRecord || !driverDbRecord.pay_mode)
+                    const missingTruck = isDriverRole && (!driverDbRecord || !driverDbRecord.truck_id)
                     const lastSignIn = user.last_sign_in_at
                       ? new Date(user.last_sign_in_at).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' })
                       : 'Nunca'
@@ -682,11 +683,17 @@ export default function Profiles() {
                             ))}
                           </select>
 
-                          {/* Badge: sin modo de pago (solo conductores) */}
+                          {/* Badges de advertencia — solo conductores */}
                           {missingPayMode && (
                             <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40 font-medium">
                               <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
                               Sin modo de pago
+                            </span>
+                          )}
+                          {missingTruck && (
+                            <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-900/30 text-red-400 border border-red-800/40 font-medium">
+                              <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
+                              Sin camión
                             </span>
                           )}
 
@@ -822,6 +829,12 @@ export default function Profiles() {
                           <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40 font-medium">
                             <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
                             Sin modo de pago
+                          </span>
+                        )}
+                        {!driver.truck_id && (
+                          <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-900/30 text-red-400 border border-red-800/40 font-medium">
+                            <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" /></svg>
+                            Sin camión
                           </span>
                         )}
                         <button
