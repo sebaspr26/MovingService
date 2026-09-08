@@ -94,16 +94,32 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
 
   async function fetchData() {
     setLoading(true)
+
+    // Get active cycle for this driver's truck
+    let activeCycleId = null
+    if (driver.truck_id) {
+      const { data: cycleData } = await supabase
+        .from('cycles')
+        .select('id')
+        .eq('truck_id', driver.truck_id)
+        .eq('closed', false)
+        .maybeSingle()
+      activeCycleId = cycleData?.id || null
+    }
+
     const [paymentsRes, ordersRes] = await Promise.all([
       supabase.from('driver_payments')
         .select('*')
         .eq('driver_id', driver.id)
         .order('created_at', { ascending: false }),
-      supabase.from('orders')
-        .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
-        .eq('driver_name', driverName)
-        .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
-        .order('pu_date', { ascending: false }),
+      activeCycleId
+        ? supabase.from('orders')
+            .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
+            .eq('driver_name', driverName)
+            .eq('cycle_id', activeCycleId)
+            .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
+            .order('pu_date', { ascending: false })
+        : Promise.resolve({ data: [] }),
     ])
 
     const existingPayments = paymentsRes.data || []
