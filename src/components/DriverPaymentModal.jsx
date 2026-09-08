@@ -324,7 +324,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
     setSendingId(null)
   }
 
-  const modeInfo = PAY_MODES.find(m => m.key === payMode)
+  const modeInfo = MODE_LABELS[payMode]
   const modeColor = MODE_COLORS[payMode]
 
   return (
@@ -397,7 +397,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                 <div className="space-y-3">
                   {payments.map(p => {
                     const mc = MODE_COLORS[p.pay_mode] || MODE_COLORS.percentage
-                    const modeLabel = PAY_MODES.find(m => m.key === p.pay_mode)?.label || p.pay_mode
+                    const modeLabel = MODE_LABELS[p.pay_mode]?.label || p.pay_mode
                     let rateLabel = ''
                     if (p.pay_mode === 'flat_rate') rateLabel = fmt(p.pay_rate)
                     else if (p.pay_mode === 'percentage') rateLabel = `${p.pay_rate}%`
