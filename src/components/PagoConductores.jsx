@@ -26,12 +26,8 @@ export default function PagoConductores() {
     ;(trucksData || []).forEach(t => { trucksMap[t.id] = t })
     setTrucks(trucksMap)
 
-    // Exclude drivers on LIS (lease) trucks
-    const nonLisDrivers = (driversData || []).filter(d => {
-      if (!d.truck_id) return true
-      return !trucksMap[d.truck_id]?.is_lis
-    })
-    setDrivers(nonLisDrivers)
+    // Include all drivers — LIS truck drivers go to LEASE section
+    setDrivers(driversData || [])
 
     const aMap = {}
     const roleMap = {}
@@ -51,8 +47,9 @@ export default function PagoConductores() {
     !search || d.name?.toLowerCase().includes(search.toLowerCase()) ||
     trucks[d.truck_id]?.name?.toLowerCase().includes(search.toLowerCase())
   )
-  const normalDrivers = filtered.filter(d => !d.is_lease && roleMap[d.email?.toLowerCase()] !== 'driver_lease')
-  const leaseDrivers = filtered.filter(d => d.is_lease || roleMap[d.email?.toLowerCase()] === 'driver_lease')
+  const isLeaseDriver = d => d.is_lease || trucks[d.truck_id]?.is_lis || roleMap[d.email?.toLowerCase()] === 'driver_lease'
+  const normalDrivers = filtered.filter(d => !isLeaseDriver(d))
+  const leaseDrivers = filtered.filter(d => isLeaseDriver(d))
 
   return (
     <div>
