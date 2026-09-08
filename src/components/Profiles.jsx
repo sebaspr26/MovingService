@@ -220,7 +220,7 @@ export default function Profiles() {
           body: JSON.stringify({ action: 'list' }),
         }),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('*').order('name'); return cId ? q.eq('company_id', cId) : q })(),
-        (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number').order('number'); return cId ? q.eq('company_id', cId) : q })(),
+        (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number, is_lis').order('number'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''); return cId ? q.eq('company_id', cId) : q })(),
       ])
       const usersData = await usersRes.json().catch(() => ({}))
@@ -593,11 +593,13 @@ export default function Profiles() {
                 u.email?.toLowerCase().split('@')[0] || '',
               ]).filter(Boolean)
             )
+            const trucksMap = Object.fromEntries(dbTrucks.map(t => [t.id, t]))
+            const isLeaseDriverDb = d => d.is_lease || trucksMap[d.truck_id]?.is_lis
             const unlinkedAll = dbDrivers.filter(d => !d.email || !allAuthEmails2.has(d.email?.toLowerCase()))
             const unlinkedDrivers = isDriverGroup
-              ? unlinkedAll.filter(d => !d.is_lease)
+              ? unlinkedAll.filter(d => !isLeaseDriverDb(d))
               : isLeaseGroup
-                ? unlinkedAll.filter(d => d.is_lease)
+                ? unlinkedAll.filter(d => isLeaseDriverDb(d))
                 : []
             const allAuthEmails = new Set(users.map(u => u.email?.toLowerCase()).filter(Boolean))
             const unlinkedDispatchers = isDispatcherGroup
@@ -787,7 +789,9 @@ export default function Profiles() {
                   ))}
 
                   {/* Drivers from DB without Auth account (active + inactive) */}
-                  {unlinkedDrivers.map(driver => (
+                  {unlinkedDrivers.map(driver => {
+                    const driverTruck = trucksMap[driver.truck_id]
+                    return (
                     <div
                       key={`driver-${driver.id}`}
                       className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
@@ -801,7 +805,9 @@ export default function Profiles() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-white truncate">{driver.name}</p>
-                          <p className="text-xs text-gray-500 truncate mt-0.5">{driver.email || driver.phone || 'Sin contacto registrado'}</p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">
+                            {driverTruck ? `${driverTruck.name} #${driverTruck.number}` : (driver.email || driver.phone || 'Sin contacto registrado')}
+                          </p>
                         </div>
                         <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" title="Sin cuenta" />
                       </div>
@@ -830,7 +836,7 @@ export default function Profiles() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )
