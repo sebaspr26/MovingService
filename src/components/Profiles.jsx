@@ -615,8 +615,9 @@ export default function Profiles() {
                   <span className="text-xs text-gray-700">{totalCount}</span>
                 </div>
                 <div className="space-y-2">
-                  {/* Auth users */}
-                  {groupUsers.map(user => {
+                  {/* Auth users — for driver group split by role */}
+                  {(() => {
+                    const renderUser = (user) => {
                     const name = user.user_metadata?.name || ''
                     const role = user.user_metadata?.role || 'admin'
                     const roleConfig = ROLE_LABELS[role] || ROLE_LABELS.admin
@@ -737,7 +738,27 @@ export default function Profiles() {
                         </div>
                       </div>
                     )
-                  })}
+                    }
+                    if (isDriverGroup) {
+                      const regularDrivers = groupUsers.filter(u => u.user_metadata?.role === 'driver')
+                      const leaseDrivers = groupUsers.filter(u => u.user_metadata?.role === 'driver_lease')
+                      return (
+                        <>
+                          {regularDrivers.map(u => renderUser(u))}
+                          {leaseDrivers.length > 0 && (
+                            <>
+                              <div className="flex items-center gap-2 pt-1">
+                                <span className="text-[10px] font-bold text-green-500/70 uppercase tracking-widest">Lease</span>
+                                <div className="flex-1 h-px bg-green-900/30" />
+                              </div>
+                              {leaseDrivers.map(u => renderUser(u))}
+                            </>
+                          )}
+                        </>
+                      )
+                    }
+                    return groupUsers.map(u => renderUser(u))
+                  })()}
 
                   {/* Dispatchers from orders without Auth account */}
                   {unlinkedDispatchers.map(name => (
