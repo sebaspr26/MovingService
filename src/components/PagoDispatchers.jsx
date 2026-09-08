@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
 import DispatcherPaymentModal from './DispatcherPaymentModal'
+import { useAuth } from '../context/AuthContext'
+import { isSuperAdmin } from '../lib/permissions'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -16,6 +18,7 @@ const ROLE_COLORS = {
 }
 
 export default function PagoDispatchers() {
+  const { session } = useAuth()
   const [dispatchers, setDispatchers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -60,7 +63,10 @@ export default function PagoDispatchers() {
         .filter(d => !authEmails.has(d.toLowerCase()))
         .map(d => ({ id: `legacy_${d}`, email: d, isLegacy: true }))
 
-      setDispatchers([...authUsers, ...legacyEntries])
+      const visibleAuthUsers = isSuperAdmin(session)
+        ? authUsers
+        : authUsers.filter(u => u.user_metadata?.role !== 'super_admin')
+      setDispatchers([...visibleAuthUsers, ...legacyEntries])
     } catch {}
     setLoading(false)
   }

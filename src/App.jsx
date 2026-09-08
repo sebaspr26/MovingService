@@ -21,7 +21,7 @@ import Inicio from './components/Inicio'
 import UserProfile from './components/UserProfile'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
-import { isSuperAdmin, canAccess } from './lib/permissions'
+import { isSuperAdmin, canAccess, canDelete } from './lib/permissions'
 import { supabase } from './lib/supabase'
 
 
@@ -97,7 +97,7 @@ function App() {
           <Route path="company" element={<CompanyInfo />} />
           <Route path="statistics" element={<Statistics />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="profiles" element={<Profiles />} />
+          <Route path="profiles" element={isSuperAdmin(session) ? <Profiles /> : <Navigate to="/" replace />} />
           <Route path="informacion" element={<Informacion />} />
           <Route path="conductores" element={<DispatcherDrivers />} />
           <Route path="pagos" element={<PagosMenu />} />

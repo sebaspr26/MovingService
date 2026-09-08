@@ -132,6 +132,11 @@ export function canAccess(session, moduleKey, subKey = null) {
   return true
 }
 
+// Solo super_admin puede eliminar — admins no pueden borrar nada
+export function canDelete(session) {
+  return session?.user?.user_metadata?.role === 'super_admin'
+}
+
 // Retorna array de truck IDs permitidos, o null si el usuario puede ver todos.
 // Super admin → null (sin filtro). Otros → solo los asignados; si nunca se asignaron → [] (ninguno).
 export function getAllowedTruckIds(session) {
