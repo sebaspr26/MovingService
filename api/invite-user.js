@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         email,
         password,
         email_confirm: true,
-        user_metadata: { name, role: role || 'user' },
+        user_metadata: { name, role: role || 'user', ...(companyId ? { allowed_companies: [companyId] } : {}) },
       })
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json({ success: true, user: data.user })
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         type: 'invite',
         email,
         options: {
-          data: { name, role: role || 'user', needs_password: true },
+          data: { name, role: role || 'user', needs_password: true, ...(companyId ? { allowed_companies: [companyId] } : {}) },
           redirectTo: 'https://www.etg-tms.com/set-password',
         },
       })

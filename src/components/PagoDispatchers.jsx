@@ -47,10 +47,8 @@ export default function PagoDispatchers() {
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
 
       // Auth users asignados a esta empresa (via allowed_companies) — fuente principal
-      // Super_admin ve todos sin filtro de empresa
       const authUsers = allUsers.filter(u => {
         if (!u.email) return false
-        if (isSuperAdmin(session)) return true
         const allowedCompanies = u.user_metadata?.allowed_companies
         if (!activeCompanyId) return true
         if (!allowedCompanies) return true
