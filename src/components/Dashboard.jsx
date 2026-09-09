@@ -618,7 +618,7 @@ export default function Dashboard() {
 
       {/* Recurring expenses banner */}
       {!isDriver && pendingRecurring.length > 0 && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-4 space-y-2 animate-slide-down">
           <div className="bg-amber-900/20 border border-amber-600/40 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <svg className="w-5 h-5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

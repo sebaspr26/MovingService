@@ -59,7 +59,7 @@ export default function TruckView() {
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
 
   const cycle = cycles[cycleIndex] || null
-  const readOnly = cycle?.closed || false
+  const readOnly = cycle?.closed || isDriver
   const today = fmt_d(new Date())
   const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date, cycle.closed) : []
   const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)

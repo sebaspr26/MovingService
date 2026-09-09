@@ -72,7 +72,7 @@ const TABS = [
   { key: 'canceled', label: 'Canceladas' },
 ]
 
-function StatusSelect({ row, onChange }) {
+function StatusSelect({ row, onChange, disabled }) {
   const [open, setOpen] = useState(false)
   const [rect, setRect] = useState(null)
   const btnRef = useRef(null)
@@ -80,6 +80,7 @@ function StatusSelect({ row, onChange }) {
 
   function handleOpen(e) {
     e.stopPropagation()
+    if (disabled) return
     setRect(btnRef.current?.getBoundingClientRect())
     setOpen(true)
   }
@@ -94,6 +95,7 @@ function StatusSelect({ row, onChange }) {
       <button
         ref={btnRef}
         onClick={handleOpen}
+        disabled={disabled}
         title={st.label}
         className={`text-[11px] font-bold px-2 py-1 rounded-lg ${st.text} bg-gray-800 border border-gray-700 min-w-[28px] text-center cursor-pointer hover:border-gray-500 transition-colors`}
       >
@@ -525,7 +527,7 @@ export default function OrdersView() {
                   return (
                     <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} ${canOpen ? 'hover:bg-gray-800/30 group' : ''} transition-colors`}>
                       <td className="py-2 sm:py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
-                        <StatusSelect row={row} onChange={handleStatusChange} />
+                        <StatusSelect row={row} onChange={handleStatusChange} disabled={isDriver} />
                       </td>
                       <td className={`py-2 sm:py-3.5 pr-3 ${canOpen ? 'cursor-pointer' : ''}`} onClick={canOpen ? () => openDrawer(row.id) : undefined}>
                         <div className="font-semibold text-white text-xs sm:text-sm">{row.order_number}</div>
