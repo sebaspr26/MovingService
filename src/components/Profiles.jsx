@@ -249,14 +249,30 @@ export default function Profiles() {
       setDbTrucks(trucksRes.data || [])
 
       // Sync Auth driver/driver_lease users → drivers table
+      // Match by email first, then by name (for drivers created before auth system)
       const companyId = getActiveCompanyId()
-      const dbDriverEmails = new Set(dbDriversList.filter(d => d.email).map(d => d.email.toLowerCase()))
       const driverUsers = sorted.filter(u => {
         const r = u.user_metadata?.role
         return (r === 'driver' || r === 'driver_lease') && u.email
       })
       for (const u of driverUsers) {
-        if (!dbDriverEmails.has(u.email.toLowerCase())) {
+        const uEmail = u.email.toLowerCase()
+        const uName = (u.user_metadata?.name || '').trim().toUpperCase()
+        // Find existing by email OR by name (case-insensitive)
+        const byEmail = dbDriversList.find(d => d.email?.toLowerCase() === uEmail)
+        const byName = !byEmail && uName
+          ? dbDriversList.find(d => d.name?.toUpperCase() === uName && (!d.email || d.email === ''))
+          : null
+        const existing = byEmail || byName
+        if (existing) {
+          // Link: set email + company_id if missing
+          const updates = {}
+          if (!existing.email || existing.email === '') updates.email = u.email
+          if (!existing.company_id && companyId) updates.company_id = companyId
+          if (Object.keys(updates).length > 0) {
+            await supabase.from('drivers').update(updates).eq('id', existing.id)
+          }
+        } else {
           await supabase.from('drivers').insert({
             name: (u.user_metadata?.name || u.email.split('@')[0]).trim(),
             email: u.email,
@@ -264,11 +280,24 @@ export default function Profiles() {
             is_lease: u.user_metadata?.role === 'driver_lease',
             company_id: companyId || null,
           })
-        } else {
-          // Update company_id if driver exists but has no company
-          const existing = dbDriversList.find(d => d.email?.toLowerCase() === u.email.toLowerCase())
-          if (existing && !existing.company_id && companyId) {
-            await supabase.from('drivers').update({ company_id: companyId }).eq('id', existing.id)
+        }
+      }
+      // Clean up duplicates: if same email appears more than once, keep the one with truck_id
+      const emailCounts = {}
+      for (const d of dbDriversList) {
+        if (d.email) {
+          const key = d.email.toLowerCase()
+          if (!emailCounts[key]) emailCounts[key] = []
+          emailCounts[key].push(d)
+        }
+      }
+      for (const [, dupes] of Object.entries(emailCounts)) {
+        if (dupes.length > 1) {
+          // Keep the one with truck_id, or the oldest one
+          dupes.sort((a, b) => (b.truck_id ? 1 : 0) - (a.truck_id ? 1 : 0))
+          const keep = dupes[0]
+          for (let i = 1; i < dupes.length; i++) {
+            await supabase.from('drivers').delete().eq('id', dupes[i].id)
           }
         }
       }
@@ -337,21 +366,30 @@ export default function Profiles() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
 
-      // If creating a driver/driver_lease, also create/update a record in the drivers table
+      // If creating a driver/driver_lease, link to existing drivers record or create new
       if ((form.role === 'driver' || form.role === 'driver_lease') && form.name && form.email) {
         const companyId = getActiveCompanyId() || null
-        const { data: existingDriver } = await supabase
-          .from('drivers')
-          .select('id, company_id')
-          .eq('email', form.email)
-          .maybeSingle()
-        if (existingDriver) {
-          // Update company_id if missing and update name/is_lease
+        const uName = form.name.trim().toUpperCase()
+        // Try match by email first
+        const { data: byEmail } = await supabase
+          .from('drivers').select('id, company_id').eq('email', form.email).maybeSingle()
+        // If no email match, try by name (drivers created from Compañía without email)
+        let existing = byEmail
+        if (!existing) {
+          const { data: byName } = await supabase
+            .from('drivers').select('id, company_id, email')
+            .ilike('name', uName)
+            .or('email.is.null,email.eq.')
+            .maybeSingle()
+          existing = byName
+        }
+        if (existing) {
           await supabase.from('drivers').update({
             name: form.name.trim(),
+            email: form.email,
             is_lease: form.role === 'driver_lease',
-            ...(companyId && !existingDriver.company_id ? { company_id: companyId } : {}),
-          }).eq('id', existingDriver.id)
+            ...(companyId && !existing.company_id ? { company_id: companyId } : {}),
+          }).eq('id', existing.id)
         } else {
           await supabase.from('drivers').insert({
             name: form.name.trim(),
