@@ -229,9 +229,10 @@ export default function Profiles() {
       const allSorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
       )
-      // Filter: super_admin always visible; legacy users without allowed_companies are always visible;
-      // users with allowed_companies must include activeCompanyId
-      const sorted = activeCompanyId
+      // Super_admin sees all users regardless of allowed_companies
+      // Other roles: only see users linked to their active company
+      const viewerRole = session?.user?.user_metadata?.role
+      const sorted = (activeCompanyId && viewerRole !== 'super_admin')
         ? allSorted.filter(u => {
             const role = u.user_metadata?.role
             if (role === 'super_admin') return true
@@ -764,9 +765,7 @@ export default function Profiles() {
                   })()}
 
                   {/* Dispatchers from orders without Auth account */}
-                  {unlinkedDispatchers.map(name => {
-                    const displayName = name.includes('@') ? name.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : name
-                    return (
+                  {unlinkedDispatchers.map(name => (
                     <div
                       key={`dispatcher-${name}`}
                       className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
@@ -776,11 +775,11 @@ export default function Profiles() {
                           className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
                           style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
                         >
-                          {getInitials(displayName, '')}
+                          {getInitials(name, '')}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{name.includes('@') ? name : 'Registrado en órdenes'}</p>
+                          <p className="text-sm font-semibold text-white truncate">{name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Registrado en órdenes</p>
                         </div>
                         <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" title="Sin cuenta" />
                       </div>
@@ -800,7 +799,7 @@ export default function Profiles() {
                         </button>
                       </div>
                     </div>
-                  )})}
+                  ))}
 
                   {/* Drivers from DB without Auth account (active + inactive) */}
                   {unlinkedDrivers.map(driver => {
