@@ -230,13 +230,15 @@ export default function Profiles() {
       const allSorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
       )
-      // Filter by active company — only show users linked to this company
+      // Show users linked to this company OR users with no company assigned yet (legacy/unlinked)
+      // Users explicitly assigned to OTHER companies are hidden
       const sorted = activeCompanyId
         ? allSorted.filter(u => {
             const role = u.user_metadata?.role
             if (role === 'super_admin') return true
             const ac = u.user_metadata?.allowed_companies
-            return Array.isArray(ac) && ac.includes(activeCompanyId)
+            if (!Array.isArray(ac) || ac.length === 0) return true
+            return ac.includes(activeCompanyId)
           })
         : allSorted
       setUsers(sorted)
