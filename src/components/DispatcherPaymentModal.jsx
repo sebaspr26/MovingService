@@ -83,10 +83,14 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   async function fetchData() {
     setLoading(true)
     const [paymentsRes, ordersRes, brokersRes] = await Promise.all([
-      supabase.from('dispatcher_payments')
-        .select('*')
-        .eq('dispatcher_email', dispatcherEmail)
-        .order('created_at', { ascending: false }),
+      (() => {
+        let q = supabase.from('dispatcher_payments')
+          .select('*')
+          .eq('dispatcher_email', dispatcherEmail)
+          .order('created_at', { ascending: false })
+        if (cId) q = q.eq('company_id', cId)
+        return q
+      })(),
       (() => {
         let q = supabase.from('orders')
           .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id')
@@ -150,6 +154,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
       period_end: periodEnd,
       order_ids: [...selectedIds],
       payment_number: payments.length + 1,
+      company_id: cId,
     })
 
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }

@@ -112,10 +112,15 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
     }
 
     const [paymentsRes, ordersRes] = await Promise.all([
-      supabase.from('driver_payments')
-        .select('*')
-        .eq('driver_id', driver.id)
-        .order('created_at', { ascending: false }),
+      (() => {
+        let q = supabase.from('driver_payments')
+          .select('*')
+          .eq('driver_id', driver.id)
+          .order('created_at', { ascending: false })
+        const companyId = getActiveCompanyId()
+        if (companyId) q = q.eq('company_id', companyId)
+        return q
+      })(),
       activeCycleId
         ? supabase.from('orders')
             .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
@@ -186,6 +191,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       period_end: periodEnd,
       order_ids: [...selectedIds],
       payment_number: payments.length + 1,
+      company_id: getActiveCompanyId(),
     })
 
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }

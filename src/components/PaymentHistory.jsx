@@ -19,24 +19,30 @@ export default function PaymentHistory() {
   const [previewLoading, setPreviewLoading] = useState(null)
   const htmlCache = useRef({})
 
+  const companyId = getActiveCompanyId()
+
   useEffect(() => {
     if (!email) return
     ;(async () => {
       setLoading(true)
       if (isDriver) {
-        const { data } = await supabase.from('driver_payments')
+        let q = supabase.from('driver_payments')
           .select('*').eq('driver_email', email)
           .order('pay_date', { ascending: false })
+        if (companyId) q = q.eq('company_id', companyId)
+        const { data } = await q
         setPayments((data || []).map(p => ({ ...p, type: 'driver' })))
       } else {
-        const { data } = await supabase.from('dispatcher_payments')
+        let q = supabase.from('dispatcher_payments')
           .select('*').eq('dispatcher_email', email)
           .order('pay_date', { ascending: false })
+        if (companyId) q = q.eq('company_id', companyId)
+        const { data } = await q
         setPayments((data || []).map(p => ({ ...p, type: 'dispatcher' })))
       }
       setLoading(false)
     })()
-  }, [email, isDriver])
+  }, [email, isDriver, companyId])
 
   async function fetchPreview(payment) {
     if (htmlCache.current[payment.id]) {
