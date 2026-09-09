@@ -451,8 +451,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const invoiceDate = today
   const total = Number(order.rate) || 0
   const companyInfo = companySettings?.company_info || {}
-  const companyName = companyInfo.company_name || 'ETG MOVING SERVICES'
-  const companyDba = companyInfo.dba || 'DRIVING IS WORK LLC'
+  const companyName = companyInfo.company_name || ''
+  const companyDba = companyInfo.dba || ''
   const billingInfo = companySettings?.billing_info || {}
   const remitInfo = companySettings?.remit_info || {}
   const rateItems = invoiceItems.length > 0 ? invoiceItems : [{ pay_item: 'Flat Rate', units: 1, rate: total, total }]
