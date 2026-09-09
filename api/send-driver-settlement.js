@@ -75,6 +75,7 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
   const phone = billing.phone || companyInfo.phone || ''
   const email = billing.email || companyInfo.email || ''
 
+  const isFlat = payMode === 'flat_rate'
   const ordersRows = orders.map(o => {
     const linePay = payLineAmount(payMode, payRate, o, isLease)
     const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
@@ -91,11 +92,11 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
           ${miles.toLocaleString()} mi total<br>
           <span style="color:#9ca3af;">${Number(o.miles||0).toLocaleString()} loaded + ${Number(o.dead_miles||0).toLocaleString()} DH</span>
         </td>
-        <td style="padding:13px 10px;font-size:12px;color:#374151;vertical-align:top;">
+        ${isFlat ? '' : `<td style="padding:13px 10px;font-size:12px;color:#374151;vertical-align:top;">
           ${payBreakdownLabel(payMode, payRate, o, isLease)}
         </td>
         <td style="padding:13px 10px;font-size:13px;color:#111827;font-weight:600;text-align:right;vertical-align:top;">${fmt(o.rate)}</td>
-        ${linePay !== null ? `<td style="padding:13px 10px;font-size:13px;color:#16a34a;font-weight:700;text-align:right;vertical-align:top;">${fmt(linePay)}</td>` : `<td style="padding:13px 10px;font-size:12px;color:#9ca3af;text-align:right;vertical-align:top;">—</td>`}
+        ${linePay !== null ? `<td style="padding:13px 10px;font-size:13px;color:#16a34a;font-weight:700;text-align:right;vertical-align:top;">${fmt(linePay)}</td>` : `<td style="padding:13px 10px;font-size:12px;color:#9ca3af;text-align:right;vertical-align:top;">—</td>`}`}
       </tr>`
   }).join('')
 
@@ -148,7 +149,7 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
     <div style="flex:1;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:14px;padding:18px 20px;">
       <table style="width:100%;border-collapse:collapse;">
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Loads:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:700;text-align:right;">${orders.length}</td></tr>
-        <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Gross Revenue:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmt(gross)}</td></tr>
+        ${isFlat ? '' : `<tr><td style="padding:5px 0;font-size:13px;color:#374151;">Gross Revenue:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmt(gross)}</td></tr>`}
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Total Miles:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmtMiles(totalMiles)}</td></tr>
         ${isLease ? `<tr><td style="padding:5px 0;font-size:13px;color:#dc2626;">Company Fee (${payRate}%):</td><td style="padding:5px 0;font-size:13px;color:#dc2626;font-weight:700;text-align:right;">−${fmt(companyFee)}</td></tr>` : ''}
         <tr style="border-top:1.5px solid #d1d5db;"><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">${isLease ? 'Driver Pay:' : 'Total Pay:'}</td><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(payout)}</td></tr>
@@ -170,15 +171,15 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
           <th style="padding:11px 10px;text-align:left;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Route</th>
           <th style="padding:11px 10px;text-align:left;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Date</th>
           <th style="padding:11px 10px;text-align:left;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Miles</th>
-          <th style="padding:11px 10px;text-align:left;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Pay Breakdown</th>
+          ${isFlat ? '' : `<th style="padding:11px 10px;text-align:left;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Pay Breakdown</th>
           <th style="padding:11px 10px;text-align:right;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Rate</th>
-          <th style="padding:11px 10px;text-align:right;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Pay</th>
+          <th style="padding:11px 10px;text-align:right;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;">Pay</th>`}
         </tr>
       </thead>
       <tbody>${ordersRows}</tbody>
       <tfoot>
         <tr style="border-top:2px solid #111827;">
-          <td colspan="6" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">Total Pay:</td>
+          <td colspan="${isFlat ? 3 : 6}" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">Total Pay:</td>
           <td style="padding:14px 10px;font-size:16px;font-weight:900;color:#16a34a;text-align:right;">${fmt(payout)}</td>
         </tr>
       </tfoot>
@@ -218,12 +219,12 @@ function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, p
           <td align="right" style="font-size:13px;color:#0891b2;font-weight:800;">${PAY_MODE_LABELS[payMode] || payMode} · ${payRateDisplay}</td>
         </tr></table>
       </td></tr>
-      <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;">
+      ${payMode !== 'flat_rate' ? `<tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;">
         <table width="100%"><tr>
           <td style="font-size:12px;color:#6b7280;">Gross Revenue</td>
           <td align="right" style="font-size:13px;color:#111827;font-weight:700;">${fmt(gross)}</td>
         </tr></table>
-      </td></tr>
+      </td></tr>` : ''}
       <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;">
         <table width="100%"><tr>
           <td style="font-size:12px;color:#6b7280;">Total Miles</td>
@@ -263,7 +264,7 @@ export default async function handler(req, res) {
     if (!driverEmail) return res.status(400).json({ error: 'Este conductor no tiene email registrado' })
 
     const body = emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate })
-    const text = `${companyName} — Driver Settlement #${paymentNumber}\n\nHi ${driverName},\n\nYour payment for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)} is attached.\n\nGross: ${fmt(gross)}\nMiles: ${fmtMiles(totalMiles)}\nTotal Pay: ${fmt(payout)}\n\n— ${companyName}`
+    const text = `${companyName} — Driver Settlement #${paymentNumber}\n\nHi ${driverName},\n\nYour payment for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)} is attached.\n\n${payMode !== 'flat_rate' ? `Gross: ${fmt(gross)}\n` : ''}Miles: ${fmtMiles(totalMiles)}\nTotal Pay: ${fmt(payout)}\n\n— ${companyName}`
 
     const opts = {
       from: `${companyName} <invoices@etg-tms.com>`,
