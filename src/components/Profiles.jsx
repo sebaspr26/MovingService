@@ -84,7 +84,7 @@ const ROLE_LABELS = {
 const INVITE_EXPIRY_MS = 40 * 60 * 1000 // 40 minutos
 
 function getInviteStatus(user) {
-  if (user.confirmed_at) return 'active'
+  if (user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at) return 'active'
   const sentAt = user.invited_at || user.created_at
   const elapsed = Date.now() - new Date(sentAt).getTime()
   return elapsed > INVITE_EXPIRY_MS ? 'expired' : 'pending'
