@@ -108,11 +108,11 @@ export default function DispatcherDrivers() {
         allowedTruckIds = fromPerms
       } else {
         // Fallback: truck_ids de las órdenes asignadas al dispatcher
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('truck_id')
-          .eq('dispatcher', userEmail)
-          .not('truck_id', 'is', null)
+        const cIdFallback = getActiveCompanyId()
+        let fallbackQ = supabase.from('orders').select('truck_id')
+          .eq('dispatcher', userEmail).not('truck_id', 'is', null)
+        if (cIdFallback) fallbackQ = fallbackQ.eq('company_id', cIdFallback)
+        const { data: orders } = await fallbackQ
         allowedTruckIds = [...new Set((orders || []).map(o => o.truck_id))]
       }
     }
@@ -140,7 +140,9 @@ export default function DispatcherDrivers() {
       const { data } = cId ? await q.eq('company_id', cId) : await q
       driversData = data || []
     } else if (allowedTruckIds.length > 0) {
-      const { data } = await supabase.from('drivers').select('*').in('truck_id', allowedTruckIds).eq('status', 'active').order('name')
+      let dq = supabase.from('drivers').select('*').in('truck_id', allowedTruckIds).eq('status', 'active').order('name')
+      if (cId) dq = dq.eq('company_id', cId)
+      const { data } = await dq
       driversData = data || []
     }
 

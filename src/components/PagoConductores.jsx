@@ -17,9 +17,10 @@ export default function PagoConductores() {
 
   async function fetchData() {
     setLoading(true)
+    const cId = getActiveCompanyId()
     const [{ data: driversData }, { data: trucksData }, authRes] = await Promise.all([
-      (() => { const q = supabase.from('drivers').select('*').order('name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      supabase.from('trucks').select('id, name, number, vin_number, is_lis').order('name'),
+      (() => { const q = supabase.from('drivers').select('*').order('name'); return cId ? q.eq('company_id', cId) : q })(),
+      (() => { const q = supabase.from('trucks').select('id, name, number, vin_number, is_lis').order('name'); return cId ? q.eq('company_id', cId) : q })(),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
     ])
     const trucksMap = {}
