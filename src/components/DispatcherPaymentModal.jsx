@@ -188,6 +188,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
           orders: pOrders || [],
+          companyId: cId,
         }),
       })
       const data = await res.json()
@@ -280,6 +281,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
             orders: pOrders || [],
+            companyId: cId,
           }),
         })
         const previewData = await previewRes.json()
@@ -312,6 +314,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
           periodEnd: payment.period_end,
           orders: pOrders || [],
           pdfBase64,
+          companyId: cId,
         }),
       })
       const data = await res.json()
