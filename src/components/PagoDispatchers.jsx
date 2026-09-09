@@ -122,7 +122,7 @@ export default function PagoDispatchers() {
             const companyMeta = (activeCompanyId && meta.company_settings?.[activeCompanyId]) || {}
             const allRates = companyMeta.dispatcher_rates || []
             const currentRate = allRates.slice(-1)[0]
-            const isActivated = !!(user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at || meta.needs_password === false)
+            const isActivated = meta.needs_password === false || (meta.needs_password == null && !!(user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at))
             const inactive = user.isLegacy || !isActivated
 
             return (

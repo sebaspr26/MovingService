@@ -84,8 +84,12 @@ const ROLE_LABELS = {
 const INVITE_EXPIRY_MS = 40 * 60 * 1000 // 40 minutos
 
 function getInviteStatus(user) {
-  if (user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at) return 'active'
-  if (user.user_metadata?.needs_password === false) return 'active'
+  const needsPw = user.user_metadata?.needs_password
+  // Invited users: only active when they explicitly completed set-password (needs_password=false)
+  if (needsPw === false) return 'active'
+  // Users created via admin (no invite flow, needs_password never set): active if they have signed in
+  if (needsPw == null && (user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at)) return 'active'
+  // needs_password=true means invited but never activated — regardless of email_confirmed_at
   const sentAt = user.invited_at || user.created_at
   const elapsed = Date.now() - new Date(sentAt).getTime()
   return elapsed > INVITE_EXPIRY_MS ? 'expired' : 'pending'
