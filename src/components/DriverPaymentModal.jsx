@@ -6,6 +6,7 @@ import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { useAuth } from '../context/AuthContext'
+import { getActiveCompanyId } from '../lib/company'
 import { canDelete } from '../lib/permissions'
 
 const MODE_COLORS = {
@@ -222,6 +223,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
           orders: pOrders || [],
+          companyId: getActiveCompanyId(),
         }),
       })
       const data = await res.json()
@@ -329,6 +331,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
           periodEnd: payment.period_end,
           orders: pOrders || [],
           pdfBase64,
+          companyId: getActiveCompanyId(),
         }),
       })
       const data = await res.json()

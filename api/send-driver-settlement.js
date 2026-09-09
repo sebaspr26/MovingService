@@ -16,9 +16,10 @@ function fmtMiles(n) {
   return Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' mi'
 }
 
-async function getCompanyData() {
-  const { data } = await supabaseAdmin.from('company_settings')
-    .select('company_info, billing_info, logo_path').limit(1).single()
+async function getCompanyData(companyId) {
+  const query = supabaseAdmin.from('company_settings').select('company_info, billing_info, logo_path')
+  if (companyId) query.eq('id', companyId)
+  const { data } = await query.limit(1).single()
   const companyName = data?.company_info?.company_name || data?.company_info?.dba || 'Moving Services'
   const logoUrl = data?.logo_path
     ? supabaseAdmin.storage.from('company-docs').getPublicUrl(data.logo_path).data?.publicUrl || null
@@ -240,11 +241,11 @@ function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, p
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { action, paymentNumber, driverEmail, driverName, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders = [], pdfBase64 } = req.body
+  const { action, paymentNumber, driverEmail, driverName, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders = [], pdfBase64, companyId } = req.body
   if (!driverName) return res.status(400).json({ error: 'Falta driverName' })
 
   try {
-    const { companyName, logoUrl, billing, companyInfo } = await getCompanyData()
+    const { companyName, logoUrl, billing, companyInfo } = await getCompanyData(companyId)
 
     const html = driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders })
 
