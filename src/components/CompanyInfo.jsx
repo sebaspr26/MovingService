@@ -575,6 +575,7 @@ function SectionCompanyDocs() {
    ============================ */
 
 function DocumentSlots({ entityType, entityId, table, bucket, docTypes, docs, onRefresh }) {
+  const { session } = useAuth()
   const toast = useToast()
   const fileRef = useRef()
   const [uploading, setUploading] = useState(null) // doc_type being uploaded
