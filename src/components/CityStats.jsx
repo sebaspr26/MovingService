@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 
 export default function CityStats() {
   const [orders, setOrders] = useState([])
@@ -9,10 +10,10 @@ export default function CityStats() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('orders')
-        .select('pu_city, do_city')
-        .not('status', 'eq', 'canceled')
+      const companyId = getActiveCompanyId()
+      let q = supabase.from('orders').select('pu_city, do_city').not('status', 'eq', 'canceled')
+      if (companyId) q = q.eq('company_id', companyId)
+      const { data } = await q
       setOrders(data || [])
       setLoading(false)
     }

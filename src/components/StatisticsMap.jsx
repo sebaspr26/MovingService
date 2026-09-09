@@ -3,6 +3,7 @@ import { geoAlbersUsa, geoPath } from 'd3-geo'
 import { feature } from 'topojson-client'
 import { geocode } from '../lib/here'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 import DateRangePicker from './DateRangePicker'
 
 const US_TOPO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
@@ -65,10 +66,10 @@ export default function StatisticsMap() {
   // Load heatmap data on mount
   useEffect(() => {
     async function loadHeatmap() {
-      const { data } = await supabase
-        .from('orders')
-        .select('pu_city, do_city')
-        .not('status', 'eq', 'canceled')
+      const companyId = getActiveCompanyId()
+      let q = supabase.from('orders').select('pu_city, do_city').not('status', 'eq', 'canceled')
+      if (companyId) q = q.eq('company_id', companyId)
+      const { data } = await q
 
       if (!data) { setHeatLoading(false); return }
 
@@ -133,6 +134,7 @@ export default function StatisticsMap() {
     setConnections([])
     setProgress('Cargando ordenes...')
 
+    const companyId = getActiveCompanyId()
     let query = supabase
       .from('orders')
       .select('id, order_number, pu_city, do_city, miles, rate, pu_date, driver_name')
@@ -140,6 +142,7 @@ export default function StatisticsMap() {
       .not('do_city', 'is', null)
       .order('created_at', { ascending: false })
 
+    if (companyId) query = query.eq('company_id', companyId)
     if (dateFrom) query = query.gte('pu_date', dateFrom)
     if (dateTo) query = query.lte('pu_date', dateTo)
     if (driverFilter) query = query.eq('driver_name', driverFilter)

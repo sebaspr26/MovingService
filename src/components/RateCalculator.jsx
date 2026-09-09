@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { calculateTruckRoute } from '../lib/here'
+import { getActiveCompanyId } from '../lib/company'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 
@@ -15,13 +16,11 @@ export default function RateCalculator() {
 
   useEffect(() => {
     async function loadStats() {
-      const { data } = await supabase
-        .from('orders')
-        .select('rate, miles, pu_city, do_city')
-        .not('rate', 'is', null)
-        .not('miles', 'is', null)
-        .gt('rate', 0)
-        .gt('miles', 0)
+      const companyId = getActiveCompanyId()
+      let q = supabase.from('orders').select('rate, miles, pu_city, do_city')
+        .not('rate', 'is', null).not('miles', 'is', null).gt('rate', 0).gt('miles', 0)
+      if (companyId) q = q.eq('company_id', companyId)
+      const { data } = await q
 
       if (!data || data.length === 0) return
 
