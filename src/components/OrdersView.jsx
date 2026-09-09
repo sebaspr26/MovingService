@@ -236,16 +236,18 @@ export default function OrdersView() {
     const allTrucks = trucksRes.data || []
     const filteredTrucks = allowedIds ? allTrucks.filter(t => allowedIds.includes(t.id)) : allTrucks
     const allOrders = ordersRes.data || []
-    let filteredOrders = allowedIds
-      ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
-      : allOrders
-    // Drivers: solo las órdenes de su camión asignado
-    if ((userRole === 'driver' || userRole === 'driver_lease') && userEmail) {
+    let filteredOrders
+    if (isDriver && userEmail) {
+      // Drivers: solo las órdenes de su camión asignado (skip allowedIds filter)
       const { data: driverRecord } = await supabase
         .from('drivers').select('truck_id').eq('email', userEmail).maybeSingle()
       filteredOrders = driverRecord?.truck_id
-        ? filteredOrders.filter(o => o.truck_id === driverRecord.truck_id)
+        ? allOrders.filter(o => o.truck_id === driverRecord.truck_id)
         : []
+    } else {
+      filteredOrders = allowedIds
+        ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
+        : allOrders
     }
     // Dispatchers: solo sus órdenes a menos que tengan permiso "ver_todas_ordenes"
     if (userRole === 'dispatcher' && userEmail) {

@@ -24,7 +24,9 @@ src/
     OrdersView.jsx      - Lista centralizada de ordenes (/orders): filter tabs (incl. Pagadas), drawer lateral, TONU modal con precio editable, rate/mi en tabla, filtros avanzados MultiSelect (truck/dispatcher/broker/fechas). Cache por usuario (30s TTL, separado por user ID para evitar contaminacion cross-user). Status con siglas (R/A/ET/E/F/P/T/C) + select overlay. Columna Dispatcher. PAGE_SIZE=30. Auto-migra dispatcher nombre→email al cargar. Filtra ordenes por rol: dispatchers solo ven sus ordenes (o todas si tienen permiso ver_todas_ordenes)
     OrderDetail.jsx     - Detalle/creacion de orden: 2-col layout, status bar, broker, stops con schedule_type (appointment/range), invoicing, commodities, route calc, docs, RC viewer con drag & drop, company info sidebar, ref# auto-generado, dispatcher requerido en nuevas ordenes. DispatcherAutocomplete fetches Auth users (admin/dispatcher/super_admin), muestra nombre pero guarda EMAIL en campo dispatcher
     OrderDocuments.jsx  - Panel de documentos (RC/BOL/POD): upload Supabase Storage + drag & drop, visor fullscreen con render progresivo de PDFs (pdf.js), tabs por tipo
-    OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo desde Supabase Storage
+    OrderInvoice.jsx    - Invoice unificado: factura + RC + POD. Cache en memoria, boton Regenerar. Email directo con CC y switches por destinatario. Logo desde Supabase Storage. Carga company_settings filtrando por getActiveCompanyId() — NUNCA usa hardcoded fallback de nombre de empresa. Al montar/regenerar invalida cache y re-fetcha con companyId explicito
+    DispatcherPaymentModal.jsx - Modal para pagos a dispatchers. Tabla dispatcher_payments. Historial de pagos, nuevo pago con seleccion de ordenes, calculo comision, preview HTML del settlement, regenerar, enviar email con PDF. SIEMPRE pasa companyId: getActiveCompanyId() a /api/send-settlement en los 3 fetch calls (fetchPreview, sendSettlement preview, sendSettlement send)
+    DriverPaymentModal.jsx - Modal para pagos a conductores (driver/driver_lease). Similar a DispatcherPaymentModal. SIEMPRE pasa companyId: getActiveCompanyId() a /api/send-driver-settlement
     OrdersTable.jsx     - CRUD ordenes con paid toggle, discount toggle, badge TONU con rate real (TruckView)
     MultiSelect.jsx     - Componente multi-select custom con createPortal (z-index 9999). Dropdown fuera del DOM para evitar clipping. triggerRef + dropdownRef separados para evitar cierre al clickear opciones. Opciones con checkboxes naranja, botones Todos/Limpiar
     DatePicker.jsx      - Calendario custom en espanol, reemplaza inputs nativos de fecha
@@ -36,7 +38,7 @@ src/
     AddModal.jsx        - Modal reutilizable con soporte scanner inline (image/PDF -> AI -> autofill)
     CashBox.jsx         - Cierre/reapertura de ciclo + dividendos por socio
     CompanyInfo.jsx     - Modulo compania: choferes, camiones, trailers, company info, billing (bill from + remit to + logo), company docs. Datos en Supabase (company_settings) en vez de localStorage
-    Profiles.jsx        - Gestion de usuarios Auth agrupados por rol (Administradores/Dispatchers/Conductores). Muestra drivers DB sin cuenta y dispatchers legacy sin cuenta. Modal permisos 2 columnas: izquierda=modulos en grid 2col compacto, derecha=camiones+comision+empresas. Comision dispatcher con historial mensual. Auto-migra dispatcher nombre→email al cargar. Reenviar invitacion abre modal pre-llenado (permite corregir email); si email cambia elimina usuario viejo antes de crear nuevo
+    Profiles.jsx        - Gestion de usuarios Auth agrupados por rol (Administradores/Dispatchers/Conductores). Muestra drivers DB sin cuenta y dispatchers legacy sin cuenta. Modal permisos 2 columnas: izquierda=modulos en grid 2col compacto, derecha=camiones+comision+empresas. Comision dispatcher con historial mensual. Auto-migra dispatcher nombre→email al cargar. Reenviar invitacion abre modal pre-llenado (permite corregir email); si email cambia elimina usuario viejo antes de crear nuevo. getInviteStatus() usa needs_password como fuente de verdad (ver seccion Auth). Boton impersonar deshabilitado para usuarios no activos (evita loop infinito a /set-password). Filtra usuarios por allowed_companies con logica de aislamiento multi-empresa
     Settings.jsx        - Configuracion: tema light/dark con cards de preview
     Toast.jsx           - Toast system (success/error/warning/info/confirm)
   lib/
@@ -53,8 +55,10 @@ src/
   main.jsx              - Entry point (ThemeProvider + ToastProvider + App)
   index.css             - Tailwind import + light mode CSS variable overrides (grays invertidos, accent colors ajustados). Scrollbar naranja (#ea580c) en dark mode, azul claro en light mode
 api/
-  send-invoice.js       - Serverless function (Vercel): envia email via Resend con to, cc, adjunto PDF
-  invite-user.js        - Serverless function (Vercel): gestiona usuarios Auth via supabaseAdmin. Acciones: create, invite, list, delete, resend, update_permissions, update_role, migrate_dispatchers. invite usa generateLink(type:'invite'), fallback a generateLink(type:'recovery') si email ya existe. update_permissions guarda permissions + allowed_companies + allowed_trucks + name + dispatcher_rates en user_metadata
+  send-invoice.js          - Serverless function (Vercel): envia email via Resend con to, cc, adjunto PDF
+  invite-user.js           - Serverless function (Vercel): gestiona usuarios Auth via supabaseAdmin. Acciones: create, invite, list, delete, resend, update_permissions, update_role, migrate_dispatchers. invite usa generateLink(type:'invite'), fallback a generateLink(type:'recovery') si email ya existe. update_permissions guarda permissions + allowed_companies + allowed_trucks + name + dispatcher_rates en user_metadata. create e invite SIEMPRE setean allowed_companies: [companyId] si se provee companyId
+  send-settlement.js       - Serverless function (Vercel): genera HTML del Dispatcher Settlement y envia email con PDF adjunto. Acepta companyId para filtrar company_settings por empresa. Sin companyId devuelve la primera fila (bug). Acciones: action='preview' retorna {html}, sin action envia email via Resend
+  send-driver-settlement.js - Serverless function (Vercel): igual que send-settlement.js pero para conductores. Acepta companyId. CRITICO: siempre filtrar por companyId o devuelve datos de empresa equivocada
 public/
   logo-invoice.png      - Logo por defecto para invoices (override via Supabase Storage company-docs)
 supabase/
@@ -99,7 +103,8 @@ supabase/
 - `trailer_documents` (id, trailer_id FK CASCADE, doc_type, label, file_name, file_path, file_size, mime_type)
 - `recurring_expenses` (id, truck_id FK CASCADE, description, amount, day_of_month [1-31], active [default true], last_applied_month [text], created_at)
 - `owner_expenses` (id, truck_id FK, cycle_id FK, category, invoice_number, description, amount, date, period_start, period_end, created_at) — gastos del propietario para trucks LIS, no afectan balance
-- `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — single-row config
+- `company_settings` (id, company_info [jsonb], billing_info [jsonb], remit_info [jsonb], logo_path [text], created_at, updated_at) — UNA FILA POR EMPRESA (multi-row). SIEMPRE filtrar por .eq('id', companyId) antes de .single(). Sin filtro devuelve la primera empresa de la DB (bug critico de aislamiento)
+- `dispatcher_payments` (id, dispatcher_email, dispatcher_name, gross_revenue, commission_pct, payout, pay_date, period_start, period_end, order_ids [uuid[]], payment_number, email_sent_at, created_at) — historial de pagos a dispatchers
 - `audit_log` (id, action, entity_type, entity_id, entity_name, user_agent, ip_address, extra_info [jsonb], created_at) — log de acciones destructivas
 
 **Storage Buckets:** `order-docs` (public), `company-docs` (public)
@@ -147,11 +152,28 @@ All tables have RLS enabled with open policies (no auth yet).
 - Dispatchers: `filteredOrders.filter(o => o.dispatcher === userEmail || o.dispatcher.toLowerCase() === userName)` — segundo caso cubre ordenes legacy no migradas
 - Permiso `orders.ver_todas_ordenes === true` en user_metadata.permissions permite al dispatcher ver todas las ordenes
 
+### Activacion de usuarios (getInviteStatus)
+- **Fuente de verdad**: campo `needs_password` en user_metadata
+  - `needs_password === false` → **activo** (usuario creo contraseña via /set-password)
+  - `needs_password == null` + tiene `confirmed_at`/`email_confirmed_at`/`last_sign_in_at` → **activo** (legacy)
+  - Cualquier otro caso → pendiente o expirado segun tiempo transcurrido desde `invited_at`/`created_at`
+- **NUNCA** confiar en `email_confirmed_at` solo: un magic link (impersonate) puede auto-confirmar el email sin que el usuario haya creado contraseña, haciendo que aparezca activo sin estarlo realmente
+- **Boton impersonar**: deshabilitado si usuario no esta activo — evita loop infinito a /set-password
+
 ### Invitaciones
-- **Nuevo usuario**: accion `invite` → generateLink(type:'invite'). Si email ya existe, fallback a generateLink(type:'recovery')
+- **Nuevo usuario**: accion `invite` → generateLink(type:'invite'). Si email ya existe, fallback a generateLink(type:'recovery'). Setea `allowed_companies: [companyId]` si se provee companyId
 - **Reenviar**: boton en Profiles abre modal pre-llenado con datos del usuario para corregir email si hubo error
 - **Al reenviar con email distinto**: elimina usuario viejo automaticamente antes de crear el nuevo
 - **Activacion**: link redirige a https://www.etg-tms.com/set-password
+
+### Aislamiento multi-empresa (allowed_companies)
+- Cada usuario tiene `allowed_companies: [companyId]` en user_metadata
+- Filtro en Profiles y PagoDispatchers:
+  - `super_admin` → siempre visible sin importar allowed_companies
+  - Usuario sin `allowed_companies` o array vacio → visible (usuarios legacy sin asignar empresa)
+  - Usuario con `allowed_companies` → visible solo si incluye el activeCompanyId
+- **NUNCA** mostrar usuarios de otras empresas mezclados — cada empresa ve solo sus usuarios
+- Al crear/invitar usuario siempre pasar `companyId` para que invite-user.js setee `allowed_companies`
 
 ### Profiles (/profiles) — solo super_admin
 - Usuarios agrupados: Administradores / Dispatchers / Conductores
@@ -188,6 +210,21 @@ All tables have RLS enabled with open policies (no auth yet).
 - **Remit To**: datos de Remit To (Supabase company_settings.remit_info), solo si tiene datos
 - **Ref # auto-generado**: al crear orden nueva, genera secuencial 00001, 00002... Editable por el usuario
 - **Rate/mi**: calculo `rate / (miles + DH)` mostrado debajo del rate en la tabla de ordenes
+
+### Aislamiento de empresa en documentos (CRITICO)
+- **company_settings es multi-row** — una fila por empresa. Cualquier query sin `.eq('id', companyId)` devuelve la primera empresa en la DB (generalmente ETG), mostrando nombre/logo/billing incorrecto en documentos de otras empresas
+- **Regla**: todos los APIs que generan documentos (invoices, settlements) DEBEN recibir `companyId` del cliente y filtrar con el
+- **Componentes que pasan companyId**: OrderInvoice, DispatcherPaymentModal, DriverPaymentModal — todos usan `getActiveCompanyId()`
+- **APIs que aceptan companyId**: send-invoice.js, send-settlement.js, send-driver-settlement.js
+- **Cache de HTML**: DispatcherPaymentModal y DriverPaymentModal tienen `htmlCache.current` en memoria. Si se cambio de empresa o se regenero, usar boton "Regenerar" para limpiar cache y re-fetchear con companyId correcto
+
+### Pago Dispatchers (DispatcherPaymentModal)
+- Accesible desde PagoDispatchers — solo usuarios activos y no legacy
+- Guarda pagos en tabla `dispatcher_payments`
+- Ordenes disponibles: status `paid` o `invoiced`, filtradas por `dispatcher === email` y `company_id`
+- Preview del settlement: fetch a /api/send-settlement con `action: 'preview'` + `companyId`
+- PDF generado en cliente con html2canvas + jsPDF, luego enviado como adjunto
+- PagoDispatchers muestra badge "Sin activar" para usuarios con `needs_password !== false` y sin historial de login — greyed out, no clickable
 
 ### Email de Invoice (api/send-invoice.js)
 - **Envio directo**: click "Enviar Email" → modal de confirmacion con switches
@@ -299,6 +336,8 @@ SUPABASE_SERVICE_ROLE_KEY=xxx (solo en Vercel, para api/invite-user.js)
 - **Fase 4.6 (done):** Gastos recurrentes por truck (recurring_expenses table, CRUD en truck modal, auto-aplicacion al abrir ciclo), DayPicker component con portal dropdown
 - **Fase 4.7 (done):** Sistema LIS — trucks con propietario externo, tabla owner_expenses, tab "Gastos Propietario" en TruckView, boton transferir gastos a propietario
 - **Fase 5 (done):** Auth y usuarios — Profiles page con roles/grupos, invitaciones por email (Resend), permisos granulares por modulo, asignacion de trucks por usuario, cache por usuario en OrdersView, dispatcher identificado por email, comision mensual con historial, filtros MultiSelect en ordenes, status siglas en tabla, scrollbar naranja, modal permisos 2 columnas rediseñado
+- **Fase 5.1 (done):** Settlements — DispatcherPaymentModal + DriverPaymentModal (historial pagos, nuevo pago, preview HTML, PDF, email). APIs send-settlement.js + send-driver-settlement.js. Tabla dispatcher_payments. Grouping por rol en PagoDispatchers. Badge "Sin camion" en conductores sin truck. Auto-detect lease drivers por truck.is_lis
+- **Fase 5.2 (done):** Aislamiento multi-empresa — company_settings multi-row, todos los settlements/invoices filtran por companyId, getInviteStatus() usa needs_password como fuente de verdad, allowed_companies en create/invite, boton impersonar deshabilitado para no activos, badge "Sin activar" en PagoDispatchers, admin restrictions, drag-to-select date range picker
 - **Fase 6 (next):** Reports, Excel/PDF export, estadisticas por dispatcher/periodo
 
 ## Commands

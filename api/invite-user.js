@@ -45,6 +45,15 @@ export default async function handler(req, res) {
         user_metadata: { name, role: role || 'user', ...(companyId ? { allowed_companies: [companyId] } : {}) },
       })
       if (error) return res.status(400).json({ error: error.message })
+
+      // Auto-link: si es driver/driver_lease, vincular email al registro existente en drivers
+      if (['driver', 'driver_lease'].includes(role) && name) {
+        await supabaseAdmin.from('drivers')
+          .update({ email })
+          .eq('name', name.toUpperCase())
+          .or('email.is.null,email.eq.')
+      }
+
       return res.status(200).json({ success: true, user: data.user })
     }
 
@@ -143,6 +152,14 @@ export default async function handler(req, res) {
       if (!resendRes.ok) {
         const err = await resendRes.json()
         return res.status(500).json({ error: `Resend error: ${err.message}` })
+      }
+
+      // Auto-link: si es driver/driver_lease, vincular email al registro existente en drivers
+      if (['driver', 'driver_lease'].includes(role) && name) {
+        await supabaseAdmin.from('drivers')
+          .update({ email })
+          .eq('name', name.toUpperCase())
+          .or('email.is.null,email.eq.')
       }
 
       return res.status(200).json({ success: true, user: linkData.user })
