@@ -309,6 +309,24 @@ export default function Profiles() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
 
+      // If creating a driver/driver_lease, also create a record in the drivers table
+      if ((form.role === 'driver' || form.role === 'driver_lease') && form.name && form.email) {
+        const { data: existingDriver } = await supabase
+          .from('drivers')
+          .select('id')
+          .eq('email', form.email)
+          .maybeSingle()
+        if (!existingDriver) {
+          await supabase.from('drivers').insert({
+            name: form.name.trim(),
+            email: form.email,
+            status: 'active',
+            is_lease: form.role === 'driver_lease',
+            company_id: getActiveCompanyId() || null,
+          })
+        }
+      }
+
       toast.success(modalMode === 'invite'
         ? `Invitación enviada a ${form.email}`
         : `Usuario ${form.email} creado exitosamente`
