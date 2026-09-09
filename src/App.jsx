@@ -19,6 +19,7 @@ import ComingSoon from './components/ComingSoon'
 import Welcome from './components/Welcome'
 import Inicio from './components/Inicio'
 import UserProfile from './components/UserProfile'
+import PaymentHistory from './components/PaymentHistory'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess, canDelete } from './lib/permissions'
@@ -105,6 +106,7 @@ function App() {
           <Route path="pagos/dispatchers" element={<PagoDispatchers />} />
           <Route path="inicio" element={<Inicio />} />
           <Route path="profile" element={<UserProfile />} />
+          <Route path="historial-pagos" element={<PaymentHistory />} />
         </Route>
 
         {/* Welcome — pantalla sin sidebar para usuarios con acceso limitado */}
