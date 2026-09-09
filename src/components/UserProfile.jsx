@@ -51,6 +51,8 @@ const ROLE_NAMES = {
   driver_lease: 'Driver LEASE',
 }
 
+const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
+
 function getAvatarUrl(path) {
   if (!path) return null
   const { data } = supabase.storage.from('company-docs').getPublicUrl(path)
@@ -87,6 +89,9 @@ export default function UserProfile() {
   const [uploadingTruckDoc, setUploadingTruckDoc] = useState(false)
   const [selectedTruckDocType, setSelectedTruckDocType] = useState('license_plate')
   const truckDocRef = useRef()
+  // Payment history
+  const [payments, setPayments] = useState([])
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
 
   useEffect(() => {
     if (!isDriver || !user?.email) return
@@ -117,6 +122,27 @@ export default function UserProfile() {
       setDriverLoading(false)
     })()
   }, [isDriver, user?.email])
+
+  // Fetch payment history
+  useEffect(() => {
+    if (!user?.email || meta.role === 'super_admin') return
+    setPaymentsLoading(true)
+    ;(async () => {
+      const email = user.email
+      const results = []
+      if (isDriver) {
+        const { data } = await supabase.from('driver_payments')
+          .select('*').eq('driver_email', email).order('pay_date', { ascending: false })
+        ;(data || []).forEach(p => results.push({ ...p, type: 'driver' }))
+      } else {
+        const { data } = await supabase.from('dispatcher_payments')
+          .select('*').eq('dispatcher_email', email).order('pay_date', { ascending: false })
+        ;(data || []).forEach(p => results.push({ ...p, type: 'dispatcher' }))
+      }
+      setPayments(results)
+      setPaymentsLoading(false)
+    })()
+  }, [user?.email, meta.role, isDriver])
 
   const initials = name
     ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -334,6 +360,73 @@ export default function UserProfile() {
     </div>
   )
 
+  const PaymentHistoryBlock = meta.role !== 'super_admin' && (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Historial de pagos</p>
+        {payments.length > 0 && (
+          <span className="text-[10px] text-gray-600">{payments.length} pago{payments.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+      {paymentsLoading ? (
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-800 rounded-lg animate-pulse" />)}</div>
+      ) : payments.length === 0 ? (
+        <div className="text-center py-8">
+          <svg className="w-8 h-8 text-gray-700 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+          </svg>
+          <p className="text-sm text-gray-600">Sin pagos registrados</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-96 overflow-y-auto pr-1 scrollbar-thin">
+          {payments.map(p => {
+            const dateStr = new Date(p.pay_date + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+            const periodStart = new Date(p.period_start + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+            const periodEnd = new Date(p.period_end + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+            const orderCount = p.order_ids?.length || 0
+            const isDriverPay = p.type === 'driver'
+            return (
+              <div key={p.id} className="bg-gray-800/60 border border-gray-800 rounded-xl p-3.5 hover:border-gray-700 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-gray-500">#{p.payment_number}</span>
+                    <span className="text-xs text-gray-500">{dateStr}</span>
+                  </div>
+                  <span className="text-sm font-bold text-green-400">{fmt(p.payout)}</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                  <span>{periodStart} — {periodEnd}</span>
+                  <span className="text-gray-700">|</span>
+                  <span>{orderCount} orden{orderCount !== 1 ? 'es' : ''}</span>
+                  <span className="text-gray-700">|</span>
+                  {isDriverPay ? (
+                    <span>{p.pay_mode === 'percentage' ? `${p.pay_rate}%` : `${fmt(p.pay_rate)}/mi`}</span>
+                  ) : (
+                    <span>{p.commission_pct}%</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/80">
+                  <span className="text-[10px] text-gray-600">
+                    Revenue: {fmt(p.gross_revenue)}
+                    {isDriverPay && p.total_miles ? ` · ${p.total_miles.toLocaleString()} mi` : ''}
+                  </span>
+                  {p.email_sent_at && (
+                    <span className="text-[10px] text-emerald-600 flex items-center gap-1">
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                      Enviado
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
   // ── Non-driver layout ──
   if (!isDriver) {
     return (
@@ -345,6 +438,7 @@ export default function UserProfile() {
         <div className="space-y-4">
           {AvatarBlock}
           {PersonalInfoBlock}
+          {PaymentHistoryBlock}
         </div>
       </div>
     )
@@ -532,6 +626,9 @@ export default function UserProfile() {
               <p className="text-xs text-gray-700 mt-1">Los documentos del camión aparecerán aquí cuando se te asigne uno</p>
             </div>
           )}
+
+          {/* Payment history for drivers */}
+          {PaymentHistoryBlock}
         </div>
       </div>
     </div>
