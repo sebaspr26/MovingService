@@ -635,7 +635,10 @@ export default function Profiles() {
                     const status = getInviteStatus(user)
                     const inactive = status !== 'active'
                     const isDriverRole = role === 'driver' || role === 'driver_lease'
-                    const driverDbRecord = isDriverRole ? dbDrivers.find(d => d.email?.toLowerCase() === user.email?.toLowerCase()) : null
+                    const driverDbRecord = isDriverRole
+                      ? (dbDrivers.find(d => d.email?.toLowerCase() === user.email?.toLowerCase())
+                        || dbDrivers.find(d => d.name?.trim().toLowerCase() === (user.user_metadata?.name || '').trim().toLowerCase()))
+                      : null
                     const missingPayMode = isDriverRole && (!driverDbRecord || !driverDbRecord.pay_mode)
                     const missingTruck = isDriverRole && (!driverDbRecord || !driverDbRecord.truck_id)
                     const lastSignIn = user.last_sign_in_at
