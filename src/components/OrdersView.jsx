@@ -143,6 +143,7 @@ export default function OrdersView() {
   const [orders, setOrders] = useState([])
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
+  const [paymentMap, setPaymentMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState('')
@@ -224,10 +225,13 @@ export default function OrdersView() {
 
   async function fetchData() {
     setLoading(true)
-    const [ordersRes, trucksRes, brokersRes] = await Promise.all([
-      (() => { const q = supabase.from('orders').select('*').order('pu_date', { ascending: false }); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      (() => { const q = supabase.from('trucks').select('id, name, number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      (() => { const q = supabase.from('brokers').select('id, name, type'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
+    const cId = getActiveCompanyId()
+    const [ordersRes, trucksRes, brokersRes, dispPayRes, drvPayRes] = await Promise.all([
+      (() => { const q = supabase.from('orders').select('*').order('pu_date', { ascending: false }); return cId ? q.eq('company_id', cId) : q })(),
+      (() => { const q = supabase.from('trucks').select('id, name, number'); return cId ? q.eq('company_id', cId) : q })(),
+      (() => { const q = supabase.from('brokers').select('id, name, type'); return cId ? q.eq('company_id', cId) : q })(),
+      (() => { let q = supabase.from('dispatcher_payments').select('id, order_ids, payment_number'); if (cId) q = q.eq('company_id', cId); return q })(),
+      (() => { let q = supabase.from('driver_payments').select('id, order_ids, payment_number'); if (cId) q = q.eq('company_id', cId); return q })(),
     ])
     const allowedIds = getAllowedTruckIds(session)
     const userRole = session?.user?.user_metadata?.role
@@ -269,6 +273,23 @@ export default function OrdersView() {
     const bMap = {}
     ;(brokersRes.data || []).forEach(b => { bMap[b.id] = b })
     setBrokers(bMap)
+    // Build payment map: orderId → { dispPaid, dispNum, drvPaid, drvNum }
+    const pMap = {}
+    for (const p of (dispPayRes.data || [])) {
+      for (const oid of (p.order_ids || [])) {
+        if (!pMap[oid]) pMap[oid] = {}
+        pMap[oid].dispPaid = true
+        pMap[oid].dispNum = p.payment_number
+      }
+    }
+    for (const p of (drvPayRes.data || [])) {
+      for (const oid of (p.order_ids || [])) {
+        if (!pMap[oid]) pMap[oid] = {}
+        pMap[oid].drvPaid = true
+        pMap[oid].drvNum = p.payment_number
+      }
+    }
+    setPaymentMap(pMap)
     setCache(userId, { orders: advancedOrders, trucks: filteredTrucks, brokers: bMap })
     setLoading(false)
   }
@@ -481,6 +502,8 @@ export default function OrdersView() {
                   <th className="pb-2 pr-3">Destino</th>
                   <th className="pb-2 pr-3 text-right hidden sm:table-cell">Miles / DH</th>
                   <th className="pb-2 pr-3 text-right">Rate</th>
+                  <th className="pb-2 pr-3 text-center hidden lg:table-cell">Pago Disp.</th>
+                  <th className="pb-2 pr-3 text-center hidden lg:table-cell">Pago Cond.</th>
                   <th className="pb-2 w-8"></th>
                 </tr>
               </thead>
@@ -536,6 +559,30 @@ export default function OrdersView() {
                           <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                         )}
                       </td>
+                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell">
+                        {(() => {
+                          const pm = paymentMap[row.id]
+                          if (!pm?.dispPaid) return <span className="text-[10px] text-gray-700">—</span>
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-900/20 border border-green-800/30 rounded-full px-2 py-0.5">
+                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                              #{pm.dispNum}
+                            </span>
+                          )
+                        })()}
+                      </td>
+                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell">
+                        {(() => {
+                          const pm = paymentMap[row.id]
+                          if (!pm?.drvPaid) return <span className="text-[10px] text-gray-700">—</span>
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/30 rounded-full px-2 py-0.5">
+                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                              #{pm.drvNum}
+                            </span>
+                          )
+                        })()}
+                      </td>
                       <td className="py-2 sm:py-3.5">
                         {canOpen && (
                           <button onClick={() => openDrawer(row.id)} className="text-gray-600 hover:text-orange-400 transition-colors opacity-0 group-hover:opacity-100">
@@ -549,7 +596,7 @@ export default function OrdersView() {
                   )
                 })}
                 {visible.length === 0 && (
-                  <tr><td colSpan={9} className="py-12 text-center text-gray-600">{q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}</td></tr>
+                  <tr><td colSpan={11} className="py-12 text-center text-gray-600">{q ? 'Sin resultados para la busqueda' : 'Sin ordenes'}</td></tr>
                 )}
               </tbody>
             </table>
