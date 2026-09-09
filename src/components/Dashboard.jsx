@@ -25,6 +25,8 @@ export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
   const { theme } = useTheme()
+  const role = session?.user?.user_metadata?.role
+  const isDriver = role === 'driver' || role === 'driver_lease'
   const [trucks, setTrucks] = useState([])
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -544,7 +546,7 @@ export default function Dashboard() {
       </div>
 
       {/* Floating action buttons - desktop: vertical stack visible */}
-      <div className="fixed bottom-6 right-6 z-40 hidden sm:flex flex-col gap-3 items-end">
+      {!isDriver && <div className="fixed bottom-6 right-6 z-40 hidden sm:flex flex-col gap-3 items-end">
         <button onClick={() => openTruckModal()}
           className="px-5 py-3 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 transition-colors shadow-lg flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -570,13 +572,13 @@ export default function Dashboard() {
             </button>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Floating action button - mobile: expandable */}
-      {fabOpen && (
+      {!isDriver && fabOpen && (
         <div className="fixed inset-0 bg-black/40 z-30 sm:hidden transition-opacity duration-200" onClick={() => setFabOpen(false)} />
       )}
-      <div className="fixed bottom-24 right-4 z-40 sm:hidden flex flex-col items-end gap-3">
+      {!isDriver && <div className="fixed bottom-24 right-4 z-40 sm:hidden flex flex-col items-end gap-3">
         <div className={`flex flex-col gap-2 items-end transition-all duration-300 ease-out ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <button onClick={() => { openTruckModal(); setFabOpen(false) }}
             className={`px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 shadow-lg flex items-center gap-2 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-100' : 'opacity-0 translate-y-3'}`}>
@@ -612,10 +614,10 @@ export default function Dashboard() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         </button>
-      </div>
+      </div>}
 
       {/* Recurring expenses banner */}
-      {pendingRecurring.length > 0 && (
+      {!isDriver && pendingRecurring.length > 0 && (
         <div className="mb-4 space-y-2">
           <div className="bg-amber-900/20 border border-amber-600/40 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -708,7 +710,7 @@ export default function Dashboard() {
                     <h3 className="text-lg font-semibold text-white group-hover:text-orange-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
                     <p className="text-xs text-gray-500">#{truck.number}{assignedDriver ? ` · ${assignedDriver.name}` : ''}</p>
                   </Link>
-                  <div className="flex gap-1">
+                  {!isDriver && <div className="flex gap-1">
                     <button onClick={() => openTruckModal(truck)}
                       className="p-1.5 text-gray-600 hover:text-orange-400 rounded sm:opacity-0 sm:group-hover:opacity-100 transition-all" title="Editar">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -723,7 +725,7 @@ export default function Dashboard() {
                       </svg>
                     </button>
                     )}
-                  </div>
+                  </div>}
                 </div>
 
                 {displayCycle ? (
@@ -757,7 +759,7 @@ export default function Dashboard() {
                       )}
                     </Link>
 
-                    {!isActive && (
+                    {!isActive && !isDriver && (
                       <div className="mt-3 pt-3 border-t border-gray-800">
                         {openCycleTarget?.id === truck.id ? (
                           <div className="flex items-center gap-2">
@@ -788,7 +790,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-3">
                     <p className="text-xs text-gray-500 mb-3">Sin ciclos</p>
-                    {openCycleTarget?.id === truck.id ? (
+                    {isDriver ? null : openCycleTarget?.id === truck.id ? (
                       <div className="flex flex-col items-center gap-2">
                         <input
                           type="date"

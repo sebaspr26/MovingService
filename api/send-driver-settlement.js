@@ -35,9 +35,12 @@ const PAY_MODE_LABELS = {
   per_mile: 'Per Mile',
 }
 
-function payBreakdownLabel(payMode, payRate, order) {
+function payBreakdownLabel(payMode, payRate, order, isLease) {
   if (payMode === 'flat_rate') return 'Fixed pay'
-  if (payMode === 'percentage') return `${fmt(order.rate)} × ${payRate}%`
+  if (payMode === 'percentage') {
+    if (isLease) return `${fmt(order.rate)} − ${payRate}%`
+    return `${fmt(order.rate)} × ${payRate}%`
+  }
   if (payMode === 'per_mile') {
     const miles = (Number(order.miles) || 0) + (Number(order.dead_miles) || 0)
     return `${miles.toLocaleString()} mi × ${payRate}¢`
@@ -45,9 +48,13 @@ function payBreakdownLabel(payMode, payRate, order) {
   return ''
 }
 
-function payLineAmount(payMode, payRate, order) {
+function payLineAmount(payMode, payRate, order, isLease) {
   if (payMode === 'flat_rate') return null
-  if (payMode === 'percentage') return (Number(order.rate) || 0) * payRate / 100
+  if (payMode === 'percentage') {
+    const rate = Number(order.rate) || 0
+    if (isLease) return rate - (rate * payRate / 100)
+    return rate * payRate / 100
+  }
   if (payMode === 'per_mile') {
     const miles = (Number(order.miles) || 0) + (Number(order.dead_miles) || 0)
     return miles * payRate / 100
@@ -61,7 +68,7 @@ function logoBlock(logoUrl, companyName) {
   return `<div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#fff3e0;border:2px solid #ea580c;border-radius:10px;font-size:22px;font-weight:800;color:#ea580c;">${initials}</div>`
 }
 
-function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders }) {
+function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease }) {
   const dot = companyInfo.dot || ''
   const mc = companyInfo.mc || ''
   const address = billing.address || companyInfo.address || ''
@@ -69,7 +76,7 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
   const email = billing.email || companyInfo.email || ''
 
   const ordersRows = orders.map(o => {
-    const linePay = payLineAmount(payMode, payRate, o)
+    const linePay = payLineAmount(payMode, payRate, o, isLease)
     const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
     return `
       <tr style="border-bottom:1px solid #e5e7eb;">
@@ -85,18 +92,19 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
           <span style="color:#9ca3af;">${Number(o.miles||0).toLocaleString()} loaded + ${Number(o.dead_miles||0).toLocaleString()} DH</span>
         </td>
         <td style="padding:13px 10px;font-size:12px;color:#374151;vertical-align:top;">
-          ${payBreakdownLabel(payMode, payRate, o)}
+          ${payBreakdownLabel(payMode, payRate, o, isLease)}
         </td>
         <td style="padding:13px 10px;font-size:13px;color:#111827;font-weight:600;text-align:right;vertical-align:top;">${fmt(o.rate)}</td>
         ${linePay !== null ? `<td style="padding:13px 10px;font-size:13px;color:#16a34a;font-weight:700;text-align:right;vertical-align:top;">${fmt(linePay)}</td>` : `<td style="padding:13px 10px;font-size:12px;color:#9ca3af;text-align:right;vertical-align:top;">—</td>`}
       </tr>`
   }).join('')
 
-  const payModeLabel = PAY_MODE_LABELS[payMode] || payMode
+  const payModeLabel = isLease ? 'Lease' : (PAY_MODE_LABELS[payMode] || payMode)
   let payRateDisplay = ''
   if (payMode === 'flat_rate') payRateDisplay = `Fixed: ${fmt(payRate)}`
-  if (payMode === 'percentage') payRateDisplay = `${payRate}% of gross`
+  if (payMode === 'percentage') payRateDisplay = isLease ? `${payRate}% company fee` : `${payRate}% of gross`
   if (payMode === 'per_mile') payRateDisplay = `${payRate}¢ per mile`
+  const companyFee = isLease ? Number(gross) * Number(payRate) / 100 : 0
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -142,11 +150,12 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Loads:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:700;text-align:right;">${orders.length}</td></tr>
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Gross Revenue:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmt(gross)}</td></tr>
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Total Miles:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmtMiles(totalMiles)}</td></tr>
-        <tr style="border-top:1.5px solid #d1d5db;"><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">Total Pay:</td><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(payout)}</td></tr>
+        ${isLease ? `<tr><td style="padding:5px 0;font-size:13px;color:#dc2626;">Company Fee (${payRate}%):</td><td style="padding:5px 0;font-size:13px;color:#dc2626;font-weight:700;text-align:right;">−${fmt(companyFee)}</td></tr>` : ''}
+        <tr style="border-top:1.5px solid #d1d5db;"><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">${isLease ? 'Driver Pay:' : 'Total Pay:'}</td><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(payout)}</td></tr>
       </table>
     </div>
     <div style="text-align:center;min-width:150px;">
-      <p style="margin:0 0 6px;font-size:12px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Total Pay</p>
+      <p style="margin:0 0 6px;font-size:12px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">${isLease ? 'Driver Pay' : 'Total Pay'}</p>
       <div style="border-bottom:2.5px solid #111827;margin:0 auto 8px;width:130px;"></div>
       <p style="margin:0;font-size:32px;font-weight:900;color:#111827;letter-spacing:-1px;">${fmt(payout)}</p>
     </div>
@@ -241,13 +250,13 @@ function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, p
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { action, paymentNumber, driverEmail, driverName, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders = [], pdfBase64, companyId } = req.body
+  const { action, paymentNumber, driverEmail, driverName, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders = [], pdfBase64, companyId, isLease } = req.body
   if (!driverName) return res.status(400).json({ error: 'Falta driverName' })
 
   try {
     const { companyName, logoUrl, billing, companyInfo } = await getCompanyData(companyId)
 
-    const html = driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders })
+    const html = driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease })
 
     if (action === 'preview') return res.status(200).json({ success: true, html })
 

@@ -21,12 +21,12 @@ const MODE_LABELS = {
   per_mile: { label: 'Por Milla', desc: '¢ por milla' },
 }
 
-function calcPayout(mode, rate, orders) {
+function calcPayout(mode, rate, orders, isLease = false) {
   const gross = orders.reduce((s, o) => s + (Number(o.rate) || 0), 0)
   const totalMiles = orders.reduce((s, o) => s + (Number(o.miles) || 0) + (Number(o.dead_miles) || 0), 0)
   const r = Number(rate) || 0
   if (mode === 'flat_rate')  return r
-  if (mode === 'percentage') return gross * r / 100
+  if (mode === 'percentage') return isLease ? gross - (gross * r / 100) : gross * r / 100
   if (mode === 'per_mile')   return totalMiles * r / 100
   return 0
 }
@@ -93,6 +93,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   const driverName = driver.name || ''
   const driverEmail = driver.email || ''
   const truckName = truck ? `${truck.name} #${truck.number}` : ''
+  const isLease = driver.is_lease || truck?.is_lis || false
 
   useEffect(() => { fetchData() }, [])
 
@@ -142,12 +143,12 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   }
 
   // Pay mode/rate come from driver profile (configured in Perfiles by super_admin)
-  const payMode = driver.pay_mode || ''
+  const payMode = driver.pay_mode || (isLease ? 'percentage' : '')
   const payRate = driver.pay_rate || 0
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
   const gross = grossOf(selectedOrders)
   const totalMiles = totalMilesOf(selectedOrders)
-  const payout = payMode ? calcPayout(payMode, payRate, selectedOrders) : 0
+  const payout = payMode ? calcPayout(payMode, payRate, selectedOrders, isLease) : 0
 
   function toggleOrder(id) {
     setSelectedIds(prev => {
@@ -230,6 +231,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
           periodEnd: payment.period_end,
           orders: pOrders || [],
           companyId: getActiveCompanyId(),
+          isLease,
         }),
       })
       const data = await res.json()
@@ -309,6 +311,8 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
             orders: pOrders || [],
+            companyId: getActiveCompanyId(),
+            isLease,
           }),
         })
         const d = await r.json()
@@ -338,6 +342,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
           orders: pOrders || [],
           pdfBase64,
           companyId: getActiveCompanyId(),
+          isLease,
         }),
       })
       const data = await res.json()
@@ -425,9 +430,10 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                 <div className="space-y-3">
                   {payments.map(p => {
                     const mc = MODE_COLORS[p.pay_mode] || MODE_COLORS.percentage
-                    const modeLabel = MODE_LABELS[p.pay_mode]?.label || p.pay_mode
+                    const modeLabel = isLease ? 'Lease' : (MODE_LABELS[p.pay_mode]?.label || p.pay_mode)
                     let rateLabel = ''
-                    if (p.pay_mode === 'flat_rate') rateLabel = fmt(p.pay_rate)
+                    if (isLease) rateLabel = `${p.pay_rate}% empresa`
+                    else if (p.pay_mode === 'flat_rate') rateLabel = fmt(p.pay_rate)
                     else if (p.pay_mode === 'percentage') rateLabel = `${p.pay_rate}%`
                     else if (p.pay_mode === 'per_mile') rateLabel = `${p.pay_rate}¢/mi`
                     return (
@@ -525,12 +531,30 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                     {/* Modo de pago badge (solo lectura) */}
                     <div className="flex items-center gap-2 mb-3">
                       <span className={`text-[10px] px-2.5 py-1 rounded-full border font-semibold ${MODE_COLORS[payMode]?.badge}`}>
-                        {MODE_LABELS[payMode]?.label} · {payMode === 'flat_rate' ? fmt(payRate) : payMode === 'percentage' ? `${payRate}%` : `${payRate}¢/mi`}
+                        {isLease ? `Lease · ${payRate}% empresa` : `${MODE_LABELS[payMode]?.label} · ${payMode === 'flat_rate' ? fmt(payRate) : payMode === 'percentage' ? `${payRate}%` : `${payRate}¢/mi`}`}
                       </span>
                       <span className="text-[10px] text-gray-600">desde perfil</span>
                     </div>
 
                     {/* Summary cards */}
+                    {isLease ? (
+                      <div className="space-y-2 mb-3">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-gray-800/70 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>
+                            <p className="text-sm font-bold text-white"><AnimatedMoney value={gross} /></p>
+                          </div>
+                          <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-red-400 uppercase tracking-wide mb-1">Empresa {payRate}%</p>
+                            <p className="text-sm font-bold text-red-400"><AnimatedMoney value={gross * Number(payRate) / 100} /></p>
+                          </div>
+                          <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-3 text-center">
+                            <p className="text-[9px] text-green-400 uppercase tracking-wide mb-1">Driver</p>
+                            <p className="text-sm font-bold text-green-400"><AnimatedMoney value={payout} /></p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {payMode === 'flat_rate' ? (
                         <>
@@ -575,6 +599,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                         </>
                       )}
                     </div>
+                    )}
                   </>
                 )}
 
@@ -673,7 +698,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                 <button onClick={savePayment} disabled={saving || !payMode}
                   className="w-full py-2.5 bg-cyan-600 text-white text-sm font-bold rounded-xl hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                   {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  {saving ? 'Guardando...' : `Guardar Pago${payout > 0 ? ` (${fmt(payout)})` : ''}`}
+                  {saving ? 'Guardando...' : `Guardar${isLease ? ' Settlement' : ' Pago'}${payout > 0 ? ` (${fmt(payout)})` : ''}`}
                 </button>
               </div>
             </div>

@@ -1021,7 +1021,7 @@ export default function Profiles() {
                       {driverPayMode && (
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-gray-400 flex-1">
-                            {driverPayMode === 'flat_rate' ? 'Monto fijo ($)' : driverPayMode === 'percentage' ? 'Porcentaje del gross' : 'Centavos por milla'}
+                            {driverPayMode === 'flat_rate' ? 'Monto fijo ($)' : driverPayMode === 'percentage' ? (permUser.user_metadata?.role === 'driver_lease' ? 'Descuento empresa (%)' : 'Porcentaje del gross') : 'Centavos por milla'}
                           </label>
                           <div className="flex items-center bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-cyan-500 transition-colors">
                             <button type="button" onClick={() => setDriverPayRate(v => Math.max(0, (Number(v) || 0) - 0.5).toString())}

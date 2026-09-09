@@ -559,27 +559,27 @@ export default function OrdersView() {
                           <div className="text-[10px] text-gray-500">${(Number(row.rate) / (Number(row.miles || 0) + Number(row.dead_miles || 0))).toFixed(2)}/mi</div>
                         )}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell">
+                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const pm = paymentMap[row.id]
                           if (!pm?.dispPaid) return <span className="text-[10px] text-gray-700">—</span>
                           return (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-900/20 border border-green-800/30 rounded-full px-2 py-0.5">
+                            <a href="/pagos/dispatchers" className="inline-flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-900/20 border border-green-800/30 rounded-full px-2 py-0.5 hover:bg-green-900/40 transition-colors cursor-pointer">
                               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                               #{pm.dispNum}
-                            </span>
+                            </a>
                           )
                         })()}
                       </td>
-                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell">
+                      <td className="py-2 sm:py-3.5 pr-3 text-center hidden lg:table-cell" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const pm = paymentMap[row.id]
                           if (!pm?.drvPaid) return <span className="text-[10px] text-gray-700">—</span>
                           return (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/30 rounded-full px-2 py-0.5">
+                            <a href="/pagos/conductores" className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/30 rounded-full px-2 py-0.5 hover:bg-violet-900/40 transition-colors cursor-pointer">
                               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                               #{pm.drvNum}
-                            </span>
+                            </a>
                           )
                         })()}
                       </td>
