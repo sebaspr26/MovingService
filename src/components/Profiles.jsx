@@ -722,12 +722,12 @@ export default function Profiles() {
                           </div>
 
                           <div className="flex items-center gap-1 ml-auto">
-                            {/* Entrar como — solo super_admin, no en otros super_admin */}
+                            {/* Entrar como — solo super_admin, no en otros super_admin, solo usuarios activos */}
                             {session?.user?.user_metadata?.role === 'super_admin' && role !== 'super_admin' && (
                               <button
-                                onClick={() => handleImpersonate(user)}
-                                className="p-1.5 rounded-lg text-cyan-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
-                                title="Entrar como este usuario"
+                                onClick={() => status === 'active' ? handleImpersonate(user) : toast.warning('El usuario aún no ha activado su cuenta')}
+                                className={`p-1.5 rounded-lg transition-colors ${status === 'active' ? 'text-cyan-600 hover:text-cyan-400 hover:bg-cyan-400/10' : 'text-gray-700 cursor-not-allowed'}`}
+                                title={status === 'active' ? 'Entrar como este usuario' : 'El usuario no ha activado su cuenta'}
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
