@@ -245,8 +245,36 @@ export default function Profiles() {
           })
         : allSorted
       setUsers(sorted)
-      setDbDrivers(driversRes.data || [])
+      const dbDriversList = driversRes.data || []
       setDbTrucks(trucksRes.data || [])
+
+      // Sync Auth driver/driver_lease users → drivers table
+      const companyId = getActiveCompanyId()
+      const dbDriverEmails = new Set(dbDriversList.filter(d => d.email).map(d => d.email.toLowerCase()))
+      const driverUsers = sorted.filter(u => {
+        const r = u.user_metadata?.role
+        return (r === 'driver' || r === 'driver_lease') && u.email
+      })
+      for (const u of driverUsers) {
+        if (!dbDriverEmails.has(u.email.toLowerCase())) {
+          await supabase.from('drivers').insert({
+            name: (u.user_metadata?.name || u.email.split('@')[0]).trim(),
+            email: u.email,
+            status: 'active',
+            is_lease: u.user_metadata?.role === 'driver_lease',
+            company_id: companyId || null,
+          })
+        } else {
+          // Update company_id if driver exists but has no company
+          const existing = dbDriversList.find(d => d.email?.toLowerCase() === u.email.toLowerCase())
+          if (existing && !existing.company_id && companyId) {
+            await supabase.from('drivers').update({ company_id: companyId }).eq('id', existing.id)
+          }
+        }
+      }
+      // Re-fetch drivers after sync
+      const { data: freshDrivers } = await (() => { const q = supabase.from('drivers').select('*').order('name'); return companyId ? q.eq('company_id', companyId) : q })()
+      setDbDrivers(freshDrivers || [])
 
       // Build name → email map from Auth users
       const nameToEmail = {}
@@ -309,20 +337,28 @@ export default function Profiles() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
 
-      // If creating a driver/driver_lease, also create a record in the drivers table
+      // If creating a driver/driver_lease, also create/update a record in the drivers table
       if ((form.role === 'driver' || form.role === 'driver_lease') && form.name && form.email) {
+        const companyId = getActiveCompanyId() || null
         const { data: existingDriver } = await supabase
           .from('drivers')
-          .select('id')
+          .select('id, company_id')
           .eq('email', form.email)
           .maybeSingle()
-        if (!existingDriver) {
+        if (existingDriver) {
+          // Update company_id if missing and update name/is_lease
+          await supabase.from('drivers').update({
+            name: form.name.trim(),
+            is_lease: form.role === 'driver_lease',
+            ...(companyId && !existingDriver.company_id ? { company_id: companyId } : {}),
+          }).eq('id', existingDriver.id)
+        } else {
           await supabase.from('drivers').insert({
             name: form.name.trim(),
             email: form.email,
             status: 'active',
             is_lease: form.role === 'driver_lease',
-            company_id: getActiveCompanyId() || null,
+            company_id: companyId,
           })
         }
       }
