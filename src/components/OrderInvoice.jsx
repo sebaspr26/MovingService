@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
-import { getCompanySettings, getLogoUrl } from '../lib/company'
+import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } from '../lib/company'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -163,14 +163,17 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   async function handleRegenerate() {
     setRegenerating(true)
     delete invoiceCache[orderId]
+    invalidateCache(getActiveCompanyId())
     await loadInvoice(false)
+    getCompanySettings(getActiveCompanyId()).then(s => setCompanySettings(s))
     setRegenerating(false)
     toast.success('Invoice regenerado')
   }
 
   useEffect(() => {
     loadInvoice()
-    getCompanySettings().then(s => setCompanySettings(s))
+    invalidateCache(getActiveCompanyId())
+    getCompanySettings(getActiveCompanyId()).then(s => setCompanySettings(s))
   }, [orderId])
 
   function getPublicUrl(filePath) {
