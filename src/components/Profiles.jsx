@@ -183,6 +183,8 @@ function ModuleCard({ mod, perms, toggleModule, toggleSub }) {
 
 export default function Profiles() {
   const [users, setUsers] = useState([])
+  const [unassignedUsers, setUnassignedUsers] = useState([])
+  const [assigningUser, setAssigningUser] = useState(null)
   const [dbDrivers, setDbDrivers] = useState([])
   const [dbDispatchers, setDbDispatchers] = useState([])
   const [dbTrucks, setDbTrucks] = useState([])
@@ -234,18 +236,27 @@ export default function Profiles() {
       const allSorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
       )
-      // Show users linked to this company OR users with no company assigned yet (legacy/unlinked)
-      // Users explicitly assigned to OTHER companies are hidden
+      // Strict company isolation: only show users explicitly assigned to this company
+      // Users with no allowed_companies go to a separate "unassigned" bucket visible to super_admin
       const sorted = activeCompanyId
         ? allSorted.filter(u => {
             const role = u.user_metadata?.role
             if (role === 'super_admin') return true
             const ac = u.user_metadata?.allowed_companies
-            if (!Array.isArray(ac) || ac.length === 0) return true
+            if (!Array.isArray(ac) || ac.length === 0) return false
             return ac.includes(activeCompanyId)
           })
         : allSorted
+      const unassigned = activeCompanyId
+        ? allSorted.filter(u => {
+            const role = u.user_metadata?.role
+            if (role === 'super_admin') return false
+            const ac = u.user_metadata?.allowed_companies
+            return !Array.isArray(ac) || ac.length === 0
+          })
+        : []
       setUsers(sorted)
+      setUnassignedUsers(unassigned)
       setDbDrivers(driversRes.data || [])
       setDbTrucks(trucksRes.data || [])
 
@@ -402,6 +413,38 @@ export default function Profiles() {
     } catch (err) {
       toast.error(err.message)
     }
+  }
+
+  async function assignToCompany(user) {
+    const activeCompanyId = getActiveCompanyId()
+    if (!activeCompanyId) return
+    setAssigningUser(user.id)
+    try {
+      const existing = user.user_metadata?.allowed_companies
+      const newCompanies = Array.isArray(existing) && existing.length > 0
+        ? [...new Set([...existing, activeCompanyId])]
+        : [activeCompanyId]
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_permissions',
+          email: user.email,
+          userId: user.id,
+          permissions: user.user_metadata?.permissions || {},
+          allowed_companies: newCompanies,
+          allowed_trucks: user.user_metadata?.allowed_trucks || [],
+          company_id: activeCompanyId,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
+      toast.success(`${user.user_metadata?.name || user.email} asignado a esta empresa`)
+      await fetchUsers()
+    } catch (err) {
+      toast.error('Error al asignar: ' + err.message)
+    }
+    setAssigningUser(null)
   }
 
   function openPermissions(user) {
@@ -864,6 +907,45 @@ export default function Profiles() {
               </div>
             )
           })}
+
+          {/* Usuarios sin empresa asignada — solo super_admin */}
+          {unassignedUsers.length > 0 && (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <h2 className="text-xs font-bold text-yellow-600 uppercase tracking-widest">Sin empresa asignada</h2>
+                <div className="flex-1 h-px bg-yellow-900/30" />
+                <span className="text-xs text-yellow-800">{unassignedUsers.length}</span>
+              </div>
+              <div className="space-y-2">
+                {unassignedUsers.map(user => {
+                  const name = user.user_metadata?.name || user.email || ''
+                  const role = user.user_metadata?.role || 'admin'
+                  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+                  return (
+                    <div key={user.id} className="p-3 rounded-xl border border-yellow-900/30 bg-yellow-900/10 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400 shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-300 truncate">{name}</p>
+                        <p className="text-xs text-gray-600 truncate">{user.email} · <span className="text-yellow-700">{role}</span></p>
+                      </div>
+                      <button
+                        onClick={() => assignToCompany(user)}
+                        disabled={assigningUser === user.id}
+                        className="shrink-0 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {assigningUser === user.id
+                          ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                          : null}
+                        Asignar aquí
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
