@@ -114,16 +114,18 @@ export default function StatisticsMap() {
     loadHeatmap()
   }, [])
 
-  // Load drivers for filter dropdown
+  // Load drivers for filter dropdown — from orders of this company only
   useEffect(() => {
-    supabase
-      .from('drivers')
-      .select('id, name')
-      .eq('status', 'active')
-      .order('name')
-      .then(({ data }) => {
-        if (data) setDrivers(data)
-      })
+    async function loadDrivers() {
+      const companyId = getActiveCompanyId()
+      let q = supabase.from('orders').select('driver_name')
+        .not('driver_name', 'is', null).neq('driver_name', '')
+      if (companyId) q = q.eq('company_id', companyId)
+      const { data } = await q
+      const unique = [...new Set((data || []).map(o => o.driver_name?.trim()).filter(Boolean))].sort()
+      setDrivers(unique.map(name => ({ id: name, name })))
+    }
+    loadDrivers()
   }, [])
 
   // Full map search
