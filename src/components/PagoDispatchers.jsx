@@ -46,12 +46,12 @@ export default function PagoDispatchers() {
 
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
 
-      // Auth users asignados a esta empresa (via allowed_companies) — fuente principal
+      // Auth users asignados a esta empresa (via allowed_companies) — filtro estricto
       const authUsers = allUsers.filter(u => {
         if (!u.email) return false
-        const allowedCompanies = u.user_metadata?.allowed_companies
         if (!activeCompanyId) return true
-        if (!allowedCompanies) return true
+        const allowedCompanies = u.user_metadata?.allowed_companies
+        if (!Array.isArray(allowedCompanies) || allowedCompanies.length === 0) return false
         return allowedCompanies.includes(activeCompanyId)
       })
       const authEmails = new Set(authUsers.map(u => u.email?.toLowerCase()))
