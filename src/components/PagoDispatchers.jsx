@@ -122,12 +122,14 @@ export default function PagoDispatchers() {
             const companyMeta = (activeCompanyId && meta.company_settings?.[activeCompanyId]) || {}
             const allRates = companyMeta.dispatcher_rates || []
             const currentRate = allRates.slice(-1)[0]
+            const isActivated = !!(user.confirmed_at || user.email_confirmed_at || user.last_sign_in_at || meta.needs_password === false)
+            const inactive = user.isLegacy || !isActivated
 
             return (
               <div
                 key={user.id}
-                onClick={() => !user.isLegacy && setSelectedUser(user)}
-                className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 transition-colors ${user.isLegacy ? 'border-gray-800/50 opacity-70' : 'border-gray-800 hover:border-orange-600/50 cursor-pointer hover:bg-gray-900/80'}`}
+                onClick={() => isActivated && !user.isLegacy && setSelectedUser(user)}
+                className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 transition-colors ${inactive ? 'border-gray-800/50 opacity-50 grayscale' : 'border-gray-800 hover:border-orange-600/50 cursor-pointer hover:bg-gray-900/80'}`}
               >
                 {/* Header */}
                 <div className="flex items-center gap-3">
@@ -139,7 +141,7 @@ export default function PagoDispatchers() {
                     return (
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
-                        style={{ background: user.isLegacy ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+                        style={{ background: inactive ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}
                       >
                         {avatarUrl
                           ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
@@ -156,6 +158,10 @@ export default function PagoDispatchers() {
                   {user.isLegacy ? (
                     <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 bg-gray-800 text-gray-500 border-gray-700">
                       Sin cuenta
+                    </span>
+                  ) : !isActivated ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 bg-yellow-900/30 text-yellow-600 border-yellow-800/40">
+                      Sin activar
                     </span>
                   ) : (
                     <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${ROLE_COLORS[role] || ROLE_COLORS.dispatcher}`}>
