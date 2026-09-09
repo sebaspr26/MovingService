@@ -400,9 +400,9 @@ export default function StatisticsMap() {
           <div className="min-w-[220px]">
             <label className="block text-xs text-gray-500 mb-1">Rango de fechas</label>
             <DateRangePicker
-              startDate={dateFrom}
-              endDate={dateTo}
-              onChange={(from, to) => { setDateFrom(from); setDateTo(to) }}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onChange={({ from, to }) => { setDateFrom(from); setDateTo(to) }}
               placeholder="Seleccionar rango..."
             />
           </div>
