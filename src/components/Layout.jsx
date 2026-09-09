@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { getLogoUrl, setActiveCompanyId } from '../lib/company'
+import { getLogoUrl, setActiveCompanyId, getActiveCompanyId } from '../lib/company'
 import { supabase } from '../lib/supabase'
 import { signOut } from '../lib/auth'
 import { useToast } from './Toast'
@@ -32,8 +32,26 @@ export default function Layout() {
     ? supabase.storage.from('company-docs').getPublicUrl(userMeta.avatar_path).data?.publicUrl
     : null
 
+  // Fetch fresh allowed_companies from server (not stale JWT)
+  const [freshAllowed, setFreshAllowed] = useState(null)
+  useEffect(() => {
+    if (!session?.user || isSuperAdmin(session)) return
+    supabase.auth.getUser().then(({ data }) => {
+      const ac = data?.user?.user_metadata?.allowed_companies
+      setFreshAllowed(ac || null)
+      // If active company is no longer allowed, auto-switch
+      if (ac && ac.length > 0) {
+        const active = getActiveCompanyId()
+        if (active && !ac.includes(active)) {
+          setActiveCompanyId(ac[0])
+          window.location.href = '/'
+        }
+      }
+    })
+  }, [session?.user?.id])
+
   // Filter companies by allowed_companies for non-super-admins
-  const allowedIds = userMeta.allowed_companies
+  const allowedIds = freshAllowed ?? userMeta.allowed_companies
   const visibleCompanies = isSuperAdmin(session)
     ? companies
     : (allowedIds ? companies.filter(c => allowedIds.includes(c.id)) : companies)
