@@ -141,14 +141,15 @@ export default function TruckView() {
     // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
     const grossOrders = filteredPaidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
     const isLease = truck?.is_lis
-    const netIncomeCalc = isLease
-      ? grossOrders // LEASE: crédito es el rate completo; la comisión del conductor es un débito separado
-      : filteredPaidOrders.reduce((s, r) => {
-          const rate = Number(r.rate) || 0
-          const applyDisc = r.apply_discount !== false
-          const pct = Number(r.discount_percent) || discountPct
-          return s + (applyDisc ? rate * (1 - pct / 100) : rate)
-        }, 0)
+    // Neto con descuento aplicado (siempre se calcula para mostrar el descuento)
+    const netWithDiscount = filteredPaidOrders.reduce((s, r) => {
+      const rate = Number(r.rate) || 0
+      const applyDisc = r.apply_discount !== false
+      const pct = Number(r.discount_percent) || discountPct
+      return s + (applyDisc ? rate * (1 - pct / 100) : rate)
+    }, 0)
+    // LEASE: crédito es el rate completo; la comisión del conductor es un débito separado
+    const netIncomeCalc = isLease ? grossOrders : netWithDiscount
     // LEASE: cuando dispatcher_paid=true, la porción del conductor se suma al débito
     const driverPayout = isLease
       ? filteredPaidOrders.reduce((s, r) => {
@@ -165,6 +166,7 @@ export default function TruckView() {
     setSummary({
       grossOrders,
       income: netIncomeCalc,
+      discountAmount: grossOrders - netWithDiscount,
       pending: filteredAllOrders.filter(r => !r.paid).length,
       diesel: filteredDiesel.reduce((s, r) => s + (Number(r.value) || 0), 0),
       def: filteredDef.reduce((s, r) => s + (Number(r.value) || 0), 0),
@@ -196,7 +198,7 @@ export default function TruckView() {
   const discountPct = Number(truck?.discount_percent) || 13
   // netIncome ya viene calculado en fetchSummary respetando apply_discount por orden
   const netIncome = summary.income
-  const discountAmount = summary.grossOrders - netIncome
+  const discountAmount = summary.discountAmount || 0
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
   const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)

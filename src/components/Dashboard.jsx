@@ -196,7 +196,7 @@ export default function Dashboard() {
       }
 
       const [orders, diesel, def, expenses, accounting] = await Promise.all([
-        supabase.from('orders').select('rate, paid, apply_discount, discount_percent').eq('truck_id', truck.id)
+        supabase.from('orders').select('rate, paid, apply_discount, discount_percent, dispatcher_paid').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
         supabase.from('diesel').select('value').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
@@ -210,14 +210,25 @@ export default function Dashboard() {
 
       const allOrders = orders.data || []
       const truckDiscountPct = Number(truck.discount_percent) || 13
-      const netIncome = allOrders
-        .filter(r => r.paid)
-        .reduce((s, r) => {
-          const rate = Number(r.rate) || 0
-          const applyDisc = r.apply_discount !== false
-          const pct = Number(r.discount_percent) || truckDiscountPct
-          return s + (applyDisc ? rate * (1 - pct / 100) : rate)
-        }, 0)
+      const paidOrders = allOrders.filter(r => r.paid)
+      const isLease = truck.is_lis
+      const grossOrders = paidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+      const netIncome = isLease
+        ? grossOrders
+        : paidOrders.reduce((s, r) => {
+            const rate = Number(r.rate) || 0
+            const applyDisc = r.apply_discount !== false
+            const pct = Number(r.discount_percent) || truckDiscountPct
+            return s + (applyDisc ? rate * (1 - pct / 100) : rate)
+          }, 0)
+      const driverPayout = isLease
+        ? paidOrders.reduce((s, r) => {
+            if (!r.dispatcher_paid) return s
+            const rate = Number(r.rate) || 0
+            const pct = Number(r.discount_percent) || truckDiscountPct
+            return s + rate * (1 - pct / 100)
+          }, 0)
+        : 0
 
       const pendingOrders = allOrders.filter(r => !r.paid)
       const pendingCount = pendingOrders.length
@@ -230,7 +241,7 @@ export default function Dashboard() {
       const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
 
       const previousBalance = Number(displayCycle.previous_balance) || 0
-      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
+      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout
       const totalCredito = previousBalance + netIncome + acctCredit
       const balance = totalCredito - totalDebito
 
