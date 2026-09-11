@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
@@ -57,13 +57,16 @@ export default function TruckView() {
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
+  const summarySeqRef = useRef(0)
 
   const cycle = cycles[cycleIndex] || null
   const readOnly = cycle?.closed || isDriver
   const today = fmt_d(new Date())
   const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date, cycle.closed) : []
   const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
-  const period = selectedWeek || (cycle ? { start: cycle.start_date, end: cycleEnd } : { start: today, end: today })
+  const periodStart = selectedWeek ? selectedWeek.start : (cycle ? cycle.start_date : today)
+  const periodEnd = selectedWeek ? selectedWeek.end : (cycle ? cycleEnd : today)
+  const period = useMemo(() => ({ start: periodStart, end: periodEnd }), [periodStart, periodEnd])
   const hasActiveCycle = cycles.some(c => !c.closed)
   // Reset tab if current tab is not available (e.g. driver lacks permission)
   const allTabs = truck?.is_lis
@@ -98,12 +101,13 @@ export default function TruckView() {
   }
 
   useEffect(() => {
-    if (cycle) fetchSummary()
-  }, [id, period.start, period.end, cycle?.id])
+    if (cycle && truck) fetchSummary()
+  }, [id, period.start, period.end, cycle?.id, truck?.is_lis, truck?.discount_percent])
 
   async function fetchSummary() {
-    if (!cycle) return
+    if (!cycle || !truck) return
 
+    const seq = ++summarySeqRef.current
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
     const useWeekFilter = !!selectedWeek
     const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
@@ -154,6 +158,9 @@ export default function TruckView() {
           return s + rate * (1 - pct / 100)
         }, 0)
       : 0
+
+    // Discard stale response if a newer fetchSummary was triggered
+    if (seq !== summarySeqRef.current) return
 
     setSummary({
       grossOrders,
