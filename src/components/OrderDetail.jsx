@@ -8,7 +8,7 @@ import { getPerCompanyMeta } from '../lib/permissions'
 import { STATUS_CONFIG, STATUS_ORDER, ALL_STATUSES, EQUIPMENT_TYPES, LOAD_TYPES, getNextStatus, isTerminalStatus, fmt, autoAdvanceStatuses } from '../lib/orders'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '../lib/here'
-import { lookupByMc, lookupByDot, searchByName } from '../lib/fmcsa'
+import { lookupByMc, lookupByDot, searchByName, findBestMatchByName } from '../lib/fmcsa'
 import { useToast, friendlyError } from './Toast'
 import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import OrderDocuments from './OrderDocuments'
@@ -390,20 +390,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       const b = allBrokers.find(x => x.id === brokerId)
       if (b) {
         setBrokerType(b.type || 'broker')
-        // Auto-fill MC#/DOT# via FMCSA if missing
+        // Auto-fill MC#/DOT# via FMCSA name search if missing
         if (!b.mc_number || !b.dot_number) {
           (async () => {
             try {
-              let match = null
-              if (b.mc_number) match = await lookupByMc(b.mc_number)
-              if (!match && b.dot_number) match = await lookupByDot(b.dot_number)
-              // Name search as fallback — pick the largest company (most drivers/trucks)
-              if (!match) {
-                const results = await searchByName(b.name)
-                if (results.length > 0) {
-                  match = results.sort((a, c) => (c.total_power_units + c.total_drivers) - (a.total_power_units + a.total_drivers))[0]
-                }
-              }
+              const match = await findBestMatchByName(b.name)
               if (match) {
                 const updates = {}
                 if (!b.mc_number && match.mc_number) updates.mc_number = match.mc_number
@@ -599,22 +590,15 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
           if (existing) {
             setBrokerId(existing.id)
-            // Update MC#/DOT# if missing — from scan first, then FMCSA
+            // Update MC#/DOT# if missing — from scan first, then FMCSA name search
             const updates = {}
             if (!existing.mc_number && d.broker.mc_number) updates.mc_number = d.broker.mc_number
             if (!existing.dot_number && d.broker.dot_number) updates.dot_number = d.broker.dot_number
-            // FMCSA cross-fill or name search
             const mcSoFar = updates.mc_number || existing.mc_number
             const dotSoFar = updates.dot_number || existing.dot_number
             if (!mcSoFar || !dotSoFar) {
               try {
-                let fmcsaMatch = null
-                if (mcSoFar) fmcsaMatch = await lookupByMc(mcSoFar)
-                if (!fmcsaMatch && dotSoFar) fmcsaMatch = await lookupByDot(dotSoFar)
-                if (!fmcsaMatch) {
-                  const results = await searchByName(existing.name)
-                  if (results.length > 0) fmcsaMatch = results.sort((a, c) => (c.total_power_units + c.total_drivers) - (a.total_power_units + a.total_drivers))[0]
-                }
+                const fmcsaMatch = await findBestMatchByName(existing.name)
                 if (fmcsaMatch) {
                   if (!mcSoFar && fmcsaMatch.mc_number) updates.mc_number = fmcsaMatch.mc_number
                   if (!dotSoFar && fmcsaMatch.dot_number) updates.dot_number = fmcsaMatch.dot_number
@@ -636,16 +620,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               phone: d.broker.phone || null,
               email: d.broker.email || null,
             }
-            // FMCSA: cross-fill by MC/DOT, or search by name as fallback
+            // FMCSA: fill missing MC/DOT via name search
             if (!brokerRecord.mc_number || !brokerRecord.dot_number) {
               try {
-                let fmcsaMatch = null
-                if (brokerRecord.mc_number) fmcsaMatch = await lookupByMc(brokerRecord.mc_number)
-                if (!fmcsaMatch && brokerRecord.dot_number) fmcsaMatch = await lookupByDot(brokerRecord.dot_number)
-                if (!fmcsaMatch) {
-                  const results = await searchByName(d.broker.name)
-                  if (results.length > 0) fmcsaMatch = results.sort((a, c) => (c.total_power_units + c.total_drivers) - (a.total_power_units + a.total_drivers))[0]
-                }
+                const fmcsaMatch = await findBestMatchByName(d.broker.name)
                 if (fmcsaMatch) {
                   if (!brokerRecord.mc_number && fmcsaMatch.mc_number) brokerRecord.mc_number = fmcsaMatch.mc_number
                   if (!brokerRecord.dot_number && fmcsaMatch.dot_number) brokerRecord.dot_number = fmcsaMatch.dot_number

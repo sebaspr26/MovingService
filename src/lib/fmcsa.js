@@ -56,3 +56,15 @@ export async function searchByName(name) {
     return []
   }
 }
+
+/**
+ * Search by name and pick the best match: an exact name match if present,
+ * otherwise the largest carrier (most power units + drivers) among results.
+ */
+export async function findBestMatchByName(name) {
+  const results = await searchByName(name)
+  if (results.length === 0) return null
+  const exact = results.find(r => r.name.toLowerCase() === name.toLowerCase())
+  if (exact) return exact
+  return results.sort((a, b) => (b.total_power_units + b.total_drivers) - (a.total_power_units + a.total_drivers))[0]
+}
