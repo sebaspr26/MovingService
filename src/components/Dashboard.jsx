@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
@@ -466,7 +467,8 @@ export default function Dashboard() {
   }
 
   async function handleDeleteTruck() {
-    if (!deleteTarget || deleteInput !== 'SimoN.2004') return
+    if (!deleteTarget || deleteInput !== 'SimoN.2004' || deleting) return
+    setDeleting(true)
     const tid = deleteTarget.id
 
     // Audit log: registrar quien elimino y desde donde
@@ -524,6 +526,7 @@ export default function Dashboard() {
     await supabase.from('trucks').delete().eq('id', tid)
     setDeleteTarget(null)
     setDeleteInput('')
+    setDeleting(false)
     toast.success('Camion eliminado permanentemente')
     await fetchTrucks()
   }
@@ -898,16 +901,17 @@ export default function Dashboard() {
             <div className="flex gap-3 p-5 border-t border-gray-800">
               <button
                 onClick={() => { setDeleteTarget(null); setDeleteInput('') }}
-                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                disabled={deleting}
+                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDeleteTruck}
-                disabled={deleteInput !== 'SimoN.2004'}
+                disabled={deleteInput !== 'SimoN.2004' || deleting}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Eliminar
+                {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>
