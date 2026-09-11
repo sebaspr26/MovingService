@@ -128,12 +128,16 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     if (o?.broker_id) {
       const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
       brokerData = data
-      // Auto-fill MC#/DOT# from FMCSA if one is known but other missing
-      if (data && ((data.mc_number && !data.dot_number) || (!data.mc_number && data.dot_number))) {
+      // Auto-fill MC#/DOT# from FMCSA if missing
+      if (data && (!data.mc_number || !data.dot_number)) {
         try {
           let fmcsaMatch = null
           if (data.mc_number) fmcsaMatch = await lookupByMc(data.mc_number)
-          else if (data.dot_number) fmcsaMatch = await lookupByDot(data.dot_number)
+          if (!fmcsaMatch && data.dot_number) fmcsaMatch = await lookupByDot(data.dot_number)
+          if (!fmcsaMatch) {
+            const results = await searchByName(data.name)
+            if (results.length > 0) fmcsaMatch = results.sort((a, c) => (c.total_power_units + c.total_drivers) - (a.total_power_units + a.total_drivers))[0]
+          }
           if (fmcsaMatch) {
             const updates = {}
             if (!data.mc_number && fmcsaMatch.mc_number) updates.mc_number = fmcsaMatch.mc_number
