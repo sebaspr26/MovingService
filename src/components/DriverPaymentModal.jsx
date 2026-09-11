@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf'
 import { useAuth } from '../context/AuthContext'
 import { getActiveCompanyId } from '../lib/company'
 import { canDelete } from '../lib/permissions'
+import { downloadBase64Pdf } from '../lib/download'
 
 const MODE_COLORS = {
   flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   payout: 'text-blue-400',   payoutBg: 'bg-blue-600/15 border-blue-600/30' },
@@ -85,6 +86,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sendingId, setSendingId] = useState(null)
+  const [downloadingId, setDownloadingId] = useState(null)
   const [previewHtml, setPreviewHtml] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(null)
   const htmlCache = useRef({})
@@ -357,6 +359,49 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
     setSendingId(null)
   }
 
+  async function downloadSettlement(payment) {
+    setDownloadingId(payment.id)
+    try {
+      let html = htmlCache.current[payment.id]
+      if (!html) {
+        const { data: pOrders } = await supabase.from('orders')
+          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles')
+          .in('id', payment.order_ids || [])
+
+        const r = await fetch('/api/send-driver-settlement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'preview',
+            paymentNumber: payment.payment_number,
+            driverName, driverEmail, truckName,
+            payMode: payment.pay_mode,
+            payRate: payment.pay_rate,
+            gross: payment.gross_revenue,
+            totalMiles: payment.total_miles,
+            payout: payment.payout,
+            payDate: payment.pay_date,
+            periodStart: payment.period_start,
+            periodEnd: payment.period_end,
+            orders: pOrders || [],
+            companyId: getActiveCompanyId(),
+            isLease,
+          }),
+        })
+        const d = await r.json()
+        if (!r.ok || !d.html) throw new Error(d.error || 'Error generando documento')
+        html = d.html
+        htmlCache.current[payment.id] = html
+      }
+
+      const pdfBase64 = await generatePDF(html)
+      downloadBase64Pdf(pdfBase64, `Settlement-${payment.payment_number}-${(driverName || 'conductor').replace(/\s+/g, '_')}.pdf`)
+    } catch (e) {
+      toast.error('Error al descargar: ' + e.message)
+    }
+    setDownloadingId(null)
+  }
+
   const modeInfo = MODE_LABELS[payMode]
   const modeColor = MODE_COLORS[payMode]
 
@@ -487,6 +532,13 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                               ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                               : <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>}
                             <span className="hidden sm:inline">Enviar</span>
+                          </button>
+                          <button onClick={() => downloadSettlement(p)} disabled={downloadingId === p.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50">
+                            {downloadingId === p.id
+                              ? <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin" />
+                              : <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>}
+                            <span className="hidden sm:inline">Descargar</span>
                           </button>
                           {canDelete(session) && <button
                             onClick={async () => {
