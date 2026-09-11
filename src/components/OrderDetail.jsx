@@ -213,6 +213,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [showTonuModal, setShowTonuModal] = useState(false)
   const [tonuPrice, setTonuPrice] = useState('150')
   const [trucks, setTrucks] = useState([])
+  const [drivers, setDrivers] = useState([])
   const [allBrokers, setAllBrokers] = useState([])
   const [authDispatchers, setAuthDispatchers] = useState([]) // [{email, name}]
 
@@ -294,11 +295,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       (() => { const q = supabase.from('trucks').select('id, name, number, discount_percent').order('number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       (() => { const q = supabase.from('brokers').select('*').order('name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
-    ]).then(([tRes, bRes, usersRes]) => {
+      supabase.from('drivers').select('id, name, truck_id'),
+    ]).then(([tRes, bRes, usersRes, dRes]) => {
       const allTrucks = tRes.data || []
       // Dispatchers only see their allowed trucks
       setTrucks(allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
       setAllBrokers(bRes.data || [])
+      setDrivers(dRes.data || [])
       // Solo usuarios con rol de dispatcher/admin/super_admin
       const dispatchers = (usersRes.users || [])
         .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
@@ -313,6 +316,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           .find(t => t.id === preSelectId)
         if (preselectedTruck) {
           setDiscountPercent(preselectedTruck.discount_percent || 13)
+          const assignedDriver = (dRes.data || []).find(d => d.truck_id === preSelectId)
+          setDriverName(assignedDriver?.name || '')
         }
       }
     })
@@ -1142,7 +1147,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
                     if (t) setDiscountPercent(t.discount_percent || 13)
-                    if (t) setDriverName(t.name || '')
+                    const assignedDriver = drivers.find(d => d.truck_id === val)
+                    setDriverName(assignedDriver?.name || '')
                     if (val && status === 'booked') setStatus('assigned')
                     if (!val && status === 'assigned') setStatus('booked')
                     if (val) { calculateDH(val); autoCalculateRoute() }
