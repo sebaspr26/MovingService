@@ -587,6 +587,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         if (d.special_instructions) setSpecialInstructions(d.special_instructions)
 
         // Auto-fill broker — auto-save if new
+        if (d.broker) {
+          console.log('[RC Scan] broker extracted:', JSON.stringify(d.broker))
+          // Clean MC/DOT: strip prefixes, keep only digits
+          if (d.broker.mc_number) d.broker.mc_number = d.broker.mc_number.replace(/[^0-9]/g, '') || null
+          if (d.broker.dot_number) d.broker.dot_number = d.broker.dot_number.replace(/[^0-9]/g, '') || null
+        }
         if (d.broker && d.broker.name) {
           // Email del RC va a la orden, no al broker
           if (d.broker.email) setBrokerEmail(d.broker.email)
