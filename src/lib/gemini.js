@@ -27,7 +27,7 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
       "contact": "string (contact person name)",
       "phone": "string",
       "email": "string",
-      "mc_number": "string (MC number — REQUIRED: scan the ENTIRE document for MC#, MC-XXXXXX, MC:XXXXXX, Motor Carrier number. Check header, footer, fine print, sidebar, terms section. Common brokers: TQL MC#381344, CH Robinson MC#137245, Coyote MC#560783, Echo MC#382240, XPO MC#177094. Return ONLY digits, no prefixes.)",
+      "mc_number": "string (MC number — REQUIRED: read the EXACT MC number printed on THIS document. Look for MC#, MC-XXXXXX, MC:XXXXXX, Motor Carrier number in header, footer, fine print, sidebar, terms section. DO NOT guess or use memorized MC numbers for known brokers — always read the actual number from the document. Return ONLY digits, no prefixes.)",
       "dot_number": "string (DOT number — REQUIRED: scan the ENTIRE document for DOT#, USDOT, DOT-XXXXXX, DOT:XXXXXX. Check header, footer, fine print, sidebar, terms section. Return ONLY digits, no prefixes.)",
       "address": "string"
     },
@@ -77,7 +77,7 @@ Rules:
 - For rate confirmations, extract ALL stops in order (pickups first, then deliveries). Include location names and appointment times.
 - For stop times: if a stop shows "5:00 AM - 5:00 AM" (same time twice), it's schedule_type "appointment". If it shows "6:00 AM - 12:00 PM" (different times), it's schedule_type "range". Extract both time (start) and time_end (end) in 24h HH:MM format.
 - Only use "type": "order" format for load confirmations or bills of lading
-- CRITICAL: For rate confirmations, you MUST extract BOTH MC# AND DOT# numbers. They are ALWAYS present somewhere in the document — header, footer, fine print, sidebar, terms & conditions, or signature block. Search EVERY part of the document thoroughly. Look for patterns: "MC-123456", "MC# 123456", "MC:123456", "MC 123456", "USDOT 123456", "DOT# 123456", "DOT: 123456", "DOT 123456". Extract the BROKER's MC and DOT numbers (the company issuing the rate confirmation), NOT the carrier's. Return only the numeric digits (e.g. "381344" not "MC#381344"). If you find one but not the other, keep searching — both numbers are almost always on the document.
+- CRITICAL: For rate confirmations, you MUST extract BOTH MC# AND DOT# numbers by READING them directly from the document. NEVER guess, infer, or use memorized numbers — even for well-known brokers like TQL, CH Robinson, Coyote, Echo, or XPO. The number on THIS specific document is the only correct answer. Search EVERY part of the document: header, footer, fine print, sidebar, terms & conditions, signature block. Look for patterns: "MC-123456", "MC# 123456", "MC:123456", "MC 123456", "USDOT 123456", "DOT# 123456", "DOT: 123456", "DOT 123456". Extract the BROKER's MC and DOT numbers (the company issuing the rate confirmation), NOT the carrier's. Return only the numeric digits (e.g. "381344" not "MC#381344"). If you cannot clearly read a number, return "" instead of guessing.
 - Return ONLY valid JSON, no markdown, no explanation`
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
