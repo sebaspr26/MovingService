@@ -11,6 +11,7 @@ import { calculateTruckRoute, calculateMultiStopRoute, formatDuration } from '..
 import { lookupByMc, lookupByDot, searchByName, findBestMatchByName } from '../lib/fmcsa'
 import { useToast, friendlyError } from './Toast'
 import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
+import { logAudit } from '../lib/auditLog'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
@@ -809,9 +810,23 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         const { data, error } = await supabase.from('orders').insert(record).select().single()
         if (error) throw error
         orderId = data.id
+        logAudit(session, {
+          action: 'create_order',
+          entityType: 'order',
+          entityId: orderId,
+          entityName: record.order_number,
+          extraInfo: { truck: truck?.name || null, rate: record.rate, status: record.status, dispatcher: record.dispatcher },
+        })
       } else {
         const { error } = await supabase.from('orders').update(record).eq('id', id)
         if (error) throw error
+        logAudit(session, {
+          action: 'update_order',
+          entityType: 'order',
+          entityId: id,
+          entityName: record.order_number,
+          extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status },
+        })
       }
 
       // Save stops
@@ -863,6 +878,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     if (!ok) return
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
+    logAudit(session, {
+      action: 'delete_order',
+      entityType: 'order',
+      entityId: id,
+      entityName: orderNumber.trim() || null,
+      extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: rate !== '' ? Number(rate) : null },
+    })
     toast.success('Orden eliminada')
     isDrawer ? onClose?.() : navigate('/orders')
     if (isDrawer) onSaved?.()
