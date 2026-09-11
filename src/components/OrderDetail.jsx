@@ -565,10 +565,28 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
           if (existing) {
             setBrokerId(existing.id)
-            // Update MC#/DOT# if missing and scan provided them
+            // Update MC#/DOT# if missing — from scan first, then FMCSA lookup
             const updates = {}
             if (!existing.mc_number && d.broker.mc_number) updates.mc_number = d.broker.mc_number
             if (!existing.dot_number && d.broker.dot_number) updates.dot_number = d.broker.dot_number
+            // FMCSA lookup if still missing MC# or DOT#
+            const mcSoFar = updates.mc_number || existing.mc_number
+            const dotSoFar = updates.dot_number || existing.dot_number
+            if (!mcSoFar || !dotSoFar) {
+              try {
+                let fmcsaMatch = null
+                if (mcSoFar) fmcsaMatch = await lookupByMc(mcSoFar)
+                if (!fmcsaMatch && dotSoFar) fmcsaMatch = await lookupByDot(dotSoFar)
+                if (!fmcsaMatch) {
+                  const results = await searchByName(existing.name)
+                  fmcsaMatch = results.find(r => r.name.toLowerCase() === existing.name.toLowerCase()) || results[0]
+                }
+                if (fmcsaMatch) {
+                  if (!mcSoFar && fmcsaMatch.mc_number) updates.mc_number = fmcsaMatch.mc_number
+                  if (!dotSoFar && fmcsaMatch.dot_number) updates.dot_number = fmcsaMatch.dot_number
+                }
+              } catch (err) { console.warn('[RC scan FMCSA]', err) }
+            }
             if (Object.keys(updates).length > 0) {
               await supabase.from('brokers').update(updates).eq('id', existing.id)
               setAllBrokers(prev => prev.map(b => b.id === existing.id ? { ...b, ...updates } : b))
@@ -583,6 +601,22 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               address: d.broker.address || null,
               phone: d.broker.phone || null,
               email: d.broker.email || null,
+            }
+            // FMCSA lookup if scan didn't provide MC#/DOT#
+            if (!brokerRecord.mc_number || !brokerRecord.dot_number) {
+              try {
+                let fmcsaMatch = null
+                if (brokerRecord.mc_number) fmcsaMatch = await lookupByMc(brokerRecord.mc_number)
+                if (!fmcsaMatch && brokerRecord.dot_number) fmcsaMatch = await lookupByDot(brokerRecord.dot_number)
+                if (!fmcsaMatch) {
+                  const results = await searchByName(d.broker.name)
+                  fmcsaMatch = results.find(r => r.name.toLowerCase() === d.broker.name.toLowerCase()) || results[0]
+                }
+                if (fmcsaMatch) {
+                  if (!brokerRecord.mc_number && fmcsaMatch.mc_number) brokerRecord.mc_number = fmcsaMatch.mc_number
+                  if (!brokerRecord.dot_number && fmcsaMatch.dot_number) brokerRecord.dot_number = fmcsaMatch.dot_number
+                }
+              } catch (err) { console.warn('[RC scan FMCSA new]', err) }
             }
             brokerRecord.company_id = getActiveCompanyId() || null
             const { data: saved, error } = await supabase.from('brokers').insert(brokerRecord).select().single()

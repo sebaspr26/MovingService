@@ -1,4 +1,5 @@
-const API_KEY = import.meta.env.VITE_FMCSA_KEY
+const API_URL = '/api/fmcsa-lookup'
+const FMCSA_KEY = import.meta.env.VITE_FMCSA_KEY
 const BASE_URL = 'https://mobile.fmcsa.dot.gov/qc/services'
 
 /**
@@ -6,8 +7,20 @@ const BASE_URL = 'https://mobile.fmcsa.dot.gov/qc/services'
  */
 export async function lookupByDot(dotNumber) {
   if (!dotNumber) return null
-  const url = `${BASE_URL}/carriers/${dotNumber}?webKey=${API_KEY}`
-  return fetchCarrier(url)
+  // Try proxy first (works from any location via Vercel US servers)
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'dot', value: dotNumber }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.result) return data.result
+    }
+  } catch {}
+  // Fallback: direct call (only works from US)
+  return fetchCarrier(`${BASE_URL}/carriers/${dotNumber}?webKey=${FMCSA_KEY}`)
 }
 
 /**
@@ -15,10 +28,19 @@ export async function lookupByDot(dotNumber) {
  */
 export async function lookupByMc(mcNumber) {
   if (!mcNumber) return null
-  // Strip "MC" prefix if present
   const num = String(mcNumber).replace(/^(MC|MX)-?\s*/i, '').trim()
-  const url = `${BASE_URL}/carriers/docket-number/${num}?webKey=${API_KEY}`
-  return fetchCarrier(url)
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'mc', value: mcNumber }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.result) return data.result
+    }
+  } catch {}
+  return fetchCarrier(`${BASE_URL}/carriers/docket-number/${num}?webKey=${FMCSA_KEY}`)
 }
 
 /**
@@ -26,13 +48,25 @@ export async function lookupByMc(mcNumber) {
  */
 export async function searchByName(name) {
   if (!name || name.length < 3) return []
-  const url = `${BASE_URL}/carriers/name/${encodeURIComponent(name)}?webKey=${API_KEY}`
   try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'name', value: name }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.results && data.results.length > 0) return data.results
+    }
+  } catch {}
+  // Fallback: direct call
+  try {
+    const url = `${BASE_URL}/carriers/name/${encodeURIComponent(name)}?webKey=${FMCSA_KEY}`
     const res = await fetch(url)
     if (!res.ok) return []
     const data = await res.json()
     const items = data.content || []
-    return items.slice(0, 10).map(i => parseCarrier(i.carrier))
+    return items.slice(0, 10).map(i => parseCarrier(i.carrier)).filter(Boolean)
   } catch {
     return []
   }
