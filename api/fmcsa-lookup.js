@@ -1,4 +1,4 @@
-const FMCSA_KEY = process.env.VITE_FMCSA_KEY
+const FMCSA_KEY = process.env.FMCSA_KEY || process.env.VITE_FMCSA_KEY
 const BASE_URL = 'https://mobile.fmcsa.dot.gov/qc/services'
 
 export default async function handler(req, res) {
