@@ -560,7 +560,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                   <>
                     <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{broker.name}</p>
                     <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
-                      {[broker.address, broker.mc_number ? `MC: ${broker.mc_number}` : ''].filter(Boolean).join(' | ')}
+                      {[broker.address, broker.mc_number ? `MC: ${broker.mc_number}` : '', broker.dot_number ? `DOT: ${broker.dot_number}` : ''].filter(Boolean).join(' | ')}
                     </p>
                     {(broker.phone || order?.broker_email || broker.email) && (
                       <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>

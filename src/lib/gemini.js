@@ -28,6 +28,7 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
       "phone": "string",
       "email": "string",
       "mc_number": "string",
+      "dot_number": "string",
       "address": "string"
     },
     "stops": [
