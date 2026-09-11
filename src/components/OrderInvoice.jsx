@@ -4,7 +4,7 @@ import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } from '../lib/company'
-import { searchByName } from '../lib/fmcsa'
+import { searchByName, lookupByMc, lookupByDot } from '../lib/fmcsa'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -131,18 +131,26 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       // Auto-fill MC#/DOT# from FMCSA if missing
       if (data && (!data.mc_number || !data.dot_number)) {
         try {
-          const results = await searchByName(data.name)
-          const match = results.find(r => r.name.toLowerCase() === data.name.toLowerCase()) || results[0]
-          if (match) {
+          let fmcsaMatch = null
+          // Try lookup by existing MC# or DOT# first (more reliable)
+          if (data.mc_number && !fmcsaMatch) fmcsaMatch = await lookupByMc(data.mc_number)
+          if (data.dot_number && !fmcsaMatch) fmcsaMatch = await lookupByDot(data.dot_number)
+          // Fallback to name search
+          if (!fmcsaMatch) {
+            const results = await searchByName(data.name)
+            fmcsaMatch = results.find(r => r.name.toLowerCase() === data.name.toLowerCase()) || results[0]
+          }
+          console.warn('[Invoice FMCSA]', data.name, '→', fmcsaMatch)
+          if (fmcsaMatch) {
             const updates = {}
-            if (!data.mc_number && match.mc_number) updates.mc_number = match.mc_number
-            if (!data.dot_number && match.dot_number) updates.dot_number = match.dot_number
+            if (!data.mc_number && fmcsaMatch.mc_number) updates.mc_number = fmcsaMatch.mc_number
+            if (!data.dot_number && fmcsaMatch.dot_number) updates.dot_number = fmcsaMatch.dot_number
             if (Object.keys(updates).length > 0) {
               await supabase.from('brokers').update(updates).eq('id', data.id)
               Object.assign(brokerData, updates)
             }
           }
-        } catch {}
+        } catch (err) { console.warn('[Invoice FMCSA] error:', err) }
       }
       setBroker(brokerData)
     }
