@@ -565,6 +565,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
           if (existing) {
             setBrokerId(existing.id)
+            // Update MC#/DOT# if missing and scan provided them
+            const updates = {}
+            if (!existing.mc_number && d.broker.mc_number) updates.mc_number = d.broker.mc_number
+            if (!existing.dot_number && d.broker.dot_number) updates.dot_number = d.broker.dot_number
+            if (Object.keys(updates).length > 0) {
+              await supabase.from('brokers').update(updates).eq('id', existing.id)
+              setAllBrokers(prev => prev.map(b => b.id === existing.id ? { ...b, ...updates } : b))
+            }
           } else {
             const brokerRecord = {
               type: 'broker',

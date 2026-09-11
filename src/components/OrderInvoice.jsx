@@ -4,6 +4,7 @@ import { useToast } from './Toast'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } from '../lib/company'
+import { searchByName } from '../lib/fmcsa'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -127,7 +128,23 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     if (o?.broker_id) {
       const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
       brokerData = data
-      setBroker(data)
+      // Auto-fill MC#/DOT# from FMCSA if missing
+      if (data && (!data.mc_number || !data.dot_number)) {
+        try {
+          const results = await searchByName(data.name)
+          const match = results.find(r => r.name.toLowerCase() === data.name.toLowerCase()) || results[0]
+          if (match) {
+            const updates = {}
+            if (!data.mc_number && match.mc_number) updates.mc_number = match.mc_number
+            if (!data.dot_number && match.dot_number) updates.dot_number = match.dot_number
+            if (Object.keys(updates).length > 0) {
+              await supabase.from('brokers').update(updates).eq('id', data.id)
+              Object.assign(brokerData, updates)
+            }
+          }
+        } catch {}
+      }
+      setBroker(brokerData)
     }
 
     const docs = docsRes.data || []
