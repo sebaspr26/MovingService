@@ -388,7 +388,32 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   useEffect(() => {
     if (brokerId) {
       const b = allBrokers.find(x => x.id === brokerId)
-      if (b) setBrokerType(b.type || 'broker')
+      if (b) {
+        setBrokerType(b.type || 'broker')
+        // Auto-fill MC#/DOT# via FMCSA if missing
+        if (!b.mc_number || !b.dot_number) {
+          (async () => {
+            try {
+              let match = null
+              if (b.mc_number) match = await lookupByMc(b.mc_number)
+              if (!match && b.dot_number) match = await lookupByDot(b.dot_number)
+              if (!match) {
+                const results = await searchByName(b.name)
+                match = results.find(r => r.name.toLowerCase() === b.name.toLowerCase()) || results[0]
+              }
+              if (match) {
+                const updates = {}
+                if (!b.mc_number && match.mc_number) updates.mc_number = match.mc_number
+                if (!b.dot_number && match.dot_number) updates.dot_number = match.dot_number
+                if (Object.keys(updates).length > 0) {
+                  await supabase.from('brokers').update(updates).eq('id', b.id)
+                  setAllBrokers(prev => prev.map(x => x.id === b.id ? { ...x, ...updates } : x))
+                }
+              }
+            } catch (err) { console.warn('[Broker FMCSA auto-fill]', err) }
+          })()
+        }
+      }
     }
   }, [brokerId, allBrokers])
 
