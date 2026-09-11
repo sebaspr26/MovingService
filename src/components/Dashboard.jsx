@@ -10,6 +10,7 @@ import { getActiveCompanyId } from '../lib/company'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
+import { logAudit, diffFields } from '../lib/auditLog'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -319,6 +320,12 @@ export default function Dashboard() {
     setTruckRecurring(prev => prev.filter((_, i) => i !== index))
   }
 
+  function recurringExpensesSnapshot() {
+    return truckRecurring
+      .filter(r => r.description.trim() && r.amount && r.day_of_month)
+      .map(r => ({ description: r.description.trim(), amount: Number(r.amount), day_of_month: r.day_of_month }))
+  }
+
   async function saveRecurringExpenses(truckId) {
     const validRecurring = truckRecurring.filter(r => r.description.trim() && r.amount && r.day_of_month)
     await supabase.from('recurring_expenses').delete().eq('truck_id', truckId)
@@ -360,6 +367,9 @@ export default function Dashboard() {
     const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
 
     if (editingTruck) {
+      const prevDriver = drivers.find(d => d.truck_id === editingTruck.id)
+      const newDriver = truckDriverId ? drivers.find(d => d.id === truckDriverId) : null
+
       const { error } = await supabase.from('trucks')
         .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null })
         .eq('id', editingTruck.id)
@@ -385,6 +395,19 @@ export default function Dashboard() {
 
       // Save recurring expenses
       await saveRecurringExpenses(editingTruck.id)
+
+      const afterValues = { name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null }
+      const changes = diffFields(editingTruck, afterValues, ['name', 'number', 'discount_percent', 'is_lis', 'owner_name', 'vin_number'])
+      const prevDriverName = prevDriver?.name || null
+      const newDriverName = newDriver?.name || null
+      if (prevDriverName !== newDriverName) changes.driver = { from: prevDriverName, to: newDriverName }
+      logAudit(session, {
+        action: 'update_truck',
+        entityType: 'truck',
+        entityId: editingTruck.id,
+        entityName: afterValues.name,
+        extraInfo: { changes, recurring_expenses: recurringExpensesSnapshot() },
+      })
     } else {
       const { data: truck, error } = await supabase.from('trucks')
         .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, company_id: getActiveCompanyId() })
@@ -393,6 +416,7 @@ export default function Dashboard() {
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
 
       // Assign driver to new truck
+      const newDriver = truckDriverId ? drivers.find(d => d.id === truckDriverId) : null
       if (truckDriverId) {
         await supabase.from('drivers').update({ truck_id: truck.id }).eq('id', truckDriverId)
       }
@@ -415,6 +439,22 @@ export default function Dashboard() {
 
       // Save recurring expenses
       await saveRecurringExpenses(truck.id)
+
+      logAudit(session, {
+        action: 'create_truck',
+        entityType: 'truck',
+        entityId: truck.id,
+        entityName: truck.name,
+        extraInfo: {
+          number: truck.number,
+          discount_percent: truck.discount_percent,
+          is_lis: truck.is_lis,
+          owner_name: truck.owner_name,
+          driver: newDriver?.name || null,
+          caja_inicial: cajaInicial > 0 ? cajaInicial : null,
+          recurring_expenses: recurringExpensesSnapshot(),
+        },
+      })
     }
 
     setShowTruckModal(false)
@@ -442,6 +482,9 @@ export default function Dashboard() {
         entity_type: 'truck',
         entity_id: tid,
         entity_name: deleteTarget.name,
+        user_id: session?.user?.id || null,
+        user_email: session?.user?.email || null,
+        user_name: session?.user?.user_metadata?.name || null,
         user_agent: navigator.userAgent,
         ip_address: ipData.ip || null,
         extra_info: {
@@ -490,6 +533,13 @@ export default function Dashboard() {
     const lastClosed = await getLatestClosedCycle(openCycleTarget.id)
     const prevBalance = lastClosed ? Number(lastClosed.cuadre_caja) || 0 : 0
     await openCycle(openCycleTarget.id, openCycleDate, prevBalance)
+    logAudit(session, {
+      action: 'open_cycle',
+      entityType: 'cycle',
+      entityId: openCycleTarget.id,
+      entityName: openCycleTarget.name,
+      extraInfo: { start_date: openCycleDate, previous_balance: prevBalance },
+    })
     setOpenCycleTarget(null)
     toast.success('Nuevo ciclo abierto')
     await fetchTrucks()

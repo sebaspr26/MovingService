@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { closeCycle, reopenCycle } from '../lib/cycles'
 import { useToast } from './Toast'
+import { useAuth } from '../context/AuthContext'
+import { logAudit } from '../lib/auditLog'
 
-export default function CashBox({ truckId, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
+export default function CashBox({ truckId, truckName, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
   const toast = useToast()
+  const { session } = useAuth()
   const [partners, setPartners] = useState([])
   const [showCierre, setShowCierre] = useState(false)
   const [cierreInput, setCierreInput] = useState('')
@@ -22,6 +25,13 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
     if (!cycle) return
     const numCuadre = Number(cierreInput) || 0
     await closeCycle(cycle.id, numCuadre, cierreDate)
+    logAudit(session, {
+      action: 'close_cycle',
+      entityType: 'cycle',
+      entityId: cycle.id,
+      entityName: truckName,
+      extraInfo: { close_date: cierreDate, cuadre_caja: numCuadre },
+    })
     setShowCierre(false)
     toast.success('Ciclo cerrado exitosamente')
     if (onCycleClosed) onCycleClosed()
@@ -30,6 +40,12 @@ export default function CashBox({ truckId, cycle, period, debito, credito, gross
   async function handleReopen() {
     if (!cycle) return
     await reopenCycle(cycle.id)
+    logAudit(session, {
+      action: 'reopen_cycle',
+      entityType: 'cycle',
+      entityId: cycle.id,
+      entityName: truckName,
+    })
     toast.warning('Ciclo reabierto')
     if (onCycleClosed) onCycleClosed()
   }

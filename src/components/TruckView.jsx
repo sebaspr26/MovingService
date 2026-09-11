@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
+import { logAudit } from '../lib/auditLog'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
@@ -176,6 +177,13 @@ export default function TruckView() {
     const lastClosed = await getLatestClosedCycle(id)
     const prevBalance = lastClosed ? Number(lastClosed.cuadre_caja) || 0 : 0
     await openCycle(id, newCycleDate, prevBalance)
+    logAudit(session, {
+      action: 'open_cycle',
+      entityType: 'cycle',
+      entityId: id,
+      entityName: truck?.name,
+      extraInfo: { start_date: newCycleDate, previous_balance: prevBalance },
+    })
     setOpeningCycle(false)
     await fetchCycles()
   }
@@ -446,6 +454,7 @@ export default function TruckView() {
           {!isDriver && <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6">
             <CashBox
               truckId={id}
+              truckName={truck?.name}
               cycle={cycle}
               period={period}
               debito={totalDebito}

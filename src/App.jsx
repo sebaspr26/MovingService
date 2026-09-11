@@ -20,6 +20,7 @@ import Welcome from './components/Welcome'
 import Inicio from './components/Inicio'
 import UserProfile from './components/UserProfile'
 import PaymentHistory from './components/PaymentHistory'
+import Auditoria from './components/Auditoria'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess, canDelete } from './lib/permissions'
@@ -99,6 +100,7 @@ function App() {
           <Route path="statistics" element={<Statistics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profiles" element={isSuperAdmin(session) ? <Profiles /> : <Navigate to="/" replace />} />
+          <Route path="auditoria" element={isSuperAdmin(session) ? <Auditoria /> : <Navigate to="/" replace />} />
           <Route path="informacion" element={<Informacion />} />
           <Route path="conductores" element={<DispatcherDrivers />} />
           <Route path="pagos" element={<PagosMenu />} />
