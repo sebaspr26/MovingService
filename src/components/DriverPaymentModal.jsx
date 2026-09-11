@@ -126,7 +126,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       activeCycleId
         ? supabase.from('orders')
             .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
-            .eq('driver_name', driverName)
+            .ilike('driver_name', driverName)
             .eq('cycle_id', activeCycleId)
             .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
             .order('pu_date', { ascending: false })
