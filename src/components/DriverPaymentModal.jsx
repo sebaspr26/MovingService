@@ -126,7 +126,10 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       activeCycleId
         ? supabase.from('orders')
             .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
-            .ilike('driver_name', driverName)
+            // driver_id is the real connection to this driver's profile — it survives
+            // a later name edit. driver_name (text) stays as a fallback for older
+            // orders that predate driver_id, or that were never linked.
+            .or(`driver_id.eq.${driver.id},driver_name.ilike.${driverName}`)
             .eq('cycle_id', activeCycleId)
             .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
             .order('pu_date', { ascending: false })

@@ -235,6 +235,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [deadMiles, setDeadMiles] = useState('')
   const [invoiceNotes, setInvoiceNotes] = useState('')
   const [driverName, setDriverName] = useState('')
+  const [driverId, setDriverId] = useState(null)
   const [puDate, setPuDate] = useState('')
   const [puCity, setPuCity] = useState('')
   const [doDate, setDoDate] = useState('')
@@ -318,6 +319,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           setDiscountPercent(preselectedTruck.discount_percent || 13)
           const assignedDriver = (dRes.data || []).find(d => d.truck_id === preSelectId)
           setDriverName(assignedDriver?.name || '')
+          setDriverId(assignedDriver?.id || null)
         }
       }
     })
@@ -381,6 +383,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setWeight(o.weight ?? '')
       setSpecialInstructions(o.special_instructions || '')
       setDriverName(o.driver_name || '')
+      setDriverId(o.driver_id || null)
 
       const existingStops = stopsRes.data || []
       if (existingStops.length > 0) {
@@ -780,6 +783,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         weight: weight !== '' ? Number(weight) : 0,
         special_instructions: specialInstructions.trim() || null,
         driver_name: driverName.trim() || null,
+        driver_id: driverId || null,
         pu_date: puDate || null,
         pu_city: puCity.trim() || null,
         do_date: doDate || null,
@@ -1149,6 +1153,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     if (t) setDiscountPercent(t.discount_percent || 13)
                     const assignedDriver = drivers.find(d => d.truck_id === val)
                     setDriverName(assignedDriver?.name || '')
+                    setDriverId(assignedDriver?.id || null)
                     if (val && status === 'booked') setStatus('assigned')
                     if (!val && status === 'assigned') setStatus('booked')
                     if (val) { calculateDH(val); autoCalculateRoute() }
