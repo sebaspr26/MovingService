@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
+import { useAuth } from '../context/AuthContext'
+import { logAudit } from '../lib/auditLog'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -10,8 +12,9 @@ const EXPENSE_CATEGORIES = [
 
 const EMPTY_LINE = { type: 'diesel', gallons: '', value: '', category: '', description: '', amount: '' }
 
-export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, period, cycle, editRow, truckOptions, truckCycles }) {
+export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, truckName, period, cycle, editRow, truckOptions, truckCycles }) {
   const toast = useToast()
+  const { session } = useAuth()
   const [selectedTruck, setSelectedTruck] = useState('')
   const [invoice, setInvoice] = useState('')
   const [date, setDate] = useState('')
@@ -26,6 +29,9 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
   // If truckOptions provided, user must select truck (Dashboard mode)
   const isDashboard = !!truckOptions
   const effectiveTruckId = isDashboard ? selectedTruck : truckId
+  const effectiveTruckName = isDashboard
+    ? (truckOptions?.find(t => t.value === effectiveTruckId)?.label || null)
+    : (truckName || null)
   const effectiveCycle = isDashboard ? truckCycles?.[selectedTruck] : cycle
   const effectiveCycleId = effectiveCycle?.id || null
   const effectivePeriod = isDashboard
@@ -171,6 +177,16 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
         }
         const { error } = await supabase.from(table).update(record).eq('id', editRow.id)
         if (error) throw error
+        const actionType = editRow._type === 'diesel' ? 'diesel' : editRow._type === 'def' ? 'def' : 'expense'
+        logAudit(session, {
+          action: `update_${actionType}`,
+          entityType: actionType,
+          entityId: editRow.id,
+          entityName: effectiveTruckName,
+          extraInfo: actionType === 'expense'
+            ? { category: record.category, description: record.description, amount: record.amount }
+            : { invoice_number: record.invoice_number, gallons: record.gallons, value: record.value, city: record.city },
+        })
         toast.success('Registro actualizado')
       } else {
         // Duplicate check by invoice_number
@@ -189,7 +205,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
         }
         for (const line of lines) {
           if (line.type === 'diesel' || line.type === 'def') {
-            const { error } = await supabase.from(line.type).insert({
+            const { data: saved, error } = await supabase.from(line.type).insert({
               invoice_number: invoice,
               date,
               city,
@@ -199,11 +215,19 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
               cycle_id: effectiveCycleId,
               period_start: pStart,
               period_end: pEnd,
-            })
+            }).select().single()
             if (error) throw error
+            logAudit(session, {
+              action: `create_${line.type}`,
+              entityType: line.type,
+              entityId: saved?.id,
+              entityName: effectiveTruckName,
+              extraInfo: { invoice_number: invoice || null, gallons: Number(line.gallons) || 0, value: Number(line.value) || 0, city },
+            })
           } else {
-            const { error } = await supabase.from('expenses').insert({
-              category: line.type === 'chofer' ? 'Pago Chofer' : (line.category || 'Otros'),
+            const category = line.type === 'chofer' ? 'Pago Chofer' : (line.category || 'Otros')
+            const { data: saved, error } = await supabase.from('expenses').insert({
+              category,
               invoice_number: invoice || null,
               description: line.description,
               amount: Number(line.amount) || 0,
@@ -212,8 +236,15 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, per
               cycle_id: effectiveCycleId,
               period_start: pStart,
               period_end: pEnd,
-            })
+            }).select().single()
             if (error) throw error
+            logAudit(session, {
+              action: 'create_expense',
+              entityType: 'expense',
+              entityId: saved?.id,
+              entityName: effectiveTruckName,
+              extraInfo: { category, description: line.description, amount: Number(line.amount) || 0 },
+            })
           }
         }
         toast.success(lines.length > 1 ? `${lines.length} registros agregados` : 'Registro agregado')

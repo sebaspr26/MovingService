@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
+import { useAuth } from '../context/AuthContext'
+import { logAudit } from '../lib/auditLog'
 import AddReceiptModal from './AddReceiptModal'
 
 
@@ -12,8 +14,9 @@ const FILTERS = [
   { key: 'expense', label: 'Otros Gastos' },
 ]
 
-export default function ExpensesTab({ truckId, period, cycle, onDataChange, readOnly, isLis }) {
+export default function ExpensesTab({ truckId, truckName, period, cycle, onDataChange, readOnly, isLis }) {
   const toast = useToast()
+  const { session } = useAuth()
   const [filter, setFilter] = useState('all')
   const [dieselRows, setDieselRows] = useState([])
   const [defRows, setDefRows] = useState([])
@@ -88,6 +91,14 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
     const table = (row._type === 'expense' || row._type === 'chofer') ? 'expenses' : row._type
     const { error } = await supabase.from(table).delete().eq('id', row.id)
     if (error) { toast.error(friendlyError(error.message)); return }
+    const actionType = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'def' : 'expense'
+    logAudit(session, {
+      action: `delete_${actionType}`,
+      entityType: actionType,
+      entityId: row.id,
+      entityName: truckName,
+      extraInfo: { amount: row._amount, description: row._desc, category: row.category || null },
+    })
     fetchAll()
     if (onDataChange) onDataChange()
     toast.success(`Registro de ${typeLabel} eliminado`)
@@ -276,6 +287,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
         onClose={() => { setShowModal(false); setEditRow(null) }}
         onSaved={handleSaved}
         truckId={truckId}
+        truckName={truckName}
         period={period}
         cycle={cycle}
         editRow={editRow}
