@@ -19,7 +19,7 @@ export default function DEFTable({ truckId, period, cycle, onDataChange, readOnl
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
 
-  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
+  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period.start, period.end])
 
   async function fetchRows() {
     if (!cycle?.id) return

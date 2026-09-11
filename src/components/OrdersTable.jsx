@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
@@ -33,21 +33,25 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
   const [scanning, setScanning] = useState(false)
   const [scanned, setScanned] = useState(false)
   const scanFileRef = useRef()
+  const fetchSeqRef = useRef(0)
 
-  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
+  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period.start, period.end])
 
   async function fetchRows() {
     if (!cycle?.id) return
+    const seq = ++fetchSeqRef.current
     const { data } = await supabase.from('orders').select('*')
       .eq('truck_id', truckId)
       .eq('cycle_id', cycle.id)
       .order('created_at')
+    if (seq !== fetchSeqRef.current) return // discard stale response
     // Sub-filter by week if a week is selected (period narrower than full cycle)
     let filtered = data || []
     if (period.start !== cycle.start_date) {
       filtered = filtered.filter(r => r.pu_date >= period.start && r.pu_date <= period.end)
     }
     const advanced = await autoAdvanceStatuses(filtered, supabase)
+    if (seq !== fetchSeqRef.current) return // discard stale response
     setRows(advanced)
   }
 

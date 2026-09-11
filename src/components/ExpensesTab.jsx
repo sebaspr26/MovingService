@@ -22,7 +22,7 @@ export default function ExpensesTab({ truckId, period, cycle, onDataChange, read
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  useEffect(() => { fetchAll() }, [truckId, cycle?.id, period])
+  useEffect(() => { fetchAll() }, [truckId, cycle?.id, period.start, period.end])
 
   async function fetchAll() {
     if (!cycle?.id) return

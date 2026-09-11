@@ -33,7 +33,7 @@ export default function OwnerExpensesTable({ truckId, period, cycle, onDataChang
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period])
+  useEffect(() => { fetchRows() }, [truckId, cycle?.id, period.start, period.end])
 
   async function fetchRows() {
     if (!cycle?.id) return
