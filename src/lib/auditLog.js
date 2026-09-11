@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getActiveCompanyId } from './company'
 
 /**
  * Registra una entrada inmutable en audit_log. Nunca lanza — un fallo de
@@ -12,6 +13,7 @@ export async function logAudit(session, { action, entityType, entityId, entityNa
       entity_type: entityType,
       entity_id: entityId || null,
       entity_name: entityName || null,
+      company_id: getActiveCompanyId() || null,
       user_id: user?.id || null,
       user_email: user?.email || null,
       user_name: user?.user_metadata?.name || null,

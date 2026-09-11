@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { getActiveCompanyId } from '../lib/company'
 import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 
@@ -132,7 +133,10 @@ export default function Auditoria() {
   const hasActiveFilters = dateFrom || dateTo || actionFilter.length > 0 || truckFilter.length > 0 || userFilter.length > 0
 
   useEffect(() => {
-    supabase.from('audit_log').select('entity_name, user_name, user_email').then(({ data }) => {
+    const cId = getActiveCompanyId()
+    let q = supabase.from('audit_log').select('entity_name, user_name, user_email')
+    if (cId) q = q.eq('company_id', cId)
+    q.then(({ data }) => {
       const rows = data || []
       const trucks = [...new Set(rows.map(r => r.entity_name).filter(Boolean))].sort()
       const users = [...new Set(rows.map(r => r.user_email || r.user_name).filter(Boolean))]
@@ -148,6 +152,8 @@ export default function Auditoria() {
 
   const buildQuery = useCallback((offset) => {
     let q = supabase.from('audit_log').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE_SIZE - 1)
+    const cId = getActiveCompanyId()
+    if (cId) q = q.eq('company_id', cId)
     if (dateFrom) q = q.gte('created_at', new Date(dateFrom + 'T00:00:00').toISOString())
     if (dateTo) q = q.lte('created_at', new Date(dateTo + 'T23:59:59.999').toISOString())
     if (actionFilter.length > 0) q = q.in('action', actionFilter)
