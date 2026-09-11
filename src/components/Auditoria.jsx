@@ -6,13 +6,34 @@ import MultiSelect from './MultiSelect'
 
 const PAGE_SIZE = 50
 
+// Icons by verb — create/update/delete look the same shape across every
+// entity type, colored consistently, so the eye reads the action first.
+const ICON = {
+  create: 'M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  update: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125',
+  delete: 'm14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0',
+  cycle: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99',
+}
+
 const ACTIONS = {
-  create_truck: { label: 'Camión creado', color: 'emerald', icon: 'M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-  update_truck: { label: 'Camión editado', color: 'blue', icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125' },
-  delete_truck: { label: 'Camión eliminado', color: 'red', icon: 'm14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0' },
-  open_cycle: { label: 'Ciclo abierto', color: 'cyan', icon: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99' },
-  close_cycle: { label: 'Ciclo cerrado', color: 'violet', icon: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99' },
-  reopen_cycle: { label: 'Ciclo reabierto', color: 'yellow', icon: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99' },
+  create_truck: { label: 'Camión creado', color: 'emerald', icon: ICON.create },
+  update_truck: { label: 'Camión editado', color: 'blue', icon: ICON.update },
+  delete_truck: { label: 'Camión eliminado', color: 'red', icon: ICON.delete },
+  open_cycle: { label: 'Ciclo abierto', color: 'cyan', icon: ICON.cycle },
+  close_cycle: { label: 'Ciclo cerrado', color: 'violet', icon: ICON.cycle },
+  reopen_cycle: { label: 'Ciclo reabierto', color: 'yellow', icon: ICON.cycle },
+  create_order: { label: 'Orden creada', color: 'emerald', icon: ICON.create },
+  update_order: { label: 'Orden editada', color: 'blue', icon: ICON.update },
+  delete_order: { label: 'Orden eliminada', color: 'red', icon: ICON.delete },
+  create_expense: { label: 'Gasto agregado', color: 'emerald', icon: ICON.create },
+  update_expense: { label: 'Gasto editado', color: 'blue', icon: ICON.update },
+  delete_expense: { label: 'Gasto eliminado', color: 'red', icon: ICON.delete },
+  create_diesel: { label: 'Diesel agregado', color: 'emerald', icon: ICON.create },
+  update_diesel: { label: 'Diesel editado', color: 'blue', icon: ICON.update },
+  delete_diesel: { label: 'Diesel eliminado', color: 'red', icon: ICON.delete },
+  create_def: { label: 'DEF agregado', color: 'emerald', icon: ICON.create },
+  update_def: { label: 'DEF editado', color: 'blue', icon: ICON.update },
+  delete_def: { label: 'DEF eliminado', color: 'red', icon: ICON.delete },
 }
 
 const COLOR_CLASSES = {
@@ -109,8 +130,48 @@ function EntryDetails({ row }) {
     )
   }
 
+  if (['create_expense', 'update_expense', 'delete_expense'].includes(row.action)) {
+    return (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Categoría:</span> <span className="text-gray-300">{fmtVal(info.category)}</span></div>
+        <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.amount != null ? fmtMoney(info.amount) : '—'}</span></div>
+        <div className="col-span-2"><span className="text-gray-500">Descripción:</span> <span className="text-gray-300">{fmtVal(info.description)}</span></div>
+      </div>
+    )
+  }
+
+  if (['create_diesel', 'update_diesel', 'delete_diesel', 'create_def', 'update_def', 'delete_def'].includes(row.action)) {
+    return (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Invoice #:</span> <span className="text-gray-300">{fmtVal(info.invoice_number)}</span></div>
+        <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.value != null ? fmtMoney(info.value) : '—'}</span></div>
+        <div><span className="text-gray-500">Galones:</span> <span className="text-gray-300">{fmtVal(info.gallons)}</span></div>
+        <div><span className="text-gray-500">Ciudad:</span> <span className="text-gray-300">{fmtVal(info.city)}</span></div>
+      </div>
+    )
+  }
+
+  if (['create_order', 'update_order', 'delete_order'].includes(row.action)) {
+    return (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Camión:</span> <span className="text-gray-300">{fmtVal(info.truck)}</span></div>
+        <div><span className="text-gray-500">Rate:</span> <span className="text-gray-300">{info.rate != null ? fmtMoney(info.rate) : '—'}</span></div>
+        {info.status && <div><span className="text-gray-500">Status:</span> <span className="text-gray-300">{fmtVal(info.status)}</span></div>}
+        {info.dispatcher && <div><span className="text-gray-500">Dispatcher:</span> <span className="text-gray-300">{fmtVal(info.dispatcher)}</span></div>}
+      </div>
+    )
+  }
+
   return null
 }
+
+const HAS_DETAILS_ACTIONS = new Set([
+  'update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle',
+  'create_expense', 'update_expense', 'delete_expense',
+  'create_diesel', 'update_diesel', 'delete_diesel',
+  'create_def', 'update_def', 'delete_def',
+  'create_order', 'update_order', 'delete_order',
+])
 
 export default function Auditoria() {
   const [rows, setRows] = useState([])
@@ -134,11 +195,14 @@ export default function Auditoria() {
 
   useEffect(() => {
     const cId = getActiveCompanyId()
-    let q = supabase.from('audit_log').select('entity_name, user_name, user_email')
+    let q = supabase.from('audit_log').select('entity_type, entity_name, user_name, user_email')
     if (cId) q = q.eq('company_id', cId)
     q.then(({ data }) => {
       const rows = data || []
-      const trucks = [...new Set(rows.map(r => r.entity_name).filter(Boolean))].sort()
+      // "order" entries carry an order number as entity_name, not a truck —
+      // keep the Camión filter to entries that are actually named after a truck.
+      const truckRows = rows.filter(r => r.entity_type !== 'order')
+      const trucks = [...new Set(truckRows.map(r => r.entity_name).filter(Boolean))].sort()
       const users = [...new Set(rows.map(r => r.user_email || r.user_name).filter(Boolean))]
       const userMap = new Map()
       rows.forEach(r => {
@@ -259,7 +323,7 @@ export default function Auditoria() {
                   const colors = COLOR_CLASSES[cfg.color]
                   const time = new Date(row.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
                   const isOpen = expanded === row.id
-                  const hasDetails = ['update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle'].includes(row.action)
+                  const hasDetails = HAS_DETAILS_ACTIONS.has(row.action)
                   const actorLabel = row.user_name || row.user_email || 'Usuario desconocido'
 
                   return (
