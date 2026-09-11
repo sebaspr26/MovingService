@@ -27,8 +27,8 @@ If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
       "contact": "string (contact person name)",
       "phone": "string",
       "email": "string",
-      "mc_number": "string",
-      "dot_number": "string",
+      "mc_number": "string (MC number, look for MC#, MC-XXXXXX, or Motor Carrier number anywhere in the document)",
+      "dot_number": "string (DOT number, look for DOT#, USDOT, or DOT-XXXXXX anywhere in the document)",
       "address": "string"
     },
     "stops": [
@@ -77,6 +77,7 @@ Rules:
 - For rate confirmations, extract ALL stops in order (pickups first, then deliveries). Include location names and appointment times.
 - For stop times: if a stop shows "5:00 AM - 5:00 AM" (same time twice), it's schedule_type "appointment". If it shows "6:00 AM - 12:00 PM" (different times), it's schedule_type "range". Extract both time (start) and time_end (end) in 24h HH:MM format.
 - Only use "type": "order" format for load confirmations or bills of lading
+- IMPORTANT: For rate confirmations, carefully search the ENTIRE document for MC# and DOT# numbers. They are often in the header, footer, or fine print. Look for patterns like "MC-123456", "MC# 123456", "MC:123456", "USDOT 123456", "DOT# 123456", "DOT: 123456". Extract the broker's MC and DOT numbers, not the carrier's.
 - Return ONLY valid JSON, no markdown, no explanation`
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
