@@ -128,19 +128,12 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     if (o?.broker_id) {
       const { data } = await supabase.from('brokers').select('*').eq('id', o.broker_id).single()
       brokerData = data
-      // Auto-fill MC#/DOT# from FMCSA if missing
-      if (data && (!data.mc_number || !data.dot_number)) {
+      // Auto-fill MC#/DOT# from FMCSA if one is known but other missing
+      if (data && ((data.mc_number && !data.dot_number) || (!data.mc_number && data.dot_number))) {
         try {
           let fmcsaMatch = null
-          // Try lookup by existing MC# or DOT# first (more reliable)
-          if (data.mc_number && !fmcsaMatch) fmcsaMatch = await lookupByMc(data.mc_number)
-          if (data.dot_number && !fmcsaMatch) fmcsaMatch = await lookupByDot(data.dot_number)
-          // Fallback to name search
-          if (!fmcsaMatch) {
-            const results = await searchByName(data.name)
-            fmcsaMatch = results.find(r => r.name.toLowerCase() === data.name.toLowerCase()) || results[0]
-          }
-          console.warn('[Invoice FMCSA]', data.name, '→', fmcsaMatch)
+          if (data.mc_number) fmcsaMatch = await lookupByMc(data.mc_number)
+          else if (data.dot_number) fmcsaMatch = await lookupByDot(data.dot_number)
           if (fmcsaMatch) {
             const updates = {}
             if (!data.mc_number && fmcsaMatch.mc_number) updates.mc_number = fmcsaMatch.mc_number
