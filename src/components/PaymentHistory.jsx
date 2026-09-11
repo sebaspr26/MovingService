@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getActiveCompanyId } from '../lib/company'
 import { downloadBase64Pdf } from '../lib/download'
+import { htmlToPdfBase64 } from '../lib/pdf'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 
@@ -112,39 +111,7 @@ export default function PaymentHistory() {
   }
 
   async function generatePDF(html) {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(html, 'text/html')
-    const container = document.createElement('div')
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;background:#f3f4f6;padding:24px;box-sizing:border-box;'
-    container.innerHTML = doc.body.innerHTML
-    document.body.appendChild(container)
-    const imgs = container.querySelectorAll('img')
-    await Promise.all(Array.from(imgs).map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r })))
-    const mainDiv = container.firstElementChild || container
-    const pdf = new jsPDF('p', 'mm', 'letter')
-    const pageW = 215.9, pageH = 279.4, margin = 10
-    const canvas = await html2canvas(mainDiv, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-    const imgW = pageW - margin * 2
-    const imgH = (canvas.height * imgW) / canvas.width
-    const pixPerMM = canvas.height / imgH
-    const maxH = pageH - margin * 2
-    if (imgH <= maxH) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, imgH)
-    } else {
-      let yMM = 0
-      while (yMM < imgH) {
-        if (yMM > 0) pdf.addPage()
-        const sliceH = Math.min(maxH, imgH - yMM)
-        const sy = Math.round(yMM * pixPerMM), sh = Math.round(sliceH * pixPerMM)
-        const pc = document.createElement('canvas')
-        pc.width = canvas.width; pc.height = sh
-        pc.getContext('2d').drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh)
-        pdf.addImage(pc.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceH)
-        yMM += maxH
-      }
-    }
-    document.body.removeChild(container)
-    return pdf.output('datauristring').split(',')[1]
+    return htmlToPdfBase64(html, { containerWidth: 900 })
   }
 
   async function downloadSettlement(payment) {
