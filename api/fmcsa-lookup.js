@@ -37,10 +37,34 @@ export default async function handler(req, res) {
 
     const carrier = data.content?.carrier || data.content?.[0]?.carrier
     if (!carrier) return res.status(200).json({ result: null })
-    return res.status(200).json({ result: parseCarrier(carrier) })
+    const result = parseCarrier(carrier)
+
+    // The base carrier record frequently omits mcNumber. Looking up by DOT,
+    // fetch the docket-numbers endpoint and use the MC-prefixed docket.
+    if (type === 'dot' && !result.mc_number) {
+      const mc = await lookupMcByDot(value)
+      if (mc) result.mc_number = mc
+    }
+
+    return res.status(200).json({ result })
   } catch (err) {
     console.error('[FMCSA proxy]', err)
     return res.status(200).json({ result: null, results: [] })
+  }
+}
+
+async function lookupMcByDot(dotNumber) {
+  try {
+    const url = `${BASE_URL}/carriers/${dotNumber}/docket-numbers?webKey=${FMCSA_KEY}`
+    const response = await fetch(url)
+    if (!response.ok) return ''
+    const data = await response.json()
+    const dockets = data.content || []
+    const mcDocket = dockets.find(d => (d.prefix || '').toUpperCase() === 'MC') || dockets[0]
+    return mcDocket ? String(mcDocket.docketNumber) : ''
+  } catch (err) {
+    console.error('[FMCSA docket-numbers]', err)
+    return ''
   }
 }
 
