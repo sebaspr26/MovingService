@@ -112,7 +112,7 @@ export default function TruckView() {
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
     const useWeekFilter = !!selectedWeek
     const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
-      supabase.from('orders').select('rate, apply_discount, discount_percent, pu_date').eq('truck_id', id)
+      supabase.from('orders').select('rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
         .eq('paid', true)
         .eq('cycle_id', cycle.id),
       supabase.from('orders').select('paid, pu_date').eq('truck_id', id)
@@ -141,19 +141,32 @@ export default function TruckView() {
     const filteredAccounting = weekFilter(accounting.data, 'date')
     // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
     const grossOrders = filteredPaidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+    const isLease = truck?.is_lis
+    // Neto con descuento aplicado (siempre se calcula para mostrar el descuento)
     const netWithDiscount = filteredPaidOrders.reduce((s, r) => {
       const rate = Number(r.rate) || 0
       const applyDisc = r.apply_discount !== false
       const pct = Number(r.discount_percent) || discountPct
       return s + (applyDisc ? rate * (1 - pct / 100) : rate)
     }, 0)
+    // LEASE: crédito es el rate completo; la comisión del conductor es un débito separado
+    const netIncomeCalc = isLease ? grossOrders : netWithDiscount
+    // LEASE: cuando dispatcher_paid=true, la porción del conductor se suma al débito
+    const driverPayout = isLease
+      ? filteredPaidOrders.reduce((s, r) => {
+          if (!r.dispatcher_paid) return s
+          const rate = Number(r.rate) || 0
+          const pct = Number(r.discount_percent) || discountPct
+          return s + rate * (1 - pct / 100)
+        }, 0)
+      : 0
 
     // Discard stale response if a newer fetchSummary was triggered
     if (seq !== summarySeqRef.current) return
 
     setSummary({
       grossOrders,
-      income: netWithDiscount,
+      income: netIncomeCalc,
       discountAmount: grossOrders - netWithDiscount,
       pending: filteredAllOrders.filter(r => !r.paid).length,
       diesel: filteredDiesel.reduce((s, r) => s + (Number(r.value) || 0), 0),
@@ -162,6 +175,7 @@ export default function TruckView() {
       expenses: filteredExpenses.filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
+      driverPayout,
     })
   }
 
@@ -195,7 +209,7 @@ export default function TruckView() {
   const discountAmount = summary.discountAmount || 0
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
-  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito
+  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
 
@@ -444,7 +458,7 @@ export default function TruckView() {
 
           {/* Tab content */}
           <div key={tab} className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5 animate-tab-in">
-            {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} />}
+            {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} isLease={truck?.is_lis} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
             {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} ownerName={truck?.owner_name} />}
