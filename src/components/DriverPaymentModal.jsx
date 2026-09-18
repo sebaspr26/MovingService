@@ -263,14 +263,16 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
         created_by_email: session?.user?.email || null,
         created_by_name: session?.user?.user_metadata?.name || null,
       })
-      if (expError) console.warn('[driver payment -> expenses]', expError)
+      if (expError) toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
+    } else if (!activeCycleId) {
+      toast.warning('El pago se guardo pero no se registro en Gastos: este camion no tiene un ciclo activo.')
     }
 
     // En trucks lease, marca automaticamente el checkbox "pago al conductor" en cada
     // orden incluida — ya no hace falta marcarlo a mano orden por orden
     if (isLease && selectedIds.size > 0) {
       const { error: dpError } = await supabase.from('orders').update({ dispatcher_paid: true }).in('id', [...selectedIds])
-      if (dpError) console.warn('[driver payment -> dispatcher_paid]', dpError)
+      if (dpError) toast.error('El pago se guardo pero no se pudo marcar "pago al conductor" en las ordenes: ' + dpError.message)
     }
 
     toast.success('Pago registrado')

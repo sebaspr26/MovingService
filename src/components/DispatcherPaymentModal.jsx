@@ -231,7 +231,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
     }))
     if (expenseRows.length > 0) {
       const { error: expError } = await supabase.from('expenses').insert(expenseRows)
-      if (expError) console.warn('[dispatcher payment -> expenses]', expError)
+      if (expError) toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
     }
 
     toast.success('Pago registrado correctamente')
