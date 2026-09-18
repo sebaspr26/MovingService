@@ -614,6 +614,8 @@ export default function Dashboard() {
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0)
+  const carryOverAllSelected = carryOverCandidates.length > 0 && carryOverCandidates.every(o => carryOverSelected[o.id])
+  const carryOverSomeSelected = carryOverCandidates.some(o => carryOverSelected[o.id])
 
   const trucksWithCycles = trucks.filter(t => truckCycles[t.id] && !truckCycles[t.id].closed)
 
@@ -940,21 +942,16 @@ export default function Dashboard() {
                 El ciclo anterior de {pendingCarryOverTarget?.truck?.name} tiene {carryOverCandidates.length} orden{carryOverCandidates.length !== 1 ? 'es' : ''} sin pagar. Selecciona cuales pasar al ciclo nuevo para seguir su control (afectaran el balance del ciclo nuevo).
               </p>
             </div>
-            <div className="px-5 py-3 border-b border-gray-800 flex items-center gap-2">
-              <button
-                onClick={() => toggleCarryOverAllDash(true)}
-                className="text-xs text-orange-400 hover:text-orange-300"
-              >
-                Seleccionar todas
-              </button>
-              <span className="text-gray-700">·</span>
-              <button
-                onClick={() => toggleCarryOverAllDash(false)}
-                className="text-xs text-gray-400 hover:text-gray-300"
-              >
-                Ninguna
-              </button>
-            </div>
+            <label className="px-5 py-3 border-b border-gray-800 flex items-center gap-2.5 cursor-pointer hover:bg-gray-800/30">
+              <input
+                type="checkbox"
+                ref={(el) => { if (el) el.indeterminate = carryOverSomeSelected && !carryOverAllSelected }}
+                checked={carryOverAllSelected}
+                onChange={(e) => toggleCarryOverAllDash(e.target.checked)}
+                className="w-4 h-4 accent-orange-600"
+              />
+              <span className="text-xs text-gray-300 font-medium">Seleccionar todas</span>
+            </label>
             <div className="overflow-y-auto flex-1 divide-y divide-gray-800">
               {carryOverCandidates.map(o => (
                 <label key={o.id} className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-800/50">
