@@ -141,25 +141,16 @@ export default function TruckView() {
     const filteredAccounting = weekFilter(accounting.data, 'date')
     // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
     const grossOrders = filteredPaidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
-    const isLease = truck?.is_lis
-    // Neto con descuento aplicado (siempre se calcula para mostrar el descuento)
+    // Neto con descuento aplicado: mismo calculo para todos los truck (lease o no).
+    // El descuento no es un monto que exista aparte para restar despues: si la orden
+    // tiene descuento, el neto ya lo refleja apenas se marca pagada.
     const netWithDiscount = filteredPaidOrders.reduce((s, r) => {
       const rate = Number(r.rate) || 0
       const applyDisc = r.apply_discount !== false
       const pct = Number(r.discount_percent) || discountPct
       return s + (applyDisc ? rate * (1 - pct / 100) : rate)
     }, 0)
-    // LEASE: crédito es el rate completo; la comisión del conductor es un débito separado
-    const netIncomeCalc = isLease ? grossOrders : netWithDiscount
-    // LEASE: cuando dispatcher_paid=true, la porción del conductor se suma al débito
-    const driverPayout = isLease
-      ? filteredPaidOrders.reduce((s, r) => {
-          if (!r.dispatcher_paid) return s
-          const rate = Number(r.rate) || 0
-          const pct = Number(r.discount_percent) || discountPct
-          return s + rate * (1 - pct / 100)
-        }, 0)
-      : 0
+    const netIncomeCalc = netWithDiscount
 
     // Discard stale response if a newer fetchSummary was triggered
     if (seq !== summarySeqRef.current) return
@@ -175,7 +166,6 @@ export default function TruckView() {
       expenses: filteredExpenses.filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
-      driverPayout,
     })
   }
 
@@ -209,7 +199,7 @@ export default function TruckView() {
   const discountAmount = summary.discountAmount || 0
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
-  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)
+  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
 
