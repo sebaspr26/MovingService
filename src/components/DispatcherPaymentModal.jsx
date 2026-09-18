@@ -97,7 +97,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
       })(),
       (() => {
         let q = supabase.from('orders')
-          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id, paid')
+          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id, cycle_id, paid')
           .eq('dispatcher', dispatcherEmail)
           .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
           .order('pu_date', { ascending: false })
@@ -157,7 +157,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
     const periodStart = sorted[0]?.pu_date || today
     const periodEnd = sorted[sorted.length - 1]?.do_date || sorted[sorted.length - 1]?.pu_date || today
 
-    const { error } = await supabase.from('dispatcher_payments').insert({
+    const { data: newPayment, error } = await supabase.from('dispatcher_payments').insert({
       dispatcher_email: dispatcherEmail,
       dispatcher_name: dispatcherName,
       gross_revenue: gross,
@@ -169,9 +169,40 @@ export default function DispatcherPaymentModal({ user, onClose }) {
       order_ids: [...selectedIds],
       payment_number: payments.length + 1,
       company_id: cId,
-    })
+    }).select().single()
 
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
+
+    // Reflejar el pago como gasto en cada truck/ciclo correspondiente — un dispatcher
+    // puede despachar cargas de varios choferes/trucks, no se mezcla en uno solo
+    const byTruckCycle = {}
+    selectedOrders.forEach(o => {
+      if (!o.truck_id || !o.cycle_id) return
+      const key = `${o.truck_id}|${o.cycle_id}`
+      const commission = (Number(o.rate) || 0) * commissionPct / 100
+      if (!byTruckCycle[key]) byTruckCycle[key] = { truck_id: o.truck_id, cycle_id: o.cycle_id, amount: 0 }
+      byTruckCycle[key].amount += commission
+    })
+    const expenseRows = Object.values(byTruckCycle).map(g => ({
+      truck_id: g.truck_id,
+      cycle_id: g.cycle_id,
+      category: 'Pago Dispatcher',
+      invoice_number: `#${newPayment.payment_number}`,
+      description: `Settlement ${dispatcherName} #${newPayment.payment_number}`,
+      amount: g.amount,
+      date: today,
+      period_start: periodStart,
+      period_end: periodEnd,
+      source_payment_type: 'dispatcher',
+      source_payment_id: newPayment.id,
+      created_by_email: session?.user?.email || null,
+      created_by_name: session?.user?.user_metadata?.name || null,
+    }))
+    if (expenseRows.length > 0) {
+      const { error: expError } = await supabase.from('expenses').insert(expenseRows)
+      if (expError) console.warn('[dispatcher payment -> expenses]', expError)
+    }
+
     toast.success('Pago registrado correctamente')
     setShowNew(false)
     setSelectedIds(new Set())
@@ -539,8 +570,9 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                         </button>
                         {canDelete(session) && <button
                           onClick={async () => {
-                            const ok = await toast.confirm('¿Eliminar este pago?')
+                            const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el/los camion(es) correspondiente(s).')
                             if (!ok) return
+                            await supabase.from('expenses').delete().eq('source_payment_id', p.id)
                             await supabase.from('dispatcher_payments').delete().eq('id', p.id)
                             delete htmlCache.current[p.id]
                             await fetchData()

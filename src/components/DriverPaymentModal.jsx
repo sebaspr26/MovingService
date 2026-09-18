@@ -90,6 +90,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   const [previewLoading, setPreviewLoading] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [orderSummaries, setOrderSummaries] = useState({}) // { [paymentId]: orders[] | 'loading' }
+  const [activeCycleId, setActiveCycleId] = useState(null)
   const htmlCache = useRef({})
   const toast = useToast()
 
@@ -114,6 +115,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
         .maybeSingle()
       activeCycleId = cycleData?.id || null
     }
+    setActiveCycleId(activeCycleId)
 
     const [paymentsRes, ordersRes] = await Promise.all([
       (() => {
@@ -192,7 +194,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       periodEnd = sorted[sorted.length - 1]?.do_date || sorted[sorted.length - 1]?.pu_date || today
     }
 
-    const { error } = await supabase.from('driver_payments').insert({
+    const { data: newPayment, error } = await supabase.from('driver_payments').insert({
       driver_id: driver.id,
       driver_name: driverName,
       driver_email: driverEmail || null,
@@ -208,9 +210,31 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       order_ids: [...selectedIds],
       payment_number: payments.length + 1,
       company_id: getActiveCompanyId(),
-    })
+    }).select().single()
 
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
+
+    // Reflejar el pago como gasto en el camion del conductor (categoria Pago Chofer,
+    // ya la reconoce el balance del ciclo como debito separado)
+    if (driver.truck_id && activeCycleId) {
+      const { error: expError } = await supabase.from('expenses').insert({
+        truck_id: driver.truck_id,
+        cycle_id: activeCycleId,
+        category: 'Pago Chofer',
+        invoice_number: `#${newPayment.payment_number}`,
+        description: `Settlement ${driverName} #${newPayment.payment_number}`,
+        amount: payout,
+        date: today,
+        period_start: periodStart,
+        period_end: periodEnd,
+        source_payment_type: 'driver',
+        source_payment_id: newPayment.id,
+        created_by_email: session?.user?.email || null,
+        created_by_name: session?.user?.user_metadata?.name || null,
+      })
+      if (expError) console.warn('[driver payment -> expenses]', expError)
+    }
+
     toast.success('Pago registrado')
     setShowNew(false)
     setSelectedIds(new Set())
@@ -565,8 +589,9 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                           </button>
                           {canDelete(session) && <button
                             onClick={async () => {
-                              const ok = await toast.confirm('¿Eliminar este pago?')
+                              const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el camion correspondiente.')
                               if (!ok) return
+                              await supabase.from('expenses').delete().eq('source_payment_id', p.id)
                               await supabase.from('driver_payments').delete().eq('id', p.id)
                               delete htmlCache.current[p.id]
                               await fetchData()
