@@ -413,6 +413,25 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     }
   }, [brokerId, allBrokers])
 
+  // Autoguarda el MC# a los 500ms de dejar de escribir — sin toast, es implicito.
+  // No compite con el auto-relleno FMCSA: ese solo escribe si mc_number sigue vacio
+  // al momento de resolver (re-chequea contra el estado mas reciente)
+  useEffect(() => {
+    if (!brokerId) return
+    const b = allBrokers.find(x => x.id === brokerId)
+    const trimmed = mcInput.trim()
+    if (trimmed === (b?.mc_number || '')) return
+    const t = setTimeout(async () => {
+      const { error } = await supabase.from('brokers').update({ mc_number: trimmed || null }).eq('id', brokerId)
+      if (!error) {
+        setAllBrokers(prev => prev.map(x => x.id === brokerId ? { ...x, mc_number: trimmed || null } : x))
+      } else {
+        console.warn('[MC# autosave]', error)
+      }
+    }, 500)
+    return () => clearTimeout(t)
+  }, [mcInput, brokerId])
+
   const allBrokersRef = useRef(allBrokers)
   useEffect(() => { allBrokersRef.current = allBrokers }, [allBrokers])
   const mcInputRef = useRef(mcInput)
@@ -1702,7 +1721,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                             value={mcInput}
                             onChange={(e) => { setMcInput(e.target.value); setDirty(true) }}
                             placeholder={mcSearching ? 'Buscando...' : 'Obligatorio'}
-                            title="Requerido para subir RC. Se guarda con el boton Guardar."
+                            title="Requerido para subir RC. Se guarda automaticamente."
                             className={`bg-transparent border-b outline-none px-0.5 text-[11px] flex-1 min-w-0 ${mcInput ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
                           />
                           {mcSearching && !mcInput && (
