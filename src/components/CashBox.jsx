@@ -4,6 +4,7 @@ import { closeCycle, reopenCycle } from '../lib/cycles'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { logAudit } from '../lib/auditLog'
+import DatePicker from './DatePicker'
 
 export default function CashBox({ truckId, truckName, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
   const toast = useToast()
@@ -114,12 +115,7 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
 
           <div className="mb-4">
             <label className="block text-xs text-gray-400 mb-1">Fecha de cierre</label>
-            <input
-              type="date"
-              value={cierreDate}
-              onChange={(e) => setCierreDate(e.target.value)}
-              className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500"
-            />
+            <DatePicker value={cierreDate} onChange={setCierreDate} placeholder="Fecha de cierre" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
