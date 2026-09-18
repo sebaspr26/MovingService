@@ -1014,7 +1014,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               </svg>
             </button>
           )}
-          {!isNew && (status === 'invoiced' || status === 'paid' || (status === 'delivered' && hasPod)) && (
+          {!isNew && (status === 'invoiced' || status === 'paid' || status === 'tonu' || (status === 'delivered' && hasPod)) && (
             <button
               onClick={() => setShowInvoice(true)}
               className="px-2 sm:px-3 py-1.5 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-600/30 transition-colors flex items-center gap-1"
