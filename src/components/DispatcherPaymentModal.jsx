@@ -86,11 +86,13 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
 
   useEffect(() => { fetchData() }, [])
 
-  // Resalta el pago indicado (llegada desde el badge "#N" en Ordenes) por 3s y le hace scroll
-  // una vez que la lista de pagos termina de cargar
+  // Resalta el pago indicado (llegada desde el badge "#N" en Ordenes) por 3s, le hace scroll
+  // y abre su resumen de ordenes automaticamente, una vez que la lista termina de cargar
   useEffect(() => {
-    if (!activeHighlight) return
+    if (!activeHighlight || payments.length === 0) return
     highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const match = payments.find(p => p.payment_number === activeHighlight)
+    if (match && expandedId !== match.id) toggleExpand(match)
   }, [activeHighlight, payments])
 
   useEffect(() => {

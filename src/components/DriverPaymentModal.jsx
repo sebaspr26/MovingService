@@ -103,10 +103,13 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
 
   useEffect(() => { fetchData() }, [])
 
-  // Resalta el pago indicado (llegada desde el badge "#N" en Ordenes) por 3s y le hace scroll
+  // Resalta el pago indicado (llegada desde el badge "#N" en Ordenes) por 3s, le hace scroll
+  // y abre su resumen de ordenes automaticamente
   useEffect(() => {
-    if (!activeHighlight) return
+    if (!activeHighlight || payments.length === 0) return
     highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const match = payments.find(p => p.payment_number === activeHighlight)
+    if (match && expandedId !== match.id) toggleExpand(match)
   }, [activeHighlight, payments])
 
   useEffect(() => {
