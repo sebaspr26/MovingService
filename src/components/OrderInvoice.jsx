@@ -88,6 +88,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
   const [emailToggles, setEmailToggles] = useState({ remit: true, billFrom: true, billTo: true })
+  // Controla que secciones se muestran en el documento del invoice (no afecta los toggles de email arriba)
+  const [sectionVisibility, setSectionVisibility] = useState({ billFrom: true, billTo: true, remitTo: true })
   const [sendingPod, setSendingPod] = useState(false)
   const [showPodEmailConfirm, setShowPodEmailConfirm] = useState(false)
   const [podEmailToggles, setPodEmailToggles] = useState({ broker: true, billFrom: true })
@@ -536,6 +538,27 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
           </div>
         </div>
 
+        {/* Secciones visibles en el documento */}
+        <div className="sticky top-[41px] bg-gray-900/95 border-b border-gray-800 px-4 py-2 flex items-center gap-4 z-10">
+          <span className="text-[10px] text-gray-500 uppercase font-semibold">Mostrar en el invoice:</span>
+          {[
+            { key: 'billFrom', label: 'Bill From' },
+            { key: 'billTo', label: 'Bill To' },
+            { key: 'remitTo', label: 'Remit To' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setSectionVisibility(prev => ({ ...prev, [key]: !prev[key] }))}
+                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${sectionVisibility[key] ? 'bg-emerald-600' : 'bg-gray-700'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${sectionVisibility[key] ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+              <span className={`text-xs ${sectionVisibility[key] ? 'text-gray-300' : 'text-gray-600'}`}>{label}</span>
+            </label>
+          ))}
+        </div>
+
         {/* All printable content */}
         <div ref={printRef}>
           {/* Page 1: Invoice */}
@@ -562,7 +585,9 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
             </div>
 
             {/* Bill From / Bill To / Remit To — single row */}
+            {(sectionVisibility.billFrom || sectionVisibility.billTo || (sectionVisibility.remitTo && remitInfo.remit_name)) && (
             <div style={{ display: 'flex', gap: '12px', marginBottom: '25px' }}>
+              {sectionVisibility.billFrom && (
               <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
                 <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill From</p>
                 <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{billingInfo.billing_name || companyName.toUpperCase()}</p>
@@ -576,6 +601,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                   </p>
                 )}
               </div>
+              )}
+              {sectionVisibility.billTo && (
               <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
                 <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill To</p>
                 {broker ? (
@@ -592,7 +619,8 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                   </>
                 ) : <p style={{ color: '#94a3b8', fontSize: '11px' }}>-</p>}
               </div>
-              {remitInfo.remit_name && (
+              )}
+              {sectionVisibility.remitTo && remitInfo.remit_name && (
                 <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
                   <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remit To</p>
                   <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{remitInfo.remit_name}</p>
@@ -603,6 +631,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                 </div>
               )}
             </div>
+            )}
 
             {/* Line items table */}
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
