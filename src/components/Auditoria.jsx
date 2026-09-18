@@ -66,14 +66,54 @@ function dayLabel(dateObj) {
   return dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+// Muestra el balance del camion y el balance total de la empresa, antes y
+// despues de la accion — solo aparece cuando el registro lo trae (ordenes
+// pagadas, gastos, diesel, DEF; ver lib/balance.js)
+function BalanceChange({ info }) {
+  if (info.balanceBefore == null || info.balanceAfter == null) return null
+  const delta = info.balanceAfter - info.balanceBefore
+  const totalDelta = (info.totalBalanceAfter ?? 0) - (info.totalBalanceBefore ?? 0)
+  const deltaColor = delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-red-400' : 'text-gray-400'
+  const totalDeltaColor = totalDelta > 0 ? 'text-emerald-400' : totalDelta < 0 ? 'text-red-400' : 'text-gray-400'
+  const Arrow = () => (
+    <svg className="w-3 h-3 text-gray-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0-4 4m4-4H3" />
+    </svg>
+  )
+  return (
+    <div className="mt-2.5 pt-2.5 border-t border-gray-800/70 grid grid-cols-2 gap-3 text-xs">
+      <div>
+        <p className="text-gray-600 uppercase text-[9px] font-semibold tracking-wide mb-1">Balance del camión</p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-400">{fmtMoney(info.balanceBefore)}</span>
+          <Arrow />
+          <span className={`font-semibold ${deltaColor}`}>{fmtMoney(info.balanceAfter)}</span>
+        </div>
+      </div>
+      {info.totalBalanceBefore != null && info.totalBalanceAfter != null && (
+        <div>
+          <p className="text-gray-600 uppercase text-[9px] font-semibold tracking-wide mb-1">Balance total (empresa)</p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-400">{fmtMoney(info.totalBalanceBefore)}</span>
+            <Arrow />
+            <span className={`font-semibold ${totalDeltaColor}`}>{fmtMoney(info.totalBalanceAfter)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EntryDetails({ row, dispatcherNames }) {
   const info = row.extra_info || {}
+  let content = null
 
   if (row.action === 'update_truck') {
     const changes = info.changes || {}
     const keys = Object.keys(changes)
-    if (keys.length === 0) return <p className="text-xs text-gray-600">Sin cambios en los campos del camión.</p>
-    return (
+    content = keys.length === 0 ? (
+      <p className="text-xs text-gray-600">Sin cambios en los campos del camión.</p>
+    ) : (
       <div className="space-y-1.5">
         {keys.map(k => (
           <div key={k} className="flex items-center gap-2 text-xs">
@@ -87,10 +127,8 @@ function EntryDetails({ row, dispatcherNames }) {
         ))}
       </div>
     )
-  }
-
-  if (row.action === 'create_truck') {
-    return (
+  } else if (row.action === 'create_truck') {
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <div><span className="text-gray-500">Número:</span> <span className="text-gray-300">{fmtVal(info.number)}</span></div>
         <div><span className="text-gray-500">Descuento:</span> <span className="text-gray-300">{info.discount_percent != null ? `${info.discount_percent}%` : '—'}</span></div>
@@ -100,48 +138,38 @@ function EntryDetails({ row, dispatcherNames }) {
         {info.caja_inicial != null && <div><span className="text-gray-500">Caja inicial:</span> <span className="text-gray-300">{fmtMoney(info.caja_inicial)}</span></div>}
       </div>
     )
-  }
-
-  if (row.action === 'delete_truck') {
-    return (
+  } else if (row.action === 'delete_truck') {
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <div><span className="text-gray-500">Número:</span> <span className="text-gray-300">{fmtVal(info.truck_number)}</span></div>
         <div><span className="text-gray-500">Descuento:</span> <span className="text-gray-300">{info.truck_discount != null ? `${info.truck_discount}%` : '—'}</span></div>
         {info.is_lis && <div><span className="text-gray-500">Propietario:</span> <span className="text-gray-300">{fmtVal(info.owner_name)}</span></div>}
       </div>
     )
-  }
-
-  if (row.action === 'open_cycle') {
-    return (
+  } else if (row.action === 'open_cycle') {
+    content = (
       <div className="flex gap-4 text-xs">
         <div><span className="text-gray-500">Fecha inicio:</span> <span className="text-gray-300">{info.start_date || '—'}</span></div>
         <div><span className="text-gray-500">Saldo anterior:</span> <span className="text-gray-300">{info.previous_balance != null ? fmtMoney(info.previous_balance) : '—'}</span></div>
       </div>
     )
-  }
-
-  if (row.action === 'close_cycle') {
-    return (
+  } else if (row.action === 'close_cycle') {
+    content = (
       <div className="flex gap-4 text-xs">
         <div><span className="text-gray-500">Fecha cierre:</span> <span className="text-gray-300">{info.close_date || '—'}</span></div>
         <div><span className="text-gray-500">Cuadre caja:</span> <span className="text-gray-300">{info.cuadre_caja != null ? fmtMoney(info.cuadre_caja) : '—'}</span></div>
       </div>
     )
-  }
-
-  if (['create_expense', 'update_expense', 'delete_expense'].includes(row.action)) {
-    return (
+  } else if (['create_expense', 'update_expense', 'delete_expense'].includes(row.action)) {
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <div><span className="text-gray-500">Categoría:</span> <span className="text-gray-300">{fmtVal(info.category)}</span></div>
         <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.amount != null ? fmtMoney(info.amount) : '—'}</span></div>
         <div className="col-span-2"><span className="text-gray-500">Descripción:</span> <span className="text-gray-300">{fmtVal(info.description)}</span></div>
       </div>
     )
-  }
-
-  if (['create_diesel', 'update_diesel', 'delete_diesel', 'create_def', 'update_def', 'delete_def'].includes(row.action)) {
-    return (
+  } else if (['create_diesel', 'update_diesel', 'delete_diesel', 'create_def', 'update_def', 'delete_def'].includes(row.action)) {
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <div><span className="text-gray-500">Invoice #:</span> <span className="text-gray-300">{fmtVal(info.invoice_number)}</span></div>
         <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.value != null ? fmtMoney(info.value) : '—'}</span></div>
@@ -149,10 +177,8 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Ciudad:</span> <span className="text-gray-300">{fmtVal(info.city)}</span></div>
       </div>
     )
-  }
-
-  if (['create_order', 'update_order', 'delete_order'].includes(row.action)) {
-    return (
+  } else if (['create_order', 'update_order', 'delete_order'].includes(row.action)) {
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <div><span className="text-gray-500">Camión:</span> <span className="text-gray-300">{fmtVal(info.truck)}</span></div>
         <div><span className="text-gray-500">Rate:</span> <span className="text-gray-300">{info.rate != null ? fmtMoney(info.rate) : '—'}</span></div>
@@ -162,7 +188,14 @@ function EntryDetails({ row, dispatcherNames }) {
     )
   }
 
-  return null
+  if (!content && info.balanceBefore == null) return null
+
+  return (
+    <>
+      {content}
+      <BalanceChange info={info} />
+    </>
+  )
 }
 
 const HAS_DETAILS_ACTIONS = new Set([

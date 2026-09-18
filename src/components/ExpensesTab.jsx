@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { logAudit } from '../lib/auditLog'
+import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import AddReceiptModal from './AddReceiptModal'
 
 
@@ -113,15 +113,19 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
     const typeLabel = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'DEF' : row._type === 'chofer' ? 'pago chofer' : 'gasto'
     const ok = await toast.confirm(`Eliminar este registro de ${typeLabel}?`)
     if (!ok) return
+    const balanceBefore = await computeTruckBalance(truckId, cycle?.id)
     const table = (row._type === 'expense' || row._type === 'chofer') ? 'expenses' : row._type
     const { error } = await supabase.from(table).delete().eq('id', row.id)
     if (error) { toast.error(friendlyError(error.message)); return }
     const actionType = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'def' : 'expense'
-    logAudit(session, {
+    logBalanceChange(session, {
       action: `delete_${actionType}`,
       entityType: actionType,
       entityId: row.id,
       entityName: truckName,
+      truckId,
+      cycleId: cycle?.id,
+      balanceBefore,
       extraInfo: { amount: row._amount, description: row._desc, category: row.category || null },
     })
     fetchAll()

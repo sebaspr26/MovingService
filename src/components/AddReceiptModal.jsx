@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { logAudit } from '../lib/auditLog'
+import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -167,6 +167,8 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
     const tid = effectiveTruckId
     const pStart = effectivePeriod.start
     const pEnd = effectivePeriod.end
+    // Todo gasto/diesel/DEF afecta el balance del ciclo — se captura antes de escribir
+    const balanceBefore = await computeTruckBalance(tid, effectiveCycleId)
 
     try {
       if (editRow) {
@@ -201,11 +203,14 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
         const { error } = await supabase.from(table).update(record).eq('id', editRow.id)
         if (error) throw error
         const actionType = editRow._type === 'diesel' ? 'diesel' : editRow._type === 'def' ? 'def' : 'expense'
-        logAudit(session, {
+        logBalanceChange(session, {
           action: `update_${actionType}`,
           entityType: actionType,
           entityId: editRow.id,
           entityName: effectiveTruckName,
+          truckId: tid,
+          cycleId: effectiveCycleId,
+          balanceBefore,
           extraInfo: actionType === 'expense'
             ? { category: record.category, description: record.description, amount: record.amount }
             : { invoice_number: record.invoice_number, gallons: record.gallons, value: record.value, city: record.city },
@@ -240,11 +245,14 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
               period_end: pEnd,
             }).select().single()
             if (error) throw error
-            logAudit(session, {
+            logBalanceChange(session, {
               action: `create_${line.type}`,
               entityType: line.type,
               entityId: saved?.id,
               entityName: effectiveTruckName,
+              truckId: tid,
+              cycleId: effectiveCycleId,
+              balanceBefore,
               extraInfo: { invoice_number: invoice || null, gallons: Number(line.gallons) || 0, value: Number(line.value) || 0, city },
             })
           } else {
@@ -263,11 +271,14 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
               created_by_name: session?.user?.user_metadata?.name || null,
             }).select().single()
             if (error) throw error
-            logAudit(session, {
+            logBalanceChange(session, {
               action: 'create_expense',
               entityType: 'expense',
               entityId: saved?.id,
               entityName: effectiveTruckName,
+              truckId: tid,
+              cycleId: effectiveCycleId,
+              balanceBefore,
               extraInfo: { category, description: line.description, amount: Number(line.amount) || 0 },
             })
           }

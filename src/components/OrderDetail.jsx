@@ -12,6 +12,7 @@ import { lookupByMc, lookupByDot, searchByName, findBestMatchByName } from '../l
 import { useToast, friendlyError } from './Toast'
 import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import { logAudit } from '../lib/auditLog'
+import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
@@ -864,6 +865,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         paid: status === 'paid',
       }
 
+      // Solo las ordenes pagadas afectan el balance del ciclo (via orderNet en el
+      // credito) — el snapshot antes/despues solo tiene sentido para esas
+      const affectsBalance = record.paid && record.truck_id && record.cycle_id
+      const balanceBefore = affectsBalance ? await computeTruckBalance(record.truck_id, record.cycle_id) : null
+
       let orderId = id
       if (isNew) {
         const truck = trucks.find(t => t.id === truckId)
@@ -882,23 +888,27 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         const { data, error } = await supabase.from('orders').insert(record).select().single()
         if (error) throw error
         orderId = data.id
-        logAudit(session, {
-          action: 'create_order',
-          entityType: 'order',
-          entityId: orderId,
-          entityName: record.order_number,
-          extraInfo: { truck: truck?.name || null, rate: record.rate, status: record.status, dispatcher: record.dispatcher },
-        })
+        const auditInfo = { truck: truck?.name || null, rate: record.rate, status: record.status, dispatcher: record.dispatcher }
+        if (affectsBalance) {
+          logBalanceChange(session, {
+            action: 'create_order', entityType: 'order', entityId: orderId, entityName: record.order_number,
+            truckId: record.truck_id, cycleId: record.cycle_id, balanceBefore, extraInfo: auditInfo,
+          })
+        } else {
+          logAudit(session, { action: 'create_order', entityType: 'order', entityId: orderId, entityName: record.order_number, extraInfo: auditInfo })
+        }
       } else {
         const { error } = await supabase.from('orders').update(record).eq('id', id)
         if (error) throw error
-        logAudit(session, {
-          action: 'update_order',
-          entityType: 'order',
-          entityId: id,
-          entityName: record.order_number,
-          extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status },
-        })
+        const auditInfo = { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status }
+        if (affectsBalance) {
+          logBalanceChange(session, {
+            action: 'update_order', entityType: 'order', entityId: id, entityName: record.order_number,
+            truckId: record.truck_id, cycleId: record.cycle_id, balanceBefore, extraInfo: auditInfo,
+          })
+        } else {
+          logAudit(session, { action: 'update_order', entityType: 'order', entityId: id, entityName: record.order_number, extraInfo: auditInfo })
+        }
       }
 
       // Save stops
@@ -948,15 +958,19 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   async function handleDelete() {
     const ok = await toast.confirm('¿Eliminar esta orden? Esta accion no se puede deshacer.')
     if (!ok) return
+    const affectsBalance = status === 'paid' && truckId && cycleId
+    const balanceBefore = affectsBalance ? await computeTruckBalance(truckId, cycleId) : null
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
-    logAudit(session, {
-      action: 'delete_order',
-      entityType: 'order',
-      entityId: id,
-      entityName: orderNumber.trim() || null,
-      extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: rate !== '' ? Number(rate) : null },
-    })
+    const auditInfo = { truck: trucks.find(t => t.id === truckId)?.name || null, rate: rate !== '' ? Number(rate) : null }
+    if (affectsBalance) {
+      logBalanceChange(session, {
+        action: 'delete_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null,
+        truckId, cycleId, balanceBefore, extraInfo: auditInfo,
+      })
+    } else {
+      logAudit(session, { action: 'delete_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null, extraInfo: auditInfo })
+    }
     toast.success('Orden eliminada')
     isDrawer ? onClose?.() : navigate('/orders')
     if (isDrawer) onSaved?.()
