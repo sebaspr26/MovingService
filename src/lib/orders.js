@@ -82,14 +82,20 @@ export function orderNet(order, fallbackPct) {
 }
 
 // Debit to subtract from a lease truck's balance for orders whose driver payment was
-// registered (dispatcher_paid checkbox). Only applies when the driver's pay mode is
-// 'percentage': the driver keeps (100 - pay_rate)% of the RAW rate — this is
-// independent of the order's own discount_percent/apply_discount (that one only
-// affects the credit side via orderNet, it does not chain into this formula)
-export function leaseDriverDebit(orders, driver) {
+// registered (dispatcher_paid checkbox) but that did NOT already go through a recorded
+// driver_payments settlement. Only applies when the driver's pay mode is 'percentage':
+// the driver keeps (100 - pay_rate)% of the RAW rate — this is independent of the
+// order's own discount_percent/apply_discount (that one only affects the credit side
+// via orderNet, it does not chain into this formula).
+// `paidViaSettlementIds` (Set of order ids) excludes orders whose driver cut is ALREADY
+// counted as a real "Pago Chofer" expense row (created when the payment was registered
+// via DriverPaymentModal) — otherwise that same amount gets debited twice: once here,
+// once as the expense. Orders checked manually in OrdersTable without a formal
+// settlement have no matching expense, so they still need this formula-driven debit.
+export function leaseDriverDebit(orders, driver, paidViaSettlementIds) {
   if (!driver || driver.pay_mode !== 'percentage') return 0
   const driverPct = Number(driver.pay_rate) || 0
   return orders
-    .filter(o => o.dispatcher_paid)
+    .filter(o => o.dispatcher_paid && !paidViaSettlementIds?.has(o.id))
     .reduce((s, o) => s + (Number(o.rate) || 0) * (1 - driverPct / 100), 0)
 }

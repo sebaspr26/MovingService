@@ -119,8 +119,8 @@ export default function TruckView() {
     const seq = ++summarySeqRef.current
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
     const useWeekFilter = !!activeWeek
-    const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver] = await Promise.all([
-      supabase.from('orders').select('rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
+    const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver, driverPayments] = await Promise.all([
+      supabase.from('orders').select('id, rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
         .eq('paid', true)
         .eq('cycle_id', cycle.id),
       supabase.from('orders').select('paid, pu_date, carried_over').eq('truck_id', id)
@@ -135,6 +135,7 @@ export default function TruckView() {
         .eq('cycle_id', cycle.id),
       supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', id)
         .eq('status', 'active').limit(1).maybeSingle(),
+      supabase.from('driver_payments').select('order_ids').eq('truck_id', id),
     ])
 
     // Sub-filter by week dates if a week is selected
@@ -162,9 +163,12 @@ export default function TruckView() {
     }, 0)
     const netIncomeCalc = netWithDiscount
     // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
-    // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
+    // la parte que le corresponde al conductor (neto de la orden menos su % de comision).
+    // Excluye ordenes ya cubiertas por un pago registrado (driver_payments) — esas ya
+    // se debitan via el gasto "Pago Chofer" en Gastos, para no restar dos veces
+    const settledOrderIds = new Set((driverPayments.data || []).flatMap(p => p.order_ids || []))
     const driverPayout = truck?.is_lis
-      ? leaseDriverDebit(filteredPaidOrders, leaseDriver.data)
+      ? leaseDriverDebit(filteredPaidOrders, leaseDriver.data, settledOrderIds)
       : 0
 
     // Discard stale response if a newer fetchSummary was triggered

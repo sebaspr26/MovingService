@@ -202,8 +202,8 @@ export default function Dashboard() {
         return { truckId: truck.id, cycle: null, summary: { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 } }
       }
 
-      const [orders, diesel, def, expenses, accounting, leaseDriver] = await Promise.all([
-        supabase.from('orders').select('rate, paid, apply_discount, discount_percent, dispatcher_paid').eq('truck_id', truck.id)
+      const [orders, diesel, def, expenses, accounting, leaseDriver, driverPayments] = await Promise.all([
+        supabase.from('orders').select('id, rate, paid, apply_discount, discount_percent, dispatcher_paid').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
         supabase.from('diesel').select('value').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
@@ -215,6 +215,7 @@ export default function Dashboard() {
           .eq('cycle_id', displayCycle.id),
         supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', truck.id)
           .eq('status', 'active').limit(1).maybeSingle(),
+        supabase.from('driver_payments').select('order_ids').eq('truck_id', truck.id),
       ])
 
       const allOrders = orders.data || []
@@ -238,9 +239,12 @@ export default function Dashboard() {
       const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
       const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
       // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
-      // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
+      // la parte que le corresponde al conductor (neto de la orden menos su % de comision).
+      // Excluye ordenes ya cubiertas por un pago registrado (driver_payments) — esas ya
+      // se debitan via el gasto "Pago Chofer" en Gastos, para no restar dos veces
+      const settledOrderIds = new Set((driverPayments.data || []).flatMap(p => p.order_ids || []))
       const driverPayout = truck.is_lis
-        ? leaseDriverDebit(paidOrders, leaseDriver.data)
+        ? leaseDriverDebit(paidOrders, leaseDriver.data, settledOrderIds)
         : 0
 
       const previousBalance = Number(displayCycle.previous_balance) || 0
