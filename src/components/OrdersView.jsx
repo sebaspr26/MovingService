@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
@@ -76,15 +76,35 @@ const TABS = [
 function StatusSelect({ row, onChange, disabled }) {
   const [open, setOpen] = useState(false)
   const [rect, setRect] = useState(null)
+  const [pos, setPos] = useState(null) // {left, top?, bottom?} — null until measured
   const btnRef = useRef(null)
+  const panelRef = useRef(null)
   const st = STATUS_CONFIG[row.status] || STATUS_CONFIG.booked
 
   function handleOpen(e) {
     e.stopPropagation()
     if (disabled) return
     setRect(btnRef.current?.getBoundingClientRect())
+    setPos(null)
     setOpen(true)
   }
+
+  // Mide el panel ya renderizado (oculto) y decide si abrir hacia abajo o hacia
+  // arriba, y si hay que recortar por la izquierda/derecha — antes de mostrarlo,
+  // para que nunca se corte con el borde de la pantalla
+  useLayoutEffect(() => {
+    if (!open || !rect || !panelRef.current) return
+    const margin = 8
+    const panelH = panelRef.current.offsetHeight
+    const panelW = panelRef.current.offsetWidth
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openUp = spaceBelow < panelH + margin && rect.top > panelH + margin
+    const left = Math.min(Math.max(rect.left, margin), window.innerWidth - panelW - margin)
+    setPos({
+      left,
+      ...(openUp ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+    })
+  }, [open, rect])
 
   function handleSelect(status) {
     onChange(row.id, status)
@@ -106,8 +126,13 @@ function StatusSelect({ row, onChange, disabled }) {
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 min-w-[170px]"
-            style={{ top: rect.bottom + 4, left: rect.left }}
+            ref={panelRef}
+            className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl py-1 min-w-[170px] max-h-[80vh] overflow-y-auto"
+            style={{
+              left: pos?.left ?? rect.left,
+              ...(pos ? (pos.top != null ? { top: pos.top } : { bottom: pos.bottom }) : { top: rect.bottom + 4 }),
+              visibility: pos ? 'visible' : 'hidden',
+            }}
           >
             {ALL_STATUSES.map(s => {
               const sc = STATUS_CONFIG[s]
