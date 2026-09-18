@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } from '../lib/company'
 import { searchByName, lookupByMc, lookupByDot } from '../lib/fmcsa'
+import { downloadBase64Pdf } from '../lib/download'
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -94,6 +95,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const [showPodEmailConfirm, setShowPodEmailConfirm] = useState(false)
   const [podEmailToggles, setPodEmailToggles] = useState({ broker: true, billFrom: true })
   const [regenerating, setRegenerating] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [companySettings, setCompanySettings] = useState(null)
   const toast = useToast()
   const printRef = useRef()
@@ -470,6 +472,18 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     imgs.forEach(img => { if (img.complete) onLoad(); else { img.onload = onLoad; img.onerror = onLoad } })
   }
 
+  async function handleDownload() {
+    setDownloading(true)
+    try {
+      const pdfBase64 = await generatePDF()
+      downloadBase64Pdf(pdfBase64, `Invoice-${order?.order_number || 'orden'}.pdf`)
+    } catch (err) {
+      toast.error('No se pudo generar el PDF: ' + (err.message || err))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
@@ -541,6 +555,23 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m0 0a48.159 48.159 0 0 1 12.5 0m-12.5 0v-2.134c0-1.399.562-2.78 1.655-3.655C7.956 2.61 9.37 2 12 2c2.63 0 4.044.61 5.095 1.444A4.867 4.867 0 0 1 18.75 7.09" />
               </svg>
               Imprimir / PDF
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="px-3 py-1.5 bg-gray-700 text-gray-200 rounded-lg text-xs font-medium hover:bg-gray-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {downloading ? (
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              )}
+              {downloading ? 'Generando...' : 'Descargar'}
             </button>
             <button onClick={onClose} className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs hover:text-white transition-colors">
               Cerrar
