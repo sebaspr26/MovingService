@@ -66,7 +66,7 @@ function dayLabel(dateObj) {
   return dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function EntryDetails({ row }) {
+function EntryDetails({ row, dispatcherNames }) {
   const info = row.extra_info || {}
 
   if (row.action === 'update_truck') {
@@ -157,7 +157,7 @@ function EntryDetails({ row }) {
         <div><span className="text-gray-500">Camión:</span> <span className="text-gray-300">{fmtVal(info.truck)}</span></div>
         <div><span className="text-gray-500">Rate:</span> <span className="text-gray-300">{info.rate != null ? fmtMoney(info.rate) : '—'}</span></div>
         {info.status && <div><span className="text-gray-500">Status:</span> <span className="text-gray-300">{fmtVal(info.status)}</span></div>}
-        {info.dispatcher && <div><span className="text-gray-500">Dispatcher:</span> <span className="text-gray-300">{fmtVal(info.dispatcher)}</span></div>}
+        {info.dispatcher && <div><span className="text-gray-500">Dispatcher:</span> <span className="text-gray-300">{dispatcherNames[info.dispatcher] || fmtVal(info.dispatcher)}</span></div>}
       </div>
     )
   }
@@ -183,6 +183,19 @@ export default function Auditoria() {
   // Filter option pools (derived from all rows, independent of current filters/pagination)
   const [truckOptions, setTruckOptions] = useState([])
   const [userOptions, setUserOptions] = useState([])
+
+  // Email -> name map (Auth users), to resolve dispatcher emails stored in extra_info
+  const [dispatcherNames, setDispatcherNames] = useState({})
+  useEffect(() => {
+    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
+      .then(r => r.json())
+      .then(data => {
+        const map = {}
+        ;(data.users || []).forEach(u => { map[u.email] = u.user_metadata?.name || u.email })
+        setDispatcherNames(map)
+      })
+      .catch(() => {})
+  }, [])
 
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -342,7 +355,7 @@ export default function Auditoria() {
                       </div>
                       {hasDetails && (
                         <div className="border-t border-gray-800 px-4 py-3 bg-gray-900/50">
-                          <EntryDetails row={row} />
+                          <EntryDetails row={row} dispatcherNames={dispatcherNames} />
                         </div>
                       )}
                     </div>
