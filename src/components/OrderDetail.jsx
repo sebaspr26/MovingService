@@ -1642,7 +1642,20 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     <div>
                       <p className="text-sm font-medium text-white">{selectedBroker.name}</p>
                       <div className="mt-1 space-y-0.5 text-[11px] text-gray-400">
-                        {selectedBroker.mc_number && <div>MC# <span className="text-gray-300">{selectedBroker.mc_number}</span></div>}
+                        <div className="flex items-center gap-1">
+                          <span>MC#</span>
+                          <input
+                            type="text"
+                            value={selectedBroker.mc_number || ''}
+                            onChange={(e) => setAllBrokers(prev => prev.map(x => x.id === brokerId ? { ...x, mc_number: e.target.value } : x))}
+                            onBlur={(e) => {
+                              const trimmed = e.target.value.trim()
+                              supabase.from('brokers').update({ mc_number: trimmed || null }).eq('id', brokerId)
+                            }}
+                            placeholder="Requerido para subir RC"
+                            className={`bg-transparent border-b outline-none px-0.5 text-[11px] w-40 ${selectedBroker.mc_number ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
+                          />
+                        </div>
                         {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
                         {selectedBroker.phone && <div>Tel: <span className="text-gray-300">{selectedBroker.phone}</span></div>}
                       </div>
@@ -1841,7 +1854,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           )}
 
           {/* Documents panel — existing orders */}
-          {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} />}
+          {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} mcNumber={(selectedBroker?.mc_number || newBroker.mc_number || '').trim()} />}
 
           {/* RC upload + preview — new orders */}
           {isNew && (

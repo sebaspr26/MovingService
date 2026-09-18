@@ -45,7 +45,7 @@ const DOC_TYPES = [
   { key: 'POD', label: 'POD', full: 'Proof of Delivery', color: 'text-orange-400 bg-orange-900/40 border-orange-700/50' },
 ]
 
-export default function OrderDocuments({ orderId, onDocsChange }) {
+export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
   const toast = useToast()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +80,10 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
 
   async function handleUpload(file, docType) {
     if (!file) return
+    if (docType === 'RC' && !mcNumber) {
+      toast.warning('Ingresa el MC# del broker antes de subir el RC')
+      return
+    }
     setUploading(docType)
     try {
       const ext = file.name.split('.').pop()
@@ -149,6 +153,7 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
     const ref = fileRefs[type.key]
     const isUploading = uploading === type.key
     const isDragging = draggingType === type.key
+    const rcLocked = type.key === 'RC' && !mcNumber
 
     return (
       <div
@@ -168,14 +173,20 @@ export default function OrderDocuments({ orderId, onDocsChange }) {
             {typeDocs.length > 0 && (
               <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{typeDocs.length}</span>
             )}
+            {rcLocked && (
+              <span className="text-[9px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">Falta MC#</span>
+            )}
           </div>
           <button
-            onClick={() => ref.current?.click()}
-            disabled={isUploading}
+            onClick={() => { if (rcLocked) { toast.warning('Ingresa el MC# del broker antes de subir el RC'); return } ref.current?.click() }}
+            disabled={isUploading || rcLocked}
+            title={rcLocked ? 'Ingresa el MC# del broker antes de subir el RC' : undefined}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors border ${
-              isDragging
-                ? 'border-orange-500 bg-orange-600/20 text-blue-300'
-                : `${type.color} hover:opacity-80`
+              rcLocked
+                ? 'border-gray-800 text-gray-600 cursor-not-allowed'
+                : isDragging
+                  ? 'border-orange-500 bg-orange-600/20 text-blue-300'
+                  : `${type.color} hover:opacity-80`
             }`}
           >
             {isUploading ? (
