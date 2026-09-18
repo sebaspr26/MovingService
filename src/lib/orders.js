@@ -72,3 +72,22 @@ export async function autoAdvanceStatuses(orders, supabase) {
 
   return updated
 }
+
+// Net value of an order after its own discount (respects apply_discount/discount_percent per order)
+export function orderNet(order, fallbackPct) {
+  const rate = Number(order.rate) || 0
+  const applyDisc = order.apply_discount !== false
+  const pct = Number(order.discount_percent) || fallbackPct
+  return applyDisc ? rate * (1 - pct / 100) : rate
+}
+
+// Debit to subtract from a lease truck's balance for orders whose driver payment was
+// registered (dispatcher_paid checkbox). Only applies when the driver's pay mode is
+// 'percentage': the driver keeps (100 - pay_rate)% of the order's own net.
+export function leaseDriverDebit(orders, driver, fallbackPct) {
+  if (!driver || driver.pay_mode !== 'percentage') return 0
+  const driverPct = Number(driver.pay_rate) || 0
+  return orders
+    .filter(o => o.dispatcher_paid)
+    .reduce((s, o) => s + orderNet(o, fallbackPct) * (1 - driverPct / 100), 0)
+}

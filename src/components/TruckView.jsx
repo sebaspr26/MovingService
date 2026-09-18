@@ -5,6 +5,7 @@ import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedC
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { logAudit } from '../lib/auditLog'
+import { leaseDriverDebit } from '../lib/orders'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
@@ -111,7 +112,7 @@ export default function TruckView() {
     const seq = ++summarySeqRef.current
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
     const useWeekFilter = !!selectedWeek
-    const [paidOrders, allOrders, diesel, def, expenses, accounting] = await Promise.all([
+    const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver] = await Promise.all([
       supabase.from('orders').select('rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
         .eq('paid', true)
         .eq('cycle_id', cycle.id),
@@ -125,6 +126,8 @@ export default function TruckView() {
         .eq('cycle_id', cycle.id),
       supabase.from('accounting').select('debit, credit, date').eq('truck_id', id)
         .eq('cycle_id', cycle.id),
+      supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', id)
+        .eq('status', 'active').limit(1).maybeSingle(),
     ])
 
     // Sub-filter by week dates if a week is selected
@@ -151,6 +154,11 @@ export default function TruckView() {
       return s + (applyDisc ? rate * (1 - pct / 100) : rate)
     }, 0)
     const netIncomeCalc = netWithDiscount
+    // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
+    // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
+    const driverPayout = truck?.is_lis
+      ? leaseDriverDebit(filteredPaidOrders, leaseDriver.data, discountPct)
+      : 0
 
     // Discard stale response if a newer fetchSummary was triggered
     if (seq !== summarySeqRef.current) return
@@ -166,6 +174,7 @@ export default function TruckView() {
       expenses: filteredExpenses.filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
       debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
+      driverPayout,
     })
   }
 
@@ -199,7 +208,7 @@ export default function TruckView() {
   const discountAmount = summary.discountAmount || 0
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
-  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito
+  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
 

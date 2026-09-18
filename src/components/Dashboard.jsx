@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
 import { logAudit, diffFields } from '../lib/auditLog'
+import { leaseDriverDebit } from '../lib/orders'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -197,7 +198,7 @@ export default function Dashboard() {
         return { truckId: truck.id, cycle: null, summary: { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 } }
       }
 
-      const [orders, diesel, def, expenses, accounting] = await Promise.all([
+      const [orders, diesel, def, expenses, accounting, leaseDriver] = await Promise.all([
         supabase.from('orders').select('rate, paid, apply_discount, discount_percent, dispatcher_paid').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
         supabase.from('diesel').select('value').eq('truck_id', truck.id)
@@ -208,6 +209,8 @@ export default function Dashboard() {
           .eq('cycle_id', displayCycle.id),
         supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
           .eq('cycle_id', displayCycle.id),
+        supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', truck.id)
+          .eq('status', 'active').limit(1).maybeSingle(),
       ])
 
       const allOrders = orders.data || []
@@ -230,9 +233,14 @@ export default function Dashboard() {
       const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
       const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
       const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
+      // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
+      // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
+      const driverPayout = truck.is_lis
+        ? leaseDriverDebit(paidOrders, leaseDriver.data, truckDiscountPct)
+        : 0
 
       const previousBalance = Number(displayCycle.previous_balance) || 0
-      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit
+      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout
       const totalCredito = previousBalance + netIncome + acctCredit
       const balance = totalCredito - totalDebito
 
