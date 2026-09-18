@@ -64,6 +64,10 @@ export default function Dashboard() {
 
   const [openCycleTarget, setOpenCycleTarget] = useState(null)
   const [openCycleDate, setOpenCycleDate] = useState(new Date().toISOString().split('T')[0])
+  const [carryOverCandidates, setCarryOverCandidates] = useState([])
+  const [carryOverSelected, setCarryOverSelected] = useState({})
+  const [showCarryOverModal, setShowCarryOverModal] = useState(false)
+  const [pendingCarryOverTarget, setPendingCarryOverTarget] = useState(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -545,17 +549,58 @@ export default function Dashboard() {
     if (!openCycleTarget) return
     const lastClosed = await getLatestClosedCycle(openCycleTarget.id)
     const prevBalance = lastClosed ? Number(lastClosed.cuadre_caja) || 0 : 0
-    await openCycle(openCycleTarget.id, openCycleDate, prevBalance)
+
+    if (lastClosed) {
+      const { data: unpaid } = await supabase.from('orders')
+        .select('id, order_number, pu_date, pu_city, do_city, rate')
+        .eq('cycle_id', lastClosed.id)
+        .eq('paid', false)
+        .order('pu_date')
+      if (unpaid && unpaid.length > 0) {
+        setCarryOverCandidates(unpaid)
+        setCarryOverSelected(Object.fromEntries(unpaid.map(o => [o.id, true])))
+        setPendingCarryOverTarget({ truck: openCycleTarget, date: openCycleDate, prevBalance })
+        setShowCarryOverModal(true)
+        return
+      }
+    }
+
+    await createCycleForTruckWithCarryOver(openCycleTarget, openCycleDate, prevBalance, [])
+  }
+
+  async function createCycleForTruckWithCarryOver(truck, date, prevBalance, carryOverIds) {
+    const newCycle = await openCycle(truck.id, date, prevBalance)
+    if (carryOverIds.length > 0) {
+      await supabase.from('orders').update({ cycle_id: newCycle.id, carried_over: true }).in('id', carryOverIds)
+    }
     logAudit(session, {
       action: 'open_cycle',
       entityType: 'cycle',
-      entityId: openCycleTarget.id,
-      entityName: openCycleTarget.name,
-      extraInfo: { start_date: openCycleDate, previous_balance: prevBalance },
+      entityId: truck.id,
+      entityName: truck.name,
+      extraInfo: { start_date: date, previous_balance: prevBalance, carried_over_orders: carryOverIds.length },
     })
     setOpenCycleTarget(null)
+    setShowCarryOverModal(false)
+    setCarryOverCandidates([])
+    setPendingCarryOverTarget(null)
     toast.success('Nuevo ciclo abierto')
     await fetchTrucks()
+  }
+
+  function handleConfirmCarryOver() {
+    if (!pendingCarryOverTarget) return
+    const ids = Object.entries(carryOverSelected).filter(([, v]) => v).map(([k]) => k)
+    createCycleForTruckWithCarryOver(pendingCarryOverTarget.truck, pendingCarryOverTarget.date, pendingCarryOverTarget.prevBalance, ids)
+  }
+
+  function handleSkipCarryOver() {
+    if (!pendingCarryOverTarget) return
+    createCycleForTruckWithCarryOver(pendingCarryOverTarget.truck, pendingCarryOverTarget.date, pendingCarryOverTarget.prevBalance, [])
+  }
+
+  function toggleCarryOverAllDash(checked) {
+    setCarryOverSelected(Object.fromEntries(carryOverCandidates.map(o => [o.id, checked])))
   }
 
   function openOrderDrawer() {
@@ -882,6 +927,66 @@ export default function Dashboard() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Carry-over unpaid orders to new cycle */}
+      {showCarryOverModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-800">
+              <h3 className="text-lg font-semibold text-white">Ordenes sin pagar</h3>
+              <p className="text-sm text-gray-400 mt-2">
+                El ciclo anterior de {pendingCarryOverTarget?.truck?.name} tiene {carryOverCandidates.length} orden{carryOverCandidates.length !== 1 ? 'es' : ''} sin pagar. Selecciona cuales pasar al ciclo nuevo para seguir su control (afectaran el balance del ciclo nuevo).
+              </p>
+            </div>
+            <div className="px-5 py-3 border-b border-gray-800 flex items-center gap-2">
+              <button
+                onClick={() => toggleCarryOverAllDash(true)}
+                className="text-xs text-orange-400 hover:text-orange-300"
+              >
+                Seleccionar todas
+              </button>
+              <span className="text-gray-700">·</span>
+              <button
+                onClick={() => toggleCarryOverAllDash(false)}
+                className="text-xs text-gray-400 hover:text-gray-300"
+              >
+                Ninguna
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-800">
+              {carryOverCandidates.map(o => (
+                <label key={o.id} className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-800/50">
+                  <input
+                    type="checkbox"
+                    checked={!!carryOverSelected[o.id]}
+                    onChange={(e) => setCarryOverSelected(prev => ({ ...prev, [o.id]: e.target.checked }))}
+                    className="w-4 h-4 accent-orange-600"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{o.order_number}</p>
+                    <p className="text-xs text-gray-500 truncate">{o.pu_date} · {o.pu_city} → {o.do_city}</p>
+                  </div>
+                  <p className="text-sm text-gray-300 shrink-0">{fmt(Number(o.rate) || 0)}</p>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 p-5 border-t border-gray-800">
+              <button
+                onClick={handleSkipCarryOver}
+                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+              >
+                No pasar ninguna
+              </button>
+              <button
+                onClick={handleConfirmCarryOver}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-500 transition-colors"
+              >
+                Abrir ciclo y pasar seleccionadas
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
