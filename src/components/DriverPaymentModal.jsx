@@ -575,7 +575,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
 
                         {/* Expandable orders summary */}
                         <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expandedId === p.id ? '1fr' : '0fr' }}>
-                          <div className="overflow-hidden">
+                          <div className="overflow-hidden px-1">
                             <div className="mt-3 pt-3 border-t border-gray-800 space-y-1.5">
                               {orderSummaries[p.id] === 'loading' ? (
                                 <div className="flex justify-center py-3">
