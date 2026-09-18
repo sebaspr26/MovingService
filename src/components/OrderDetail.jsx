@@ -412,6 +412,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     }
   }, [brokerId, allBrokers])
 
+  const allBrokersRef = useRef(allBrokers)
+  useEffect(() => { allBrokersRef.current = allBrokers }, [allBrokers])
+
   useEffect(() => {
     if (brokerId) {
       const b = allBrokers.find(x => x.id === brokerId)
@@ -423,9 +426,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             try {
               const match = await findBestMatchByName(b.name)
               if (match) {
+                // Re-check against the LATEST broker data, not the closure captured
+                // when this search started — the user may have manually saved
+                // mc_number/dot_number while this (slow) name search was in flight,
+                // and that must win over an unreliable fuzzy name match
+                const current = allBrokersRef.current.find(x => x.id === b.id) || b
                 const updates = {}
-                if (!b.mc_number && match.mc_number) updates.mc_number = match.mc_number
-                if (!b.dot_number && match.dot_number) updates.dot_number = match.dot_number
+                if (!current.mc_number && match.mc_number) updates.mc_number = match.mc_number
+                if (!current.dot_number && match.dot_number) updates.dot_number = match.dot_number
                 if (Object.keys(updates).length > 0) {
                   await supabase.from('brokers').update(updates).eq('id', b.id)
                   setAllBrokers(prev => prev.map(x => x.id === b.id ? { ...x, ...updates } : x))
@@ -1677,14 +1685,15 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     <div>
                       <p className="text-sm font-medium text-white">{selectedBroker.name}</p>
                       <div className="mt-1 space-y-0.5 text-[11px] text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <span>MC#</span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="shrink-0">MC#</span>
                           <input
                             type="text"
                             value={mcInput}
                             onChange={(e) => { setMcInput(e.target.value); setDirty(true) }}
-                            placeholder="Requerido para subir RC — se guarda con Guardar"
-                            className={`bg-transparent border-b outline-none px-0.5 text-[11px] w-56 ${mcInput ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
+                            placeholder="Obligatorio"
+                            title="Requerido para subir RC. Se guarda con el boton Guardar."
+                            className={`bg-transparent border-b outline-none px-0.5 text-[11px] flex-1 min-w-0 ${mcInput ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
                           />
                         </div>
                         {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
