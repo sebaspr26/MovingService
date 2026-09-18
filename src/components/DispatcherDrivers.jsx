@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import PdfViewer from './PdfViewer'
+import { downloadFromUrl } from '../lib/download'
 
 function docUrl(filePath) {
   return supabase.storage.from('company-docs').getPublicUrl(filePath).data?.publicUrl
@@ -23,13 +24,13 @@ function DocPreview({ doc, onClose }) {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <span className="text-sm font-medium text-white truncate">{doc.label || doc.file_name}</span>
             <div className="flex items-center gap-2">
-              <a href={url} download={doc.file_name}
+              <button onClick={() => downloadFromUrl(url, doc.file_name)}
                 className="p-1.5 text-gray-400 hover:text-green-400 transition-colors rounded hover:bg-gray-800"
                 title="Descargar">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-              </a>
+              </button>
               <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white transition-colors rounded hover:bg-gray-800">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />

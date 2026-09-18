@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { downloadFromUrl } from '../lib/download'
 
 let pdfjsPromise = null
 function loadPdfJs() {
@@ -81,7 +82,12 @@ export default function PdfViewer({ url, className = '' }) {
   if (error) return (
     <div className={`flex items-center justify-center py-8 text-gray-500 text-sm ${className}`}>
       Error al cargar PDF.&nbsp;
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Descargar</a>
+      <button
+        onClick={() => downloadFromUrl(url, url.split('/').pop().split('?')[0] || 'documento.pdf')}
+        className="text-blue-400 hover:underline"
+      >
+        Descargar
+      </button>
     </div>
   )
 

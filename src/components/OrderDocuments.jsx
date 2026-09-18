@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
+import { downloadFromUrl } from '../lib/download'
 
 // pdf.js loader (shared with OrderInvoice)
 let pdfjsPromise = null
@@ -324,9 +325,9 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
               ) : (
                 <div style={{ textAlign: 'center', padding: '60px 0', color: '#6b7280' }}>
                   <p style={{ marginBottom: '8px' }}>Vista previa no disponible</p>
-                  <a href={getPublicUrl(fullscreen.file_path)} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
+                  <button onClick={() => downloadFromUrl(getPublicUrl(fullscreen.file_path), fullscreen.file_name)} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}>
                     Descargar archivo
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
