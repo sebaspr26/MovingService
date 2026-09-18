@@ -179,7 +179,6 @@ export default function Auditoria() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
-  const [expanded, setExpanded] = useState(null)
 
   // Filter option pools (derived from all rows, independent of current filters/pagination)
   const [truckOptions, setTruckOptions] = useState([])
@@ -322,16 +321,12 @@ export default function Auditoria() {
                   const cfg = ACTIONS[row.action] || { label: row.action, color: 'blue', icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75' }
                   const colors = COLOR_CLASSES[cfg.color]
                   const time = new Date(row.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-                  const isOpen = expanded === row.id
                   const hasDetails = HAS_DETAILS_ACTIONS.has(row.action)
                   const actorLabel = row.user_name || row.user_email || 'Usuario desconocido'
 
                   return (
                     <div key={row.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
-                      <button
-                        onClick={() => hasDetails && setExpanded(isOpen ? null : row.id)}
-                        className={`w-full text-left p-3.5 sm:p-4 flex items-center gap-3 ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
-                      >
+                      <div className="w-full text-left p-3.5 sm:p-4 flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-lg ${colors.bg} border ${colors.border} flex items-center justify-center shrink-0`}>
                           <svg className={`w-4 h-4 ${colors.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                             <path strokeLinecap="round" strokeLinejoin="round" d={cfg.icon} />
@@ -344,13 +339,8 @@ export default function Auditoria() {
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5">{actorLabel} · {time}</p>
                         </div>
-                        {hasDetails && (
-                          <svg className={`w-4 h-4 text-gray-600 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        )}
-                      </button>
-                      {isOpen && hasDetails && (
+                      </div>
+                      {hasDetails && (
                         <div className="border-t border-gray-800 px-4 py-3 bg-gray-900/50">
                           <EntryDetails row={row} />
                         </div>
