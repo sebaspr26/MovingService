@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
@@ -138,6 +139,7 @@ function StatusSelect({ row, onChange, disabled }) {
 }
 
 export default function OrdersView() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const { theme } = useTheme()
   const userRole = session?.user?.user_metadata?.role
@@ -566,10 +568,14 @@ export default function OrdersView() {
                           const pm = paymentMap[row.id]
                           if (!pm?.dispPaid) return <span className="text-[10px] text-gray-700">—</span>
                           return (
-                            <a href="/pagos/dispatchers" className="inline-flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-900/20 border border-green-800/30 rounded-full px-2 py-0.5 hover:bg-green-900/40 transition-colors cursor-pointer">
+                            <button
+                              type="button"
+                              onClick={() => navigate('/pagos/dispatchers', { state: { dispatcherEmail: row.dispatcher, paymentNumber: pm.dispNum } })}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-900/20 border border-green-800/30 rounded-full px-2 py-0.5 hover:bg-green-900/40 transition-colors cursor-pointer"
+                            >
                               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                               #{pm.dispNum}
-                            </a>
+                            </button>
                           )
                         })()}
                       </td>
@@ -578,10 +584,14 @@ export default function OrdersView() {
                           const pm = paymentMap[row.id]
                           if (!pm?.drvPaid) return <span className="text-[10px] text-gray-700">—</span>
                           return (
-                            <a href="/pagos/conductores" className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/30 rounded-full px-2 py-0.5 hover:bg-violet-900/40 transition-colors cursor-pointer">
+                            <button
+                              type="button"
+                              onClick={() => navigate('/pagos/conductores', { state: { driverId: row.driver_id, paymentNumber: pm.drvNum } })}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/30 rounded-full px-2 py-0.5 hover:bg-violet-900/40 transition-colors cursor-pointer"
+                            >
                               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                               #{pm.drvNum}
-                            </a>
+                            </button>
                           )
                         })()}
                       </td>

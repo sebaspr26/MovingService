@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
 import DriverPaymentModal from './DriverPaymentModal'
 
 
 export default function PagoConductores() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [drivers, setDrivers] = useState([])
   const [trucks, setTrucks] = useState({})
   const [avatarMap, setAvatarMap] = useState({})
@@ -12,8 +15,22 @@ export default function PagoConductores() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedDriver, setSelectedDriver] = useState(null)
+  const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
 
   useEffect(() => { fetchData() }, [])
+
+  // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese conductor
+  // y resaltar el pago indicado
+  useEffect(() => {
+    const target = location.state?.driverId
+    if (!target || drivers.length === 0) return
+    const match = drivers.find(d => d.id === target)
+    if (match) {
+      setSelectedDriver(match)
+      setHighlightPaymentNumber(location.state?.paymentNumber || null)
+    }
+    navigate(location.pathname, { replace: true, state: {} })
+  }, [drivers])
 
   async function fetchData() {
     setLoading(true)
@@ -145,7 +162,8 @@ export default function PagoConductores() {
         <DriverPaymentModal
           driver={selectedDriver}
           truck={trucks[selectedDriver.truck_id] || null}
-          onClose={() => setSelectedDriver(null)}
+          onClose={() => { setSelectedDriver(null); setHighlightPaymentNumber(null) }}
+          highlightPaymentNumber={highlightPaymentNumber}
         />
       )}
     </div>

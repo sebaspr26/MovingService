@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
 import DispatcherPaymentModal from './DispatcherPaymentModal'
@@ -19,13 +20,30 @@ const ROLE_COLORS = {
 
 export default function PagoDispatchers() {
   const { session } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [dispatchers, setDispatchers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
+  const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
   const activeCompanyId = getActiveCompanyId()
 
   useEffect(() => { fetchData() }, [])
+
+  // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese dispatcher
+  // y resaltar el pago indicado
+  useEffect(() => {
+    const target = location.state?.dispatcherEmail
+    if (!target || dispatchers.length === 0) return
+    const match = dispatchers.find(u => u.email?.toLowerCase() === target.toLowerCase())
+    if (match) {
+      setSelectedUser(match)
+      setHighlightPaymentNumber(location.state?.paymentNumber || null)
+    }
+    // Limpia el state para que no se re-dispare en navegaciones posteriores
+    navigate(location.pathname, { replace: true, state: {} })
+  }, [dispatchers])
 
   async function fetchData() {
     setLoading(true)
@@ -197,7 +215,8 @@ export default function PagoDispatchers() {
       {selectedUser && (
         <DispatcherPaymentModal
           user={selectedUser}
-          onClose={() => setSelectedUser(null)}
+          onClose={() => { setSelectedUser(null); setHighlightPaymentNumber(null) }}
+          highlightPaymentNumber={highlightPaymentNumber}
         />
       )}
     </div>

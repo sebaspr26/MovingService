@@ -75,8 +75,10 @@ function AnimatedMoney({ value }) {
   return <>{fmt(v)}</>
 }
 
-export default function DriverPaymentModal({ driver, truck, onClose }) {
+export default function DriverPaymentModal({ driver, truck, onClose, highlightPaymentNumber }) {
   const { session } = useAuth()
+  const [activeHighlight, setActiveHighlight] = useState(highlightPaymentNumber || null)
+  const highlightRef = useRef(null)
   const [payments, setPayments] = useState([])
   const [orders, setOrders] = useState([])       // disponibles (invoiced/paid)
   const [blockedOrders, setBlockedOrders] = useState([]) // no facturadas
@@ -100,6 +102,18 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   const isLease = driver.is_lease || truck?.is_lis || false
 
   useEffect(() => { fetchData() }, [])
+
+  // Resalta el pago indicado (llegada desde el badge "#N" en Ordenes) por 3s y le hace scroll
+  useEffect(() => {
+    if (!activeHighlight) return
+    highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activeHighlight, payments])
+
+  useEffect(() => {
+    if (!activeHighlight) return
+    const t = setTimeout(() => setActiveHighlight(null), 3000)
+    return () => clearTimeout(t)
+  }, [activeHighlight])
 
   async function fetchData() {
     setLoading(true)
@@ -500,7 +514,15 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                     else if (p.pay_mode === 'percentage') rateLabel = `${p.pay_rate}%`
                     else if (p.pay_mode === 'per_mile') rateLabel = `${p.pay_rate}¢/mi`
                     return (
-                      <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+                      <div
+                        key={p.id}
+                        ref={p.payment_number === activeHighlight ? highlightRef : undefined}
+                        className={`bg-gray-900 border rounded-xl p-4 transition-all duration-500 ${
+                          p.payment_number === activeHighlight
+                            ? 'border-orange-500 ring-2 ring-orange-500/60 shadow-[0_0_24px_rgba(234,88,12,0.35)]'
+                            : 'border-gray-800 hover:border-gray-700'
+                        }`}
+                      >
                         <div className="flex items-start gap-3 cursor-pointer" onClick={() => toggleExpand(p)}>
                           <div className="w-9 h-9 rounded-lg bg-cyan-600/15 border border-cyan-600/25 flex items-center justify-center shrink-0">
                             <span className="text-cyan-400 text-[11px] font-bold">#{p.payment_number}</span>
