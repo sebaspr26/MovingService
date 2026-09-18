@@ -231,6 +231,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
               <th className="pb-2 pr-3">Ciudad</th>
               <th className="pb-2 pr-3">Detalle</th>
               <th className="pb-2 pr-3 text-right">Monto</th>
+              <th className="pb-2 pr-3">Agregado por</th>
               {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
@@ -250,6 +251,9 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                   ) : row._desc}
                 </td>
                 <td className="py-2.5 pr-3 text-right text-red-400 font-medium">{fmt(row._amount)}</td>
+                <td className="py-2.5 pr-3 text-gray-500 text-xs">
+                  {row.created_by_name || row.created_by_email || '—'}
+                </td>
                 {!readOnly && (
                   <td className="py-2.5">
                     <div className="flex gap-1 justify-end">
@@ -276,7 +280,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={readOnly ? 6 : 7} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin registros en este periodo'}</td></tr>
+              <tr><td colSpan={readOnly ? 7 : 8} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin registros en este periodo'}</td></tr>
             )}
           </tbody>
         </table>

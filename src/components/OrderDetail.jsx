@@ -807,6 +807,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         }
 
         record.company_id = getActiveCompanyId() || null
+        record.created_by_email = session?.user?.email || null
+        record.created_by_name = session?.user?.user_metadata?.name || null
         const { data, error } = await supabase.from('orders').insert(record).select().single()
         if (error) throw error
         orderId = data.id

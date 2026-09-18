@@ -236,6 +236,8 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
               cycle_id: effectiveCycleId,
               period_start: pStart,
               period_end: pEnd,
+              created_by_email: session?.user?.email || null,
+              created_by_name: session?.user?.user_metadata?.name || null,
             }).select().single()
             if (error) throw error
             logAudit(session, {

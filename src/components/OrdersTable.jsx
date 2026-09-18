@@ -175,6 +175,8 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
           if (!ok) return
         }
         record.discount_percent = discountPct || 13
+        record.created_by_email = session?.user?.email || null
+        record.created_by_name = session?.user?.user_metadata?.name || null
         result = await supabase.from('orders').insert(record)
       }
       if (result.error) throw result.error
@@ -282,6 +284,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
               <th className="pb-2 pr-4 text-right">Miles</th>
               <th className="pb-2 pr-4 text-right">Rate</th>
               <th className="pb-2 pr-4 text-center">Desc.</th>
+              <th className="pb-2 pr-4">Agregado por</th>
               {!readOnly && <th className="pb-2 w-16"></th>}
             </tr>
           </thead>
@@ -383,6 +386,9 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                       <span className="text-[9px] bg-gray-800 text-gray-600 px-1.5 py-0.5 rounded">sin desc.</span>
                     )}
                   </td>
+                  <td className="py-2.5 pr-4 text-gray-500 text-xs">
+                    {row.created_by_name || row.created_by_email || '—'}
+                  </td>
                   {!readOnly && (
                     <td className="py-2.5">
                       <div className="flex gap-1 justify-end">
@@ -406,7 +412,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={readOnly ? 9 : 10} className="py-8 text-center text-gray-600">
+                <td colSpan={readOnly ? 10 : 11} className="py-8 text-center text-gray-600">
                   {q ? 'Sin resultados' : 'Sin ordenes en este periodo'}
                 </td>
               </tr>
