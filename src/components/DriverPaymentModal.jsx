@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
@@ -77,6 +78,7 @@ function AnimatedMoney({ value }) {
 
 export default function DriverPaymentModal({ driver, truck, onClose, highlightPaymentNumber, highlightOrderId }) {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [activeHighlight, setActiveHighlight] = useState(highlightPaymentNumber || null)
   const [activeOrderHighlight, setActiveOrderHighlight] = useState(highlightOrderId || null)
   const highlightRef = useRef(null)
@@ -597,7 +599,8 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
                                   <div
                                     key={o.id}
                                     ref={o.id === activeOrderHighlight ? highlightOrderRef : undefined}
-                                    className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5 transition-all duration-500 ${
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/orders/${o.id}`) }}
+                                    className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5 cursor-pointer transition-all duration-500 hover:bg-gray-800/70 ${
                                       o.id === activeOrderHighlight
                                         ? 'bg-orange-600/20 ring-2 ring-orange-500/70'
                                         : 'bg-gray-800/40'

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +12,7 @@ const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', 
 
 export default function PaymentHistory() {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const meta = session?.user?.user_metadata || {}
   const email = session?.user?.email
   const role = meta.role
@@ -296,7 +298,7 @@ export default function PaymentHistory() {
                         <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
                       ) : (
                         (orderSummaries[p.id] || []).map(o => (
-                          <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5 mt-2">
+                          <div key={o.id} onClick={(e) => { e.stopPropagation(); navigate(`/orders/${o.id}`) }} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 hover:bg-gray-800/70 rounded-lg px-2.5 py-1.5 mt-2 cursor-pointer transition-colors">
                             <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
                             <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
                             <span className="text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>

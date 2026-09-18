@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +17,7 @@ const FILTERS = [
 
 export default function ExpensesTab({ truckId, truckName, period, cycle, onDataChange, readOnly, isLis }) {
   const toast = useToast()
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [filter, setFilter] = useState('all')
   const [dieselRows, setDieselRows] = useState([])
@@ -335,7 +337,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                             <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
                           ) : (
                             (rowOrders[rowKey] || []).map(o => (
-                              <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5">
+                              <div key={o.id} onClick={() => navigate(`/orders/${o.id}`)} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 hover:bg-gray-800/70 rounded-lg px-2.5 py-1.5 cursor-pointer transition-colors">
                                 <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
                                 <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
                                 <span className="text-gray-600 shrink-0">{o.pu_date}</span>
