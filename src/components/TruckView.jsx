@@ -59,6 +59,10 @@ export default function TruckView() {
   const [loading, setLoading] = useState(true)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
+  const [carryOverCandidates, setCarryOverCandidates] = useState([])
+  const [carryOverSelected, setCarryOverSelected] = useState({})
+  const [showCarryOverModal, setShowCarryOverModal] = useState(false)
+  const [pendingPrevBalance, setPendingPrevBalance] = useState(0)
   const summarySeqRef = useRef(0)
 
   const cycle = cycles[cycleIndex] || null
@@ -66,8 +70,11 @@ export default function TruckView() {
   const today = fmt_d(new Date())
   const weeks = cycle ? computeWeeks(cycle.start_date, cycle.end_date, cycle.closed) : []
   const cycleEnd = cycle?.end_date || (weeks.length > 0 ? weeks[weeks.length - 1].end : today)
-  const periodStart = selectedWeek ? selectedWeek.start : (cycle ? cycle.start_date : today)
-  const periodEnd = selectedWeek ? selectedWeek.end : (cycle ? cycleEnd : today)
+  // selectedWeek: null = todo el ciclo, {start,end} = semana especifica, 'carried_over' = ordenes traidas del ciclo anterior
+  const activeWeek = (selectedWeek && typeof selectedWeek === 'object') ? selectedWeek : null
+  const viewingCarriedOver = selectedWeek === 'carried_over'
+  const periodStart = activeWeek ? activeWeek.start : (cycle ? cycle.start_date : today)
+  const periodEnd = activeWeek ? activeWeek.end : (cycle ? cycleEnd : today)
   const period = useMemo(() => ({ start: periodStart, end: periodEnd }), [periodStart, periodEnd])
   const hasActiveCycle = cycles.some(c => !c.closed)
   // Reset tab if current tab is not available (e.g. driver lacks permission)
@@ -111,12 +118,12 @@ export default function TruckView() {
 
     const seq = ++summarySeqRef.current
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
-    const useWeekFilter = !!selectedWeek
+    const useWeekFilter = !!activeWeek
     const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver] = await Promise.all([
       supabase.from('orders').select('rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
         .eq('paid', true)
         .eq('cycle_id', cycle.id),
-      supabase.from('orders').select('paid, pu_date').eq('truck_id', id)
+      supabase.from('orders').select('paid, pu_date, carried_over').eq('truck_id', id)
         .eq('cycle_id', cycle.id),
       supabase.from('diesel').select('value, date').eq('truck_id', id)
         .eq('cycle_id', cycle.id),
@@ -175,6 +182,7 @@ export default function TruckView() {
       debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
       driverPayout,
+      carriedOverCount: (allOrders.data || []).filter(r => r.carried_over).length,
     })
   }
 
@@ -189,16 +197,54 @@ export default function TruckView() {
   async function handleOpenCycle() {
     const lastClosed = await getLatestClosedCycle(id)
     const prevBalance = lastClosed ? Number(lastClosed.cuadre_caja) || 0 : 0
-    await openCycle(id, newCycleDate, prevBalance)
+
+    if (lastClosed) {
+      const { data: unpaid } = await supabase.from('orders')
+        .select('id, order_number, pu_date, pu_city, do_city, rate')
+        .eq('cycle_id', lastClosed.id)
+        .eq('paid', false)
+        .order('pu_date')
+      if (unpaid && unpaid.length > 0) {
+        setCarryOverCandidates(unpaid)
+        setCarryOverSelected(Object.fromEntries(unpaid.map(o => [o.id, true])))
+        setPendingPrevBalance(prevBalance)
+        setShowCarryOverModal(true)
+        return
+      }
+    }
+
+    await createCycleAndCarryOver(prevBalance, [])
+  }
+
+  async function createCycleAndCarryOver(prevBalance, carryOverIds) {
+    const newCycle = await openCycle(id, newCycleDate, prevBalance)
+    if (carryOverIds.length > 0) {
+      await supabase.from('orders').update({ cycle_id: newCycle.id, carried_over: true }).in('id', carryOverIds)
+    }
     logAudit(session, {
       action: 'open_cycle',
       entityType: 'cycle',
       entityId: id,
       entityName: truck?.name,
-      extraInfo: { start_date: newCycleDate, previous_balance: prevBalance },
+      extraInfo: { start_date: newCycleDate, previous_balance: prevBalance, carried_over_orders: carryOverIds.length },
     })
     setOpeningCycle(false)
+    setShowCarryOverModal(false)
+    setCarryOverCandidates([])
     await fetchCycles()
+  }
+
+  function handleConfirmCarryOver() {
+    const ids = Object.entries(carryOverSelected).filter(([, v]) => v).map(([k]) => k)
+    createCycleAndCarryOver(pendingPrevBalance, ids)
+  }
+
+  function handleSkipCarryOver() {
+    createCycleAndCarryOver(pendingPrevBalance, [])
+  }
+
+  function toggleCarryOverAll(checked) {
+    setCarryOverSelected(Object.fromEntries(carryOverCandidates.map(o => [o.id, checked])))
   }
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -388,13 +434,29 @@ export default function TruckView() {
                 Sem {i + 1}
               </button>
             ))}
+            {summary.carriedOverCount > 0 && (
+              <button
+                onClick={() => setSelectedWeek('carried_over')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  viewingCarriedOver ? 'bg-blue-600 text-white' : 'bg-gray-800 text-blue-400 hover:text-white'
+                }`}
+              >
+                Ciclo Anterior ({summary.carriedOverCount})
+              </button>
+            )}
           </div>
 
           {/* Period indicator */}
           <div className="text-xs text-gray-500 mb-4">
-            Mostrando: <span className="text-gray-300">{period.start}</span>
-            <span className="mx-1">a</span>
-            <span className="text-gray-300">{period.end}</span>
+            {viewingCarriedOver ? (
+              <span className="text-blue-400">Mostrando ordenes traidas del ciclo anterior, sin pagar al momento del cierre</span>
+            ) : (
+              <>
+                Mostrando: <span className="text-gray-300">{period.start}</span>
+                <span className="mx-1">a</span>
+                <span className="text-gray-300">{period.end}</span>
+              </>
+            )}
           </div>
 
           {/* Cards grandes — Total Débito, Total Crédito, Balance — ocultas si driver no tiene ver_truck_view */}
@@ -457,7 +519,7 @@ export default function TruckView() {
 
           {/* Tab content */}
           <div key={tab} className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5 animate-tab-in">
-            {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} isLease={truck?.is_lis} />}
+            {tab === 'orders' && <OrdersTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} isLease={truck?.is_lis} carriedOverOnly={viewingCarriedOver} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} truckName={truck?.name} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
             {tab === 'accounting' && <AccountingTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
             {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} ownerName={truck?.owner_name} />}
@@ -480,6 +542,66 @@ export default function TruckView() {
             />
           </div>}
         </>
+      )}
+
+      {/* Carry-over unpaid orders to new cycle */}
+      {showCarryOverModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-800">
+              <h3 className="text-lg font-semibold text-white">Ordenes sin pagar</h3>
+              <p className="text-sm text-gray-400 mt-2">
+                El ciclo anterior tiene {carryOverCandidates.length} orden{carryOverCandidates.length !== 1 ? 'es' : ''} sin pagar. Selecciona cuales pasar al ciclo nuevo para seguir su control (afectaran el balance del ciclo nuevo).
+              </p>
+            </div>
+            <div className="px-5 py-3 border-b border-gray-800 flex items-center gap-2">
+              <button
+                onClick={() => toggleCarryOverAll(true)}
+                className="text-xs text-orange-400 hover:text-orange-300"
+              >
+                Seleccionar todas
+              </button>
+              <span className="text-gray-700">·</span>
+              <button
+                onClick={() => toggleCarryOverAll(false)}
+                className="text-xs text-gray-400 hover:text-gray-300"
+              >
+                Ninguna
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-800">
+              {carryOverCandidates.map(o => (
+                <label key={o.id} className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-800/50">
+                  <input
+                    type="checkbox"
+                    checked={!!carryOverSelected[o.id]}
+                    onChange={(e) => setCarryOverSelected(prev => ({ ...prev, [o.id]: e.target.checked }))}
+                    className="w-4 h-4 accent-orange-600"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{o.order_number}</p>
+                    <p className="text-xs text-gray-500 truncate">{o.pu_date} · {o.pu_city} → {o.do_city}</p>
+                  </div>
+                  <p className="text-sm text-gray-300 shrink-0">{fmt(Number(o.rate) || 0)}</p>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 p-5 border-t border-gray-800">
+              <button
+                onClick={handleSkipCarryOver}
+                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+              >
+                No pasar ninguna
+              </button>
+              <button
+                onClick={handleConfirmCarryOver}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-500 transition-colors"
+              >
+                Abrir ciclo y pasar seleccionadas
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

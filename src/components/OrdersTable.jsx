@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 
-export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct, isLease }) {
+export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
   const toast = useToast()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
@@ -209,7 +209,7 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
       )
     : rows
 
-  const visible = filtered
+  const visible = carriedOverOnly ? filtered.filter(r => r.carried_over) : filtered
 
   const paidRows = rows.filter(r => r.paid)
   const total = paidRows.reduce((s, r) => {
@@ -357,6 +357,11 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
                     {!row.paid && !row.status && (
                       <span className="ml-2 text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded">
                         Pendiente
+                      </span>
+                    )}
+                    {row.carried_over && (
+                      <span className="ml-2 text-[9px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded">
+                        Ciclo ant.
                       </span>
                     )}
                   </td>
