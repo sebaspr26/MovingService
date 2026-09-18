@@ -25,6 +25,8 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [expandedRow, setExpandedRow] = useState(null) // `${_type}-${id}` key
+  const [rowOrders, setRowOrders] = useState({}) // { [rowKey]: orders[] | 'loading' }
   useEffect(() => { fetchAll() }, [truckId, cycle?.id, period.start, period.end])
 
   async function fetchAll() {
@@ -83,6 +85,29 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
 
   // Counts per type for filter badges
   const counts = { all: allRows.length, diesel: dieselRows.length, def: defRows.length, chofer: choferRows.length, expense: otherExpenseRows.length }
+
+  async function toggleRowOrders(row) {
+    const key = `${row._type}-${row.id}`
+    if (expandedRow === key) { setExpandedRow(null); return }
+    setExpandedRow(key)
+    if (!rowOrders[key]) {
+      setRowOrders(prev => ({ ...prev, [key]: 'loading' }))
+      const table = row.source_payment_type === 'driver' ? 'driver_payments' : 'dispatcher_payments'
+      const { data: payment } = await supabase.from(table).select('order_ids').eq('id', row.source_payment_id).maybeSingle()
+      const orderIds = payment?.order_ids || []
+      if (orderIds.length === 0) {
+        setRowOrders(prev => ({ ...prev, [key]: [] }))
+        return
+      }
+      let q = supabase.from('orders').select('id, order_number, pu_city, do_city, pu_date, rate')
+        .in('id', orderIds).order('pu_date')
+      // Un pago a dispatcher puede abarcar varios camiones — aqui solo nos interesan
+      // las ordenes de ESTE camion, para no mezclar con las de otros conductores
+      if (row.source_payment_type === 'dispatcher') q = q.eq('truck_id', truckId)
+      const { data: orders } = await q
+      setRowOrders(prev => ({ ...prev, [key]: orders || [] }))
+    }
+  }
 
   async function handleDelete(row) {
     const typeLabel = row._type === 'diesel' ? 'diesel' : row._type === 'def' ? 'DEF' : row._type === 'chofer' ? 'pago chofer' : 'gasto'
@@ -236,49 +261,92 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
             </tr>
           </thead>
           <tbody>
-            {visible.map(row => (
-              <tr key={`${row._type}-${row.id}`} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="py-2.5 pr-3">{typeBadge(row._type)}</td>
-                <td className="py-2.5 pr-3 text-white font-medium">{row.invoice_number || '-'}</td>
-                <td className="py-2.5 pr-3">{row.date}</td>
-                <td className="py-2.5 pr-3">{row.city || '-'}</td>
-                <td className="py-2.5 pr-3 text-gray-300">
-                  {row._type === 'expense' ? (
-                    <span>
-                      <span className="text-[10px] bg-gray-800 rounded px-1.5 py-0.5 mr-1.5 text-gray-400">{row.category}</span>
-                      {row._desc}
-                    </span>
-                  ) : row._desc}
-                </td>
-                <td className="py-2.5 pr-3 text-right text-red-400 font-medium">{fmt(row._amount)}</td>
-                <td className="py-2.5 pr-3 text-gray-500 text-xs">
-                  {row.created_by_name || row.created_by_email || '—'}
-                </td>
-                {!readOnly && (
-                  <td className="py-2.5">
-                    <div className="flex gap-1 justify-end">
-                      {isLis && (
-                        <button onClick={() => handleTransferToOwner(row)} className="p-1 text-gray-500 hover:text-amber-400" title="Transferir a propietario">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                          </svg>
-                        </button>
+            {visible.map(row => {
+              const rowKey = `${row._type}-${row.id}`
+              const hasPayment = !!(row.source_payment_type && row.source_payment_id)
+              const isExpanded = expandedRow === rowKey
+              return (
+              <tr key={rowKey} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                <td colSpan={readOnly ? 7 : 8} className="p-0">
+                  <div
+                    className={`grid items-center w-full text-sm ${readOnly ? 'grid-cols-[auto_auto_auto_auto_1fr_auto_auto]' : 'grid-cols-[auto_auto_auto_auto_1fr_auto_auto_auto]'} ${hasPayment ? 'cursor-pointer' : ''}`}
+                    onClick={hasPayment ? () => toggleRowOrders(row) : undefined}
+                  >
+                    <div className="py-2.5 pr-3">{typeBadge(row._type)}</div>
+                    <div className="py-2.5 pr-3 text-white font-medium flex items-center gap-1">
+                      {row.invoice_number || '-'}
+                      {hasPayment && (
+                        <svg className={`w-3 h-3 text-gray-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                        </svg>
                       )}
-                      <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-orange-400">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                        </svg>
-                      </button>
-                      <button onClick={() => handleDelete(row)} className="p-1 text-gray-500 hover:text-red-400">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
                     </div>
-                  </td>
-                )}
+                    <div className="py-2.5 pr-3">{row.date}</div>
+                    <div className="py-2.5 pr-3">{row.city || '-'}</div>
+                    <div className="py-2.5 pr-3 text-gray-300">
+                      {row._type === 'expense' ? (
+                        <span>
+                          <span className="text-[10px] bg-gray-800 rounded px-1.5 py-0.5 mr-1.5 text-gray-400">{row.category}</span>
+                          {row._desc}
+                        </span>
+                      ) : row._desc}
+                    </div>
+                    <div className="py-2.5 pr-3 text-right text-red-400 font-medium">{fmt(row._amount)}</div>
+                    <div className="py-2.5 pr-3 text-gray-500 text-xs">
+                      {row.created_by_name || row.created_by_email || '—'}
+                    </div>
+                    {!readOnly && (
+                      <div className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 justify-end">
+                          {isLis && (
+                            <button onClick={() => handleTransferToOwner(row)} className="p-1 text-gray-500 hover:text-amber-400" title="Transferir a propietario">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                              </svg>
+                            </button>
+                          )}
+                          <button onClick={() => { setEditRow(row); setShowModal(true) }} className="p-1 text-gray-500 hover:text-orange-400">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDelete(row)} className="p-1 text-gray-500 hover:text-red-400">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {hasPayment && (
+                    <div className="grid transition-[grid-template-rows] duration-300 ease-out px-3" style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}>
+                      <div className="overflow-hidden">
+                        <div className="pb-3 pt-1 space-y-1.5">
+                          {rowOrders[rowKey] === 'loading' ? (
+                            <div className="flex justify-center py-3">
+                              <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : (rowOrders[rowKey] || []).length === 0 ? (
+                            <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
+                          ) : (
+                            (rowOrders[rowKey] || []).map(o => (
+                              <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5">
+                                <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
+                                <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
+                                <span className="text-gray-600 shrink-0">{o.pu_date}</span>
+                                <span className="text-gray-300 font-medium shrink-0">{fmt(o.rate)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </td>
               </tr>
-            ))}
+              )
+            })}
             {visible.length === 0 && (
               <tr><td colSpan={readOnly ? 7 : 8} className="py-8 text-center text-gray-600">{q ? 'Sin resultados' : 'Sin registros en este periodo'}</td></tr>
             )}
