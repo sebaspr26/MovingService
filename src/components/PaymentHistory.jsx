@@ -7,6 +7,7 @@ import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
+const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—'
 
 export default function PaymentHistory() {
   const { session } = useAuth()
@@ -20,6 +21,8 @@ export default function PaymentHistory() {
   const [previewHtml, setPreviewHtml] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(null)
   const [downloadingId, setDownloadingId] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+  const [orderSummaries, setOrderSummaries] = useState({}) // { [paymentId]: orders[] | 'loading' }
   const htmlCache = useRef({})
 
   const companyId = getActiveCompanyId()
@@ -46,6 +49,19 @@ export default function PaymentHistory() {
       setLoading(false)
     })()
   }, [email, isDriver, companyId])
+
+  async function toggleExpand(payment) {
+    if (expandedId === payment.id) { setExpandedId(null); return }
+    setExpandedId(payment.id)
+    if (!orderSummaries[payment.id]) {
+      setOrderSummaries(prev => ({ ...prev, [payment.id]: 'loading' }))
+      const { data } = await supabase.from('orders')
+        .select('id, order_number, pu_city, do_city, pu_date, rate')
+        .in('id', payment.order_ids || [])
+        .order('pu_date')
+      setOrderSummaries(prev => ({ ...prev, [payment.id]: data || [] }))
+    }
+  }
 
   async function fetchPreview(payment) {
     if (htmlCache.current[payment.id]) {
@@ -218,7 +234,7 @@ export default function PaymentHistory() {
 
             return (
               <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
-                <div className="p-4 sm:p-5">
+                <div className="p-4 sm:p-5 cursor-pointer" onClick={() => toggleExpand(p)}>
                   {/* Top row — number, date, payout */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -230,14 +246,19 @@ export default function PaymentHistory() {
                         <p className="text-xs text-gray-500">{periodStart} — {periodEnd}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-400">{fmt(p.payout)}</p>
-                      <p className="text-[10px] text-gray-600">
-                        {isDriverPay
-                          ? (p.pay_mode === 'percentage' ? `${p.pay_rate}% de ${fmt(p.gross_revenue)}` : `${fmt(p.pay_rate)}/mi · ${p.total_miles?.toLocaleString()} mi`)
-                          : `${p.commission_pct}% de ${fmt(p.gross_revenue)}`
-                        }
-                      </p>
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-400">{fmt(p.payout)}</p>
+                        <p className="text-[10px] text-gray-600">
+                          {isDriverPay
+                            ? (p.pay_mode === 'percentage' ? `${p.pay_rate}% de ${fmt(p.gross_revenue)}` : `${fmt(p.pay_rate)}/mi · ${p.total_miles?.toLocaleString()} mi`)
+                            : `${p.commission_pct}% de ${fmt(p.gross_revenue)}`
+                          }
+                        </p>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-600 mt-1 shrink-0 transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                      </svg>
                     </div>
                   </div>
 
@@ -260,6 +281,30 @@ export default function PaymentHistory() {
                         Email enviado
                       </span>
                     )}
+                  </div>
+                </div>
+
+                {/* Expandable orders summary */}
+                <div className="grid transition-[grid-template-rows] duration-300 ease-out px-4 sm:px-5" style={{ gridTemplateRows: expandedId === p.id ? '1fr' : '0fr' }}>
+                  <div className="overflow-hidden">
+                    <div className="pb-4 pt-1 border-t border-gray-800 mt-1 space-y-1.5">
+                      {orderSummaries[p.id] === 'loading' ? (
+                        <div className="flex justify-center py-3">
+                          <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : (orderSummaries[p.id] || []).length === 0 ? (
+                        <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
+                      ) : (
+                        (orderSummaries[p.id] || []).map(o => (
+                          <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5 mt-2">
+                            <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
+                            <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
+                            <span className="text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>
+                            <span className="text-gray-300 font-medium shrink-0">{fmt(o.rate)}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 

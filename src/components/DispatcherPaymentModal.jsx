@@ -60,6 +60,8 @@ export default function DispatcherPaymentModal({ user, onClose }) {
   const [downloadingId, setDownloadingId] = useState(null)
   const [previewHtml, setPreviewHtml] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(null) // paymentId while loading
+  const [expandedId, setExpandedId] = useState(null)
+  const [orderSummaries, setOrderSummaries] = useState({}) // { [paymentId]: orders[] | 'loading' }
   const htmlCache = useRef({}) // { [paymentId]: html }
   const toast = useToast()
 
@@ -164,6 +166,19 @@ export default function DispatcherPaymentModal({ user, onClose }) {
     setSelectedIds(new Set())
     await fetchData()
     setSaving(false)
+  }
+
+  async function toggleExpand(payment) {
+    if (expandedId === payment.id) { setExpandedId(null); return }
+    setExpandedId(payment.id)
+    if (!orderSummaries[payment.id]) {
+      setOrderSummaries(prev => ({ ...prev, [payment.id]: 'loading' }))
+      const { data } = await supabase.from('orders')
+        .select('id, order_number, pu_city, do_city, pu_date, rate')
+        .in('id', payment.order_ids || [])
+        .order('pu_date')
+      setOrderSummaries(prev => ({ ...prev, [payment.id]: data || [] }))
+    }
   }
 
   async function fetchPreview(payment, force = false) {
@@ -411,7 +426,7 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                   {payments.map(p => (
                     <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
                       {/* Top row: badge + info + date */}
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 cursor-pointer" onClick={() => toggleExpand(p)}>
                         <div className="w-9 h-9 rounded-lg bg-orange-600/15 border border-orange-600/25 flex items-center justify-center shrink-0">
                           <span className="text-orange-400 text-[11px] font-bold">#{p.payment_number}</span>
                         </div>
@@ -436,8 +451,38 @@ export default function DispatcherPaymentModal({ user, onClose }) {
                             <p className="text-[10px] text-gray-600 mt-1">{fmtDate(p.period_start)} — {fmtDate(p.period_end)}</p>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 shrink-0">{fmtDate(p.pay_date)}</p>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <p className="text-xs text-gray-500">{fmtDate(p.pay_date)}</p>
+                          <svg className={`w-4 h-4 text-gray-600 transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </div>
                       </div>
+
+                      {/* Expandable orders summary */}
+                      <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expandedId === p.id ? '1fr' : '0fr' }}>
+                        <div className="overflow-hidden">
+                          <div className="mt-3 pt-3 border-t border-gray-800 space-y-1.5">
+                            {orderSummaries[p.id] === 'loading' ? (
+                              <div className="flex justify-center py-3">
+                                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            ) : (orderSummaries[p.id] || []).length === 0 ? (
+                              <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
+                            ) : (
+                              (orderSummaries[p.id] || []).map(o => (
+                                <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5">
+                                  <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
+                                  <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
+                                  <span className="text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>
+                                  <span className="text-gray-300 font-medium shrink-0">{fmt(o.rate)}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Action buttons row */}
                       <div className="flex items-center flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-800">
                         <button
