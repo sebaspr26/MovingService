@@ -203,7 +203,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
 
   async function handleBlockedClick(order) {
     if (!isSuperAdmin(session)) return
-    const ok = await toast.confirm(`La orden ${order.order_number || ''} aun no esta marcada como pagada. ¿Incluirla de todas formas en este pago?`)
+    const ok = await toast.confirm(`La orden ${order.order_number || ''} aun no esta marcada como pagada. ¿Incluirla de todas formas en este pago?`, { confirmText: 'Incluir', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
     if (!ok) return
     setBlockedOrders(prev => prev.filter(o => o.id !== order.id))
     setOrders(prev => [...prev, order])
