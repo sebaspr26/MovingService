@@ -107,6 +107,16 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       setStops(c.stops)
       setDocImages(c.docImages)
       setLoading(false)
+      // El MC#/DOT# del broker puede cambiar despues de que el invoice quedo
+      // cacheado (ej: se agrega el MC# en OrderDetail) — refresca ese dato en
+      // segundo plano para no depender de que alguien presione "Regenerar"
+      if (c.order?.broker_id) {
+        const { data } = await supabase.from('brokers').select('*').eq('id', c.order.broker_id).single()
+        if (data) {
+          setBroker(data)
+          invoiceCache[orderId] = { ...c, broker: data }
+        }
+      }
       return
     }
 
