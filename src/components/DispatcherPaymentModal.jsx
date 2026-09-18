@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
+import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 
 function useCountUp(target, duration = 600) {
   const [value, setValue] = useState(target)
@@ -216,7 +217,11 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
       if (!byTruckCycle[key]) byTruckCycle[key] = { truck_id: o.truck_id, cycle_id: o.cycle_id, amount: 0 }
       byTruckCycle[key].amount += commission
     })
-    const expenseRows = Object.values(byTruckCycle).map(g => ({
+    const groups = Object.values(byTruckCycle)
+    // Balance de cada camion involucrado ANTES de insertar los gastos, para poder
+    // mostrar el antes/despues en Auditoria (ver lib/balance.js)
+    const balancesBefore = await Promise.all(groups.map(g => computeTruckBalance(g.truck_id, g.cycle_id)))
+    const expenseRows = groups.map(g => ({
       truck_id: g.truck_id,
       cycle_id: g.cycle_id,
       category: 'Pago Dispatcher',
@@ -232,8 +237,25 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
       created_by_name: session?.user?.user_metadata?.name || null,
     }))
     if (expenseRows.length > 0) {
-      const { error: expError } = await supabase.from('expenses').insert(expenseRows)
-      if (expError) toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
+      const { data: insertedExpenses, error: expError } = await supabase.from('expenses').insert(expenseRows).select()
+      if (expError) {
+        toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
+      } else {
+        const { data: trucksData } = await supabase.from('trucks').select('id, name, number').in('id', groups.map(g => g.truck_id))
+        const truckNameById = Object.fromEntries((trucksData || []).map(t => [t.id, `${t.name} #${t.number}`]))
+        ;(insertedExpenses || []).forEach((exp, i) => {
+          logBalanceChange(session, {
+            action: 'create_expense',
+            entityType: 'expense',
+            entityId: exp.id,
+            entityName: truckNameById[exp.truck_id] || '',
+            truckId: exp.truck_id,
+            cycleId: exp.cycle_id,
+            balanceBefore: balancesBefore[i],
+            extraInfo: { amount: exp.amount, description: exp.description, category: 'Pago Dispatcher' },
+          })
+        })
+      }
     }
 
     toast.success('Pago registrado correctamente')
@@ -622,9 +644,25 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                           onClick={async () => {
                             const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el/los camion(es) correspondiente(s).')
                             if (!ok) return
+                            const { data: deletedExpenses } = await supabase.from('expenses').select('id, truck_id, cycle_id, description, amount').eq('source_payment_id', p.id)
+                            const balancesBefore = await Promise.all((deletedExpenses || []).map(e => computeTruckBalance(e.truck_id, e.cycle_id)))
+                            const { data: trucksData } = await supabase.from('trucks').select('id, name, number').in('id', (deletedExpenses || []).map(e => e.truck_id))
+                            const truckNameById = Object.fromEntries((trucksData || []).map(t => [t.id, `${t.name} #${t.number}`]))
                             await supabase.from('expenses').delete().eq('source_payment_id', p.id)
                             await supabase.from('dispatcher_payments').delete().eq('id', p.id)
                             delete htmlCache.current[p.id]
+                            ;(deletedExpenses || []).forEach((exp, i) => {
+                              logBalanceChange(session, {
+                                action: 'delete_expense',
+                                entityType: 'expense',
+                                entityId: exp.id,
+                                entityName: truckNameById[exp.truck_id] || '',
+                                truckId: exp.truck_id,
+                                cycleId: exp.cycle_id,
+                                balanceBefore: balancesBefore[i],
+                                extraInfo: { amount: exp.amount, description: exp.description, category: 'Pago Dispatcher' },
+                              })
+                            })
                             await fetchData()
                           }}
                           className="ml-auto w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"

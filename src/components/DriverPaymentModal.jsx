@@ -9,6 +9,7 @@ import { getActiveCompanyId } from '../lib/company'
 import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
+import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 
 const MODE_COLORS = {
   flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   payout: 'text-blue-400',   payoutBg: 'bg-blue-600/15 border-blue-600/30' },
@@ -218,6 +219,8 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
       return toast.warning('Selecciona al menos una orden')
     setSaving(true)
 
+    const balanceBefore = (driver.truck_id && activeCycleId) ? await computeTruckBalance(driver.truck_id, activeCycleId) : null
+
     const today = new Date().toISOString().split('T')[0]
     let periodStart = today
     let periodEnd = today
@@ -249,8 +252,9 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
 
     // Reflejar el pago como gasto en el camion del conductor (categoria Pago Chofer,
     // ya la reconoce el balance del ciclo como debito separado)
+    let newExpense = null
     if (driver.truck_id && activeCycleId) {
-      const { error: expError } = await supabase.from('expenses').insert({
+      const { data: expData, error: expError } = await supabase.from('expenses').insert({
         truck_id: driver.truck_id,
         cycle_id: activeCycleId,
         category: 'Pago Chofer',
@@ -264,8 +268,9 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
         source_payment_id: newPayment.id,
         created_by_email: session?.user?.email || null,
         created_by_name: session?.user?.user_metadata?.name || null,
-      })
+      }).select().single()
       if (expError) toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
+      else newExpense = expData
     } else if (!activeCycleId) {
       toast.warning('El pago se guardo pero no se registro en Gastos: este camion no tiene un ciclo activo.')
     }
@@ -275,6 +280,21 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
     if (isLease && selectedIds.size > 0) {
       const { error: dpError } = await supabase.from('orders').update({ dispatcher_paid: true }).in('id', [...selectedIds])
       if (dpError) toast.error('El pago se guardo pero no se pudo marcar "pago al conductor" en las ordenes: ' + dpError.message)
+    }
+
+    // Registra en Auditoria el gasto (afecta el balance del camion) con el
+    // antes/despues del balance del camion y de la empresa
+    if (newExpense && balanceBefore != null) {
+      logBalanceChange(session, {
+        action: 'create_expense',
+        entityType: 'expense',
+        entityId: newExpense.id,
+        entityName: truckName,
+        truckId: driver.truck_id,
+        cycleId: activeCycleId,
+        balanceBefore,
+        extraInfo: { amount: payout, description: newExpense.description, category: 'Pago Chofer' },
+      })
     }
 
     toast.success('Pago registrado')
@@ -650,12 +670,26 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
                             onClick={async () => {
                               const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el camion correspondiente y se desmarcara "pago al conductor" en sus ordenes.')
                               if (!ok) return
+                              const balanceBefore = (p.truck_id && activeCycleId) ? await computeTruckBalance(p.truck_id, activeCycleId) : null
+                              const { data: deletedExpense } = await supabase.from('expenses').select('id, description, amount').eq('source_payment_id', p.id).maybeSingle()
                               await supabase.from('expenses').delete().eq('source_payment_id', p.id)
                               if (isLease && (p.order_ids || []).length > 0) {
                                 await supabase.from('orders').update({ dispatcher_paid: false }).in('id', p.order_ids)
                               }
                               await supabase.from('driver_payments').delete().eq('id', p.id)
                               delete htmlCache.current[p.id]
+                              if (deletedExpense && balanceBefore != null) {
+                                logBalanceChange(session, {
+                                  action: 'delete_expense',
+                                  entityType: 'expense',
+                                  entityId: deletedExpense.id,
+                                  entityName: truckName,
+                                  truckId: p.truck_id,
+                                  cycleId: activeCycleId,
+                                  balanceBefore,
+                                  extraInfo: { amount: deletedExpense.amount, description: deletedExpense.description, category: 'Pago Chofer' },
+                                })
+                              }
                               await fetchData()
                             }}
                             className="ml-auto w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors">
