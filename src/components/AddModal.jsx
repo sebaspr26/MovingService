@@ -8,8 +8,10 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState(null)
   const [scanned, setScanned] = useState(false)
+  const [scanDragging, setScanDragging] = useState(false)
   const fileRef = useRef()
   const processingRef = useRef(false)
+  const scanDragCounter = useRef(0)
 
   const fieldsKey = fields.map(f => f.name).join(',')
   useEffect(() => {
@@ -96,12 +98,21 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Scan button inside modal */}
           {onScan !== undefined && (
-            <div>
+            <div
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); scanDragCounter.current++; setScanDragging(true) }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); scanDragCounter.current--; if (scanDragCounter.current === 0) setScanDragging(false) }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); scanDragCounter.current = 0; setScanDragging(false); const f = e.dataTransfer.files[0]; if (f) handleScanFile(f) }}
+            >
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={scanning}
-                className="w-full px-4 py-3 bg-purple-600/20 border border-purple-600/50 text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-600/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`w-full px-4 py-3 border rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  scanDragging
+                    ? 'bg-orange-600/20 border-orange-500 text-orange-300'
+                    : 'bg-purple-600/20 border-purple-600/50 text-purple-300 hover:bg-purple-600/30'
+                }`}
               >
                 {scanning ? (
                   <>
@@ -111,13 +122,15 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                     </svg>
                     Analizando imagen...
                   </>
+                ) : scanDragging ? (
+                  'Soltar archivo aqui'
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
                     </svg>
-                    Escanear recibo / PDF
+                    Escanear recibo / PDF (o arrastra un archivo)
                   </>
                 )}
               </button>
