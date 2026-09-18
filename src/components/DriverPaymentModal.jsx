@@ -5,7 +5,7 @@ import { fmt } from '../lib/orders'
 import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getActiveCompanyId } from '../lib/company'
-import { canDelete } from '../lib/permissions'
+import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 
@@ -127,7 +127,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
       })(),
       activeCycleId
         ? supabase.from('orders')
-            .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status')
+            .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, status, paid')
             // driver_id is the real connection to this driver's profile — it survives
             // a later name edit. driver_name (text) stays as a fallback for older
             // orders that predate driver_id, or that were never linked.
@@ -143,8 +143,8 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
     const notUsed = (ordersRes.data || []).filter(o => !usedIds.has(o.id))
 
     setPayments(existingPayments)
-    setOrders(notUsed.filter(o => o.status === 'invoiced' || o.status === 'paid'))
-    setBlockedOrders(notUsed.filter(o => o.status !== 'invoiced' && o.status !== 'paid'))
+    setOrders(notUsed.filter(o => o.paid === true))
+    setBlockedOrders(notUsed.filter(o => o.paid !== true))
     setLoading(false)
   }
 
@@ -166,6 +166,15 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
   function toggleAll() {
     if (selectedIds.size === orders.length) setSelectedIds(new Set())
     else setSelectedIds(new Set(orders.map(o => o.id)))
+  }
+
+  async function handleBlockedClick(order) {
+    if (!isSuperAdmin(session)) return
+    const ok = await toast.confirm(`La orden ${order.order_number || ''} aun no esta marcada como pagada. ¿Incluirla de todas formas en este pago?`)
+    if (!ok) return
+    setBlockedOrders(prev => prev.filter(o => o.id !== order.id))
+    setOrders(prev => [...prev, order])
+    setSelectedIds(prev => new Set(prev).add(order.id))
   }
 
   async function savePayment() {
@@ -715,19 +724,23 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                       )
                     })}
 
-                    {/* Cargas bloqueadas (no facturadas) */}
+                    {/* Cargas bloqueadas (no pagadas) */}
                     {blockedOrders.length > 0 && (
                       <>
                         {orders.length > 0 && <div className="h-px bg-gray-800/80 my-2" />}
-                        <p className="text-[9px] text-gray-600 uppercase tracking-widest font-semibold px-1 pb-1">Pendientes de facturar ({blockedOrders.length})</p>
+                        <p className="text-[9px] text-gray-600 uppercase tracking-widest font-semibold px-1 pb-1">Pendientes de pago ({blockedOrders.length})</p>
                         {blockedOrders.map((o, i) => {
-                          const STATUS_LABEL = { booked: 'Reservada', assigned: 'Asignada', in_transit: 'En Tránsito', delivered: 'Entregada' }
+                          const STATUS_LABEL = { booked: 'Reservada', assigned: 'Asignada', in_transit: 'En Tránsito', delivered: 'Entregada', invoiced: 'Facturada' }
+                          const canOverride = isSuperAdmin(session)
                           const miles = (Number(o.miles) || 0) + (Number(o.dead_miles) || 0)
                           return (
                             <div key={o.id} className="relative group">
-                              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-gray-800 opacity-45 cursor-not-allowed select-none">
+                              <div
+                                onClick={canOverride ? () => handleBlockedClick(o) : undefined}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-gray-800 select-none ${canOverride ? 'opacity-70 cursor-pointer hover:opacity-100 hover:border-amber-700/50' : 'opacity-45 cursor-not-allowed'}`}
+                              >
                                 {/* Ícono candado */}
-                                <div className="w-4 h-4 shrink-0 flex items-center justify-center text-gray-600">
+                                <div className={`w-4 h-4 shrink-0 flex items-center justify-center ${canOverride ? 'text-amber-500' : 'text-gray-600'}`}>
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                   </svg>
@@ -748,7 +761,7 @@ export default function DriverPaymentModal({ driver, truck, onClose }) {
                                 <svg className="w-3 h-3 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                 </svg>
-                                Carga no ha sido facturada
+                                {canOverride ? 'Carga no pagada — click para incluir de todas formas' : 'Carga aun no ha sido pagada'}
                               </div>
                             </div>
                           )
