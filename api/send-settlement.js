@@ -186,7 +186,16 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <title>Settlement #${paymentNumber}</title>
+<style>
+  @media only screen and (max-width: 480px) {
+    .es-pad { padding-left:18px !important; padding-right:18px !important; }
+    .es-title { font-size:19px !important; }
+    .es-total { font-size:20px !important; }
+  }
+</style>
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
@@ -195,18 +204,18 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
 
     <!-- Orange header -->
     <tr>
-      <td style="background:#ea580c;padding:28px 32px;">
+      <td class="es-pad" style="background:#ea580c;padding:28px 32px;">
         ${logoUrl
           ? `<img src="${logoUrl}" alt="${companyName}" style="height:44px;max-width:130px;object-fit:contain;display:block;margin-bottom:14px;" />`
           : `<p style="margin:0 0 14px;font-size:15px;font-weight:800;color:#fff;">${companyName}</p>`}
-        <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Payment Summary #${paymentNumber}</h1>
+        <h1 class="es-title" style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Payment Summary #${paymentNumber}</h1>
         <p style="margin:6px 0 0;font-size:13px;color:#fed7aa;">Pay date: ${fmtDate(payDate)}</p>
       </td>
     </tr>
 
     <!-- Body -->
     <tr>
-      <td style="padding:28px 32px 20px;">
+      <td class="es-pad" style="padding:28px 32px 20px;">
         <p style="margin:0 0 18px;font-size:15px;color:#111827;">Hi <strong>${dispatcherName}</strong>,</p>
         <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.6;">
           Your dispatcher settlement for the period <strong>${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</strong> is ready.
@@ -240,7 +249,7 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="font-size:14px;color:#166534;font-weight:800;">Total Payout</td>
-                  <td align="right" style="font-size:24px;color:#16a34a;font-weight:900;">${fmt(payout)}</td>
+                  <td align="right" class="es-total" style="font-size:24px;color:#16a34a;font-weight:900;">${fmt(payout)}</td>
                 </tr>
               </table>
             </td>
@@ -253,7 +262,7 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
 
     <!-- Footer -->
     <tr>
-      <td style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+      <td class="es-pad" style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
         <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">${companyName} &mdash; Automated settlement notification.</p>
       </td>
     </tr>

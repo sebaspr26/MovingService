@@ -197,17 +197,31 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
 function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate }) {
   const payRateDisplay = payMode === 'flat_rate' ? `Fixed ${fmt(payRate)}` : payMode === 'percentage' ? `${payRate}%` : `${payRate}¢/mi`
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Payment Summary #${paymentNumber}</title>
+<style>
+  @media only screen and (max-width: 480px) {
+    .es-pad { padding-left:18px !important; padding-right:18px !important; }
+    .es-title { font-size:19px !important; }
+    .es-total { font-size:20px !important; }
+  }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
 <tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-  <tr><td style="background:#0891b2;padding:28px 32px;">
+  <tr><td class="es-pad" style="background:#0891b2;padding:28px 32px;">
     ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="height:44px;max-width:130px;object-fit:contain;display:block;margin-bottom:14px;" />` : `<p style="margin:0 0 14px;font-size:15px;font-weight:800;color:#fff;">${companyName}</p>`}
-    <h1 style="margin:0;font-size:22px;font-weight:900;color:#fff;">Payment Summary #${paymentNumber}</h1>
+    <h1 class="es-title" style="margin:0;font-size:22px;font-weight:900;color:#fff;">Payment Summary #${paymentNumber}</h1>
     <p style="margin:6px 0 0;font-size:13px;color:#cffafe;">Pay date: ${fmtDate(payDate)}</p>
   </td></tr>
-  <tr><td style="padding:28px 32px 20px;">
+  <tr><td class="es-pad" style="padding:28px 32px 20px;">
     <p style="margin:0 0 18px;font-size:15px;color:#111827;">Hi <strong>${driverName}</strong>,</p>
     <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.6;">
       Your payment summary for <strong>${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</strong> is ready. See the attached PDF for the full breakdown.
@@ -234,13 +248,13 @@ function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, p
       <tr><td style="padding:18px 20px;background:#f0fdf4;">
         <table width="100%"><tr>
           <td style="font-size:14px;color:#166534;font-weight:800;">Total Pay</td>
-          <td align="right" style="font-size:24px;color:#16a34a;font-weight:900;">${fmt(payout)}</td>
+          <td align="right" class="es-total" style="font-size:24px;color:#16a34a;font-weight:900;">${fmt(payout)}</td>
         </tr></table>
       </td></tr>
     </table>
     <p style="margin:0;font-size:12px;color:#9ca3af;">Questions? Reply to this email.</p>
   </td></tr>
-  <tr><td style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+  <tr><td class="es-pad" style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
     <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">${companyName} — Automated payment notification.</p>
   </td></tr>
 </table>
