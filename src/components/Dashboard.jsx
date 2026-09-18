@@ -240,7 +240,7 @@ export default function Dashboard() {
       // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
       // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
       const driverPayout = truck.is_lis
-        ? leaseDriverDebit(paidOrders, leaseDriver.data, truckDiscountPct)
+        ? leaseDriverDebit(paidOrders, leaseDriver.data)
         : 0
 
       const previousBalance = Number(displayCycle.previous_balance) || 0

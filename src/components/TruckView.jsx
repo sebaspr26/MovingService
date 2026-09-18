@@ -164,7 +164,7 @@ export default function TruckView() {
     // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
     // la parte que le corresponde al conductor (neto de la orden menos su % de comision)
     const driverPayout = truck?.is_lis
-      ? leaseDriverDebit(filteredPaidOrders, leaseDriver.data, discountPct)
+      ? leaseDriverDebit(filteredPaidOrders, leaseDriver.data)
       : 0
 
     // Discard stale response if a newer fetchSummary was triggered

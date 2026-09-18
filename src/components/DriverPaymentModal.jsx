@@ -266,6 +266,13 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
       if (expError) console.warn('[driver payment -> expenses]', expError)
     }
 
+    // En trucks lease, marca automaticamente el checkbox "pago al conductor" en cada
+    // orden incluida — ya no hace falta marcarlo a mano orden por orden
+    if (isLease && selectedIds.size > 0) {
+      const { error: dpError } = await supabase.from('orders').update({ dispatcher_paid: true }).in('id', [...selectedIds])
+      if (dpError) console.warn('[driver payment -> dispatcher_paid]', dpError)
+    }
+
     toast.success('Pago registrado')
     setShowNew(false)
     setSelectedIds(new Set())
@@ -636,9 +643,12 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
                           </button>
                           {canDelete(session) && <button
                             onClick={async () => {
-                              const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el camion correspondiente.')
+                              const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el camion correspondiente y se desmarcara "pago al conductor" en sus ordenes.')
                               if (!ok) return
                               await supabase.from('expenses').delete().eq('source_payment_id', p.id)
+                              if (isLease && (p.order_ids || []).length > 0) {
+                                await supabase.from('orders').update({ dispatcher_paid: false }).in('id', p.order_ids)
+                              }
                               await supabase.from('driver_payments').delete().eq('id', p.id)
                               delete htmlCache.current[p.id]
                               await fetchData()

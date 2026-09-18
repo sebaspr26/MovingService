@@ -83,11 +83,13 @@ export function orderNet(order, fallbackPct) {
 
 // Debit to subtract from a lease truck's balance for orders whose driver payment was
 // registered (dispatcher_paid checkbox). Only applies when the driver's pay mode is
-// 'percentage': the driver keeps (100 - pay_rate)% of the order's own net.
-export function leaseDriverDebit(orders, driver, fallbackPct) {
+// 'percentage': the driver keeps (100 - pay_rate)% of the RAW rate — this is
+// independent of the order's own discount_percent/apply_discount (that one only
+// affects the credit side via orderNet, it does not chain into this formula)
+export function leaseDriverDebit(orders, driver) {
   if (!driver || driver.pay_mode !== 'percentage') return 0
   const driverPct = Number(driver.pay_rate) || 0
   return orders
     .filter(o => o.dispatcher_paid)
-    .reduce((s, o) => s + orderNet(o, fallbackPct) * (1 - driverPct / 100), 0)
+    .reduce((s, o) => s + (Number(o.rate) || 0) * (1 - driverPct / 100), 0)
 }
