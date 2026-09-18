@@ -70,12 +70,19 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
     }
   }, [isOpen, editRow])
 
-  // Slide-in/out animation, same pattern as the Orders drawer (Dashboard.jsx)
+  // Slide-in/out animation. Unlike the Orders drawer (mounted+animated from a
+  // synchronous click handler), this component is always mounted and reacts to
+  // the isOpen prop via an effect, one render removed from the click — a single
+  // requestAnimationFrame can land in the same paint as the mount and skip the
+  // transition, so this needs a double rAF to guarantee an intermediate paint.
   useEffect(() => {
     if (isOpen) {
       setMounted(true)
-      const raf = requestAnimationFrame(() => setVisible(true))
-      return () => cancelAnimationFrame(raf)
+      let raf2
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setVisible(true))
+      })
+      return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2) }
     }
     setVisible(false)
     const t = setTimeout(() => setMounted(false), 300)
