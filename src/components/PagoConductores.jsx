@@ -16,11 +16,12 @@ export default function PagoConductores() {
   const [search, setSearch] = useState('')
   const [selectedDriver, setSelectedDriver] = useState(null)
   const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
+  const [highlightOrderId, setHighlightOrderId] = useState(null)
 
   useEffect(() => { fetchData() }, [])
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese conductor
-  // y resaltar el pago indicado
+  // y resaltar el pago + la orden especifica
   useEffect(() => {
     const target = location.state?.driverId
     if (!target || drivers.length === 0) return
@@ -28,6 +29,7 @@ export default function PagoConductores() {
     if (match) {
       setSelectedDriver(match)
       setHighlightPaymentNumber(location.state?.paymentNumber || null)
+      setHighlightOrderId(location.state?.orderId || null)
     }
     navigate(location.pathname, { replace: true, state: {} })
   }, [drivers])
@@ -162,8 +164,9 @@ export default function PagoConductores() {
         <DriverPaymentModal
           driver={selectedDriver}
           truck={trucks[selectedDriver.truck_id] || null}
-          onClose={() => { setSelectedDriver(null); setHighlightPaymentNumber(null) }}
+          onClose={() => { setSelectedDriver(null); setHighlightPaymentNumber(null); setHighlightOrderId(null) }}
           highlightPaymentNumber={highlightPaymentNumber}
+          highlightOrderId={highlightOrderId}
         />
       )}
     </div>

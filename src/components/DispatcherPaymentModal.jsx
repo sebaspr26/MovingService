@@ -47,10 +47,12 @@ function fmtShort(d) {
   return `${m}/${day}`
 }
 
-export default function DispatcherPaymentModal({ user, onClose, highlightPaymentNumber }) {
+export default function DispatcherPaymentModal({ user, onClose, highlightPaymentNumber, highlightOrderId }) {
   const { session } = useAuth()
   const [activeHighlight, setActiveHighlight] = useState(highlightPaymentNumber || null)
+  const [activeOrderHighlight, setActiveOrderHighlight] = useState(highlightOrderId || null)
   const highlightRef = useRef(null)
+  const highlightOrderRef = useRef(null)
   const [payments, setPayments] = useState([])
   const [orders, setOrders] = useState([])
   const [blockedOrders, setBlockedOrders] = useState([]) // no pagadas
@@ -100,6 +102,18 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
     const t = setTimeout(() => setActiveHighlight(null), 3000)
     return () => clearTimeout(t)
   }, [activeHighlight])
+
+  // Resalta la orden especifica dentro del resumen, una vez que termina de cargar
+  useEffect(() => {
+    if (!activeOrderHighlight) return
+    highlightOrderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activeOrderHighlight, orderSummaries])
+
+  useEffect(() => {
+    if (!activeOrderHighlight) return
+    const t = setTimeout(() => setActiveOrderHighlight(null), 3000)
+    return () => clearTimeout(t)
+  }, [activeOrderHighlight])
 
   async function fetchData() {
     setLoading(true)
@@ -538,7 +552,15 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                               <p className="text-xs text-gray-600 py-1">Sin ordenes</p>
                             ) : (
                               (orderSummaries[p.id] || []).map(o => (
-                                <div key={o.id} className="flex items-center justify-between gap-2 text-xs bg-gray-800/40 rounded-lg px-2.5 py-1.5">
+                                <div
+                                  key={o.id}
+                                  ref={o.id === activeOrderHighlight ? highlightOrderRef : undefined}
+                                  className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5 transition-all duration-500 ${
+                                    o.id === activeOrderHighlight
+                                      ? 'bg-orange-600/20 ring-2 ring-orange-500/70'
+                                      : 'bg-gray-800/40'
+                                  }`}
+                                >
                                   <span className="text-gray-200 font-medium shrink-0">{o.order_number}</span>
                                   <span className="text-gray-500 truncate flex-1 text-center">{o.pu_city} → {o.do_city}</span>
                                   <span className="text-gray-600 shrink-0">{fmtShort(o.pu_date)}</span>

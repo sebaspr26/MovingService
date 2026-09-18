@@ -27,12 +27,13 @@ export default function PagoDispatchers() {
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
   const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
+  const [highlightOrderId, setHighlightOrderId] = useState(null)
   const activeCompanyId = getActiveCompanyId()
 
   useEffect(() => { fetchData() }, [])
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese dispatcher
-  // y resaltar el pago indicado
+  // y resaltar el pago + la orden especifica
   useEffect(() => {
     const target = location.state?.dispatcherEmail
     if (!target || dispatchers.length === 0) return
@@ -40,6 +41,7 @@ export default function PagoDispatchers() {
     if (match) {
       setSelectedUser(match)
       setHighlightPaymentNumber(location.state?.paymentNumber || null)
+      setHighlightOrderId(location.state?.orderId || null)
     }
     // Limpia el state para que no se re-dispare en navegaciones posteriores
     navigate(location.pathname, { replace: true, state: {} })
@@ -215,8 +217,9 @@ export default function PagoDispatchers() {
       {selectedUser && (
         <DispatcherPaymentModal
           user={selectedUser}
-          onClose={() => { setSelectedUser(null); setHighlightPaymentNumber(null) }}
+          onClose={() => { setSelectedUser(null); setHighlightPaymentNumber(null); setHighlightOrderId(null) }}
           highlightPaymentNumber={highlightPaymentNumber}
+          highlightOrderId={highlightOrderId}
         />
       )}
     </div>
