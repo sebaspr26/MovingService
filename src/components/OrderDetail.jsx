@@ -225,6 +225,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [brokerId, setBrokerId] = useState('')
   const [brokerEmail, setBrokerEmail] = useState('')
   const [brokerType, setBrokerType] = useState('broker')
+  const [mcInput, setMcInput] = useState('')
   const [equipmentType, setEquipmentType] = useState('')
   const [loadType, setLoadType] = useState('')
   const [dispatcher, setDispatcher] = useState(isNew ? userEmail : '')
@@ -393,6 +394,23 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setLoading(false)
     })
   }, [id])
+
+  // Sincroniza el input de MC# con el broker seleccionado UNA sola vez por seleccion
+  // (no en cada mutacion de allBrokers) para que escribir en el campo no compita con
+  // el auto-relleno FMCSA de abajo
+  const mcSyncedBrokerRef = useRef(null)
+  useEffect(() => {
+    if (brokerId && brokerId !== mcSyncedBrokerRef.current) {
+      const b = allBrokers.find(x => x.id === brokerId)
+      if (b) {
+        setMcInput(b.mc_number || '')
+        mcSyncedBrokerRef.current = brokerId
+      }
+    } else if (!brokerId) {
+      setMcInput('')
+      mcSyncedBrokerRef.current = null
+    }
+  }, [brokerId, allBrokers])
 
   useEffect(() => {
     if (brokerId) {
@@ -759,6 +777,21 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
     setSaving(true)
     try {
+      // Persiste el MC# del broker seleccionado como parte del mismo guardado —
+      // antes se guardaba solo, en background, sin feedback ni garantia real
+      if (brokerId) {
+        const trimmedMc = mcInput.trim()
+        if (trimmedMc !== (selectedBroker?.mc_number || '')) {
+          const { error: mcError } = await supabase.from('brokers').update({ mc_number: trimmedMc || null }).eq('id', brokerId)
+          if (mcError) {
+            toast.error('No se pudo guardar el MC# del broker: ' + mcError.message)
+            setSaving(false)
+            return
+          }
+          setAllBrokers(prev => prev.map(x => x.id === brokerId ? { ...x, mc_number: trimmedMc || null } : x))
+        }
+      }
+
       const pStart = periodStart || puDate || new Date().toISOString().split('T')[0]
       const pEnd = periodEnd || doDate || pStart
 
@@ -1648,14 +1681,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                           <span>MC#</span>
                           <input
                             type="text"
-                            value={selectedBroker.mc_number || ''}
-                            onChange={(e) => setAllBrokers(prev => prev.map(x => x.id === brokerId ? { ...x, mc_number: e.target.value } : x))}
-                            onBlur={(e) => {
-                              const trimmed = e.target.value.trim()
-                              supabase.from('brokers').update({ mc_number: trimmed || null }).eq('id', brokerId)
-                            }}
-                            placeholder="Requerido para subir RC"
-                            className={`bg-transparent border-b outline-none px-0.5 text-[11px] w-40 ${selectedBroker.mc_number ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
+                            value={mcInput}
+                            onChange={(e) => { setMcInput(e.target.value); setDirty(true) }}
+                            placeholder="Requerido para subir RC — se guarda con Guardar"
+                            className={`bg-transparent border-b outline-none px-0.5 text-[11px] w-56 ${mcInput ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
                           />
                         </div>
                         {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
@@ -1856,7 +1885,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           )}
 
           {/* Documents panel — existing orders */}
-          {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} mcNumber={(selectedBroker?.mc_number || newBroker.mc_number || '').trim()} />}
+          {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} mcNumber={(mcInput || newBroker.mc_number || '').trim()} />}
 
           {/* RC upload + preview — new orders */}
           {isNew && (
