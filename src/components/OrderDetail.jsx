@@ -226,6 +226,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [brokerEmail, setBrokerEmail] = useState('')
   const [brokerType, setBrokerType] = useState('broker')
   const [mcInput, setMcInput] = useState('')
+  const [mcSearching, setMcSearching] = useState(false)
   const [equipmentType, setEquipmentType] = useState('')
   const [loadType, setLoadType] = useState('')
   const [dispatcher, setDispatcher] = useState(isNew ? userEmail : '')
@@ -414,35 +415,44 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   const allBrokersRef = useRef(allBrokers)
   useEffect(() => { allBrokersRef.current = allBrokers }, [allBrokers])
+  const mcInputRef = useRef(mcInput)
+  useEffect(() => { mcInputRef.current = mcInput }, [mcInput])
 
+  // Un solo intento de auto-relleno FMCSA por broker seleccionado — evita
+  // re-disparar la busqueda en cada cambio de allBrokers (spam de llamadas)
+  const mcAutoFillAttemptedRef = useRef(null)
   useEffect(() => {
-    if (brokerId) {
-      const b = allBrokers.find(x => x.id === brokerId)
-      if (b) {
-        setBrokerType(b.type || 'broker')
-        // Auto-fill MC#/DOT# via FMCSA name search if missing
-        if (!b.mc_number || !b.dot_number) {
-          (async () => {
-            try {
-              const match = await findBestMatchByName(b.name)
-              if (match) {
-                // Re-check against the LATEST broker data, not the closure captured
-                // when this search started — the user may have manually saved
-                // mc_number/dot_number while this (slow) name search was in flight,
-                // and that must win over an unreliable fuzzy name match
-                const current = allBrokersRef.current.find(x => x.id === b.id) || b
-                const updates = {}
-                if (!current.mc_number && match.mc_number) updates.mc_number = match.mc_number
-                if (!current.dot_number && match.dot_number) updates.dot_number = match.dot_number
-                if (Object.keys(updates).length > 0) {
-                  await supabase.from('brokers').update(updates).eq('id', b.id)
-                  setAllBrokers(prev => prev.map(x => x.id === b.id ? { ...x, ...updates } : x))
-                }
-              }
-            } catch (err) { console.warn('[Broker FMCSA auto-fill]', err) }
-          })()
-        }
-      }
+    if (!brokerId) { setMcSearching(false); return }
+    const b = allBrokers.find(x => x.id === brokerId)
+    if (!b) return
+    setBrokerType(b.type || 'broker')
+    // Auto-fill MC#/DOT# via FMCSA name search if missing
+    if ((!b.mc_number || !b.dot_number) && mcAutoFillAttemptedRef.current !== brokerId) {
+      mcAutoFillAttemptedRef.current = brokerId
+      const searchingForMc = !b.mc_number
+      if (searchingForMc) setMcSearching(true)
+      ;(async () => {
+        try {
+          const match = await findBestMatchByName(b.name)
+          if (match) {
+            // Re-check against the LATEST broker data, not the closure captured
+            // when this search started — the user may have manually saved
+            // mc_number/dot_number while this (slow) name search was in flight,
+            // and that must win over an unreliable fuzzy name match
+            const current = allBrokersRef.current.find(x => x.id === b.id) || b
+            const updates = {}
+            if (!current.mc_number && match.mc_number) updates.mc_number = match.mc_number
+            if (!current.dot_number && match.dot_number) updates.dot_number = match.dot_number
+            if (Object.keys(updates).length > 0) {
+              await supabase.from('brokers').update(updates).eq('id', b.id)
+              setAllBrokers(prev => prev.map(x => x.id === b.id ? { ...x, ...updates } : x))
+              // Refleja el MC# encontrado en el campo, solo si el usuario no escribio nada
+              if (updates.mc_number && !mcInputRef.current.trim()) setMcInput(updates.mc_number)
+            }
+          }
+        } catch (err) { console.warn('[Broker FMCSA auto-fill]', err) }
+        finally { if (searchingForMc) setMcSearching(false) }
+      })()
     }
   }, [brokerId, allBrokers])
 
@@ -1691,10 +1701,19 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                             type="text"
                             value={mcInput}
                             onChange={(e) => { setMcInput(e.target.value); setDirty(true) }}
-                            placeholder="Obligatorio"
+                            placeholder={mcSearching ? 'Buscando...' : 'Obligatorio'}
                             title="Requerido para subir RC. Se guarda con el boton Guardar."
                             className={`bg-transparent border-b outline-none px-0.5 text-[11px] flex-1 min-w-0 ${mcInput ? 'border-gray-700 text-gray-300 focus:border-orange-500' : 'border-red-800 text-red-400 placeholder-red-800/70 focus:border-red-500'}`}
                           />
+                          {mcSearching && !mcInput && (
+                            <span className="shrink-0 flex items-center gap-1 text-[10px] text-orange-400" title="Buscando MC# automaticamente (FMCSA)">
+                              <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Buscando
+                            </span>
+                          )}
                         </div>
                         {selectedBroker.dot_number && <div>DOT# <span className="text-gray-300">{selectedBroker.dot_number}</span></div>}
                         {selectedBroker.phone && <div>Tel: <span className="text-gray-300">{selectedBroker.phone}</span></div>}
