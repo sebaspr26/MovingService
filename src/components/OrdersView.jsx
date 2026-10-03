@@ -447,21 +447,36 @@ export default function OrdersView() {
   if (filterDateTo) filtered = filtered.filter(o => (o.pu_date || '') <= filterDateTo)
 
   // Search
-  const q = search.toLowerCase()
-  if (q) {
-    filtered = filtered.filter(o => {
-      const truck = truckMap[o.truck_id]
-      return (
-        String(o.order_number || '').toLowerCase().includes(q) ||
-        (o.pu_city || '').toLowerCase().includes(q) ||
-        (o.do_city || '').toLowerCase().includes(q) ||
-        (o.ref_number || '').toLowerCase().includes(q) ||
-        (truck?.name || '').toLowerCase().includes(q) ||
-        (truck?.number || '').toLowerCase().includes(q) ||
-        (brokers[o.broker_id]?.name || '').toLowerCase().includes(q)
-      )
-    })
+  const q = search.trim().toLowerCase()
+  const matchesText = (o, text) => {
+    const truck = truckMap[o.truck_id]
+    return (
+      String(o.order_number || '').toLowerCase().includes(text) ||
+      (o.pu_city || '').toLowerCase().includes(text) ||
+      (o.do_city || '').toLowerCase().includes(text) ||
+      (o.ref_number || '').toLowerCase().includes(text) ||
+      (truck?.name || '').toLowerCase().includes(text) ||
+      (truck?.number || '').toLowerCase().includes(text) ||
+      (brokers[o.broker_id]?.name || '').toLowerCase().includes(text)
+    )
   }
+  // Several order/reference numbers at once: "123, 456" or "123 | 456".
+  // Each code is matched against order # and ref # only — cities carry commas
+  // ("MIAMI, FL"), so splitting the free-text search would turn "fl" into a
+  // term matching every Florida load. The whole text still matches as before.
+  const searchCodes = q ? [...new Set(q.split(/[,|]/).map(t => t.trim()).filter(Boolean))] : []
+  const multiCode = searchCodes.length > 1
+  // "123, " while typing the next code is still a single-code search
+  const searchText = searchCodes.length === 1 ? searchCodes[0] : q
+  const matchesCode = (o, code) =>
+    String(o.order_number || '').toLowerCase().includes(code) ||
+    (o.ref_number || '').toLowerCase().includes(code)
+  if (searchText) {
+    filtered = filtered.filter(o => matchesText(o, searchText) || (multiCode && searchCodes.some(code => matchesCode(o, code))))
+  }
+  const codesFound = multiCode ? searchCodes.filter(code => filtered.some(o => matchesCode(o, code))) : []
+  // Only a code search if some code is actually an order/ref # — "Miami, FL" is a city
+  const codesNotFound = codesFound.length > 0 ? searchCodes.filter(code => !codesFound.includes(code)) : []
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -508,9 +523,18 @@ export default function OrdersView() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar orden, ciudad, broker..."
+              placeholder="Buscar orden, ciudad, broker... (varias: 123, 456 o 123 | 456)"
+              title="Para buscar varias ordenes a la vez, separa los numeros de orden o referencia con coma (,) o barra (|)"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
             />
+            {codesFound.length > 0 && (
+              <p className="mt-1 text-[10px] text-gray-500">
+                {codesFound.length} de {searchCodes.length} encontrados
+                {codesNotFound.length > 0 && (
+                  <span className="text-yellow-500"> · Sin resultados: {codesNotFound.join(', ')}</span>
+                )}
+              </p>
+            )}
           </div>
           {/* Selects — grid 2 col en mobile, inline en desktop */}
           <div className="grid grid-cols-2 gap-2 w-full sm:contents">
