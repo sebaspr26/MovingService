@@ -510,7 +510,10 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4 overflow-auto">
-      <div style={{ backgroundColor: '#ffffff' }} className="rounded-xl w-full max-w-3xl max-h-[95vh] overflow-auto shadow-2xl">
+      {/* Dark scroll box + white document: a white box showed white above the
+          dark toolbar when overscrolling (rubber-band). overscroll-none stops the
+          bounce itself; the dark background covers browsers that still bounce */}
+      <div style={{ backgroundColor: '#111827' }} className="rounded-xl w-full max-w-3xl max-h-[95vh] overflow-auto overscroll-none shadow-2xl">
         {/* Toolbar + section toggles share ONE sticky block: as two separate
             sticky bars, the second sat at a hardcoded top-[41px] and covered the
             buttons whenever they wrapped to more than one line */}
@@ -605,7 +608,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
         </div>
 
         {/* All printable content */}
-        <div ref={printRef}>
+        <div ref={printRef} style={{ backgroundColor: '#ffffff' }}>
           {/* Page 1: Invoice */}
           <div style={{ padding: '40px', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', color: '#1a1a2e', fontSize: '13px', lineHeight: '1.5', maxWidth: '800px', margin: '0 auto' }}>
 
