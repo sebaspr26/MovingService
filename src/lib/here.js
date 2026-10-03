@@ -183,3 +183,41 @@ export function formatDuration(minutes) {
   if (h === 0) return `${m}min`
   return m > 0 ? `${h}h ${m}min` : `${h}h`
 }
+
+/**
+ * Truck route through `locations` (2+ place strings) with the distance split
+ * by US state — HERE `spans=stateCode,length`. Used for IFTA, which needs
+ * miles per state and there is no ELD/GPS.
+ * Returns { totalMiles, byState: { NC: 200.8, VA: 126.1 } } or null.
+ */
+export async function routeMilesByState(locations) {
+  const places = (locations || []).filter(Boolean)
+  if (places.length < 2) return null
+  const coords = await Promise.all(places.map(p => geocode(p)))
+  if (coords.some(c => !c)) return null
+
+  const origin = `${coords[0].lat},${coords[0].lng}`
+  const destination = `${coords[coords.length - 1].lat},${coords[coords.length - 1].lng}`
+  const vias = coords.slice(1, -1).map(c => `&via=${c.lat},${c.lng}`).join('')
+  const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&spans=stateCode,length&apiKey=${API_KEY}`
+  const res = await fetch(url)
+  if (!res.ok) {
+    console.warn(`[HERE StateMiles] HTTP ${res.status}`)
+    return null
+  }
+  const data = await res.json()
+  const route = data.routes?.[0]
+  if (!route) return null
+
+  const byState = {}
+  let meters = 0
+  for (const section of route.sections) {
+    meters += section.summary?.length || 0
+    for (const span of section.spans || []) {
+      const st = String(span.stateCode || '').replace(/^USA?-/, '').toUpperCase() || '??'
+      byState[st] = (byState[st] || 0) + (span.length || 0)
+    }
+  }
+  for (const st of Object.keys(byState)) byState[st] = byState[st] / 1609.344
+  return { totalMiles: meters / 1609.344, byState }
+}

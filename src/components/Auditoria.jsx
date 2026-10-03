@@ -59,6 +59,7 @@ const FIELD_LABELS = {
   apply_discount: 'Aplica descuento', truck_id: 'Camión', order_number: 'Orden #',
   pu_date: 'Fecha pickup', do_date: 'Fecha delivery', pu_city: 'Ciudad pickup', do_city: 'Ciudad delivery', miles: 'Millas',
   pay_mode: 'Modo de pago', pay_rate: 'Tarifa de pago',
+  ifta: 'IFTA (dry van)',
 }
 
 const MONEY_FIELDS = new Set(['rate'])

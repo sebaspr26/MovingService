@@ -6,7 +6,8 @@ import { useToast, friendlyError } from './Toast'
 import AddReceiptModal from './AddReceiptModal'
 import OrderDetail from './OrderDetail'
 import DayPicker from './DayPicker'
-import { getActiveCompanyId } from '../lib/company'
+import { getActiveCompanyId, hasFeature } from '../lib/company'
+import { useCompany } from '../context/CompanyContext'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
@@ -28,6 +29,8 @@ const EXPENSE_CATEGORIES = [
 export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
+  const { activeCompany } = useCompany()
+  const iftaEnabled = hasFeature(activeCompany, 'ifta')
   const { theme } = useTheme()
   const role = session?.user?.user_metadata?.role
   const isDriver = role === 'driver' || role === 'driver_lease'
@@ -57,6 +60,8 @@ export default function Dashboard() {
   const [truckError, setTruckError] = useState('')
   const [truckRecurring, setTruckRecurring] = useState([])
   const [truckIsLis, setTruckIsLis] = useState(false)
+  // IFTA-qualified truck (dry van) — only offered when the company has IFTA on
+  const [truckIfta, setTruckIfta] = useState(false)
   const [truckOwnerName, setTruckOwnerName] = useState('')
   const [truckVin, setTruckVin] = useState('')
 
@@ -285,6 +290,7 @@ export default function Dashboard() {
       setTruckName(truck.name)
       setTruckNumber(truck.number)
       setTruckIsLis(truck.is_lis || false)
+      setTruckIfta(truck.ifta || false)
       setTruckOwnerName(truck.owner_name || '')
       setTruckVin(truck.vin_number || '')
       setTruckDiscount(String(truck.discount_percent || 13))
@@ -310,6 +316,7 @@ export default function Dashboard() {
       setTruckNumber('')
       setTruckDriverId('')
       setTruckIsLis(false)
+      setTruckIfta(false)
       setTruckOwnerName('')
       setTruckVin('')
       setTruckPartners([{ name: '', percentage: '' }])
@@ -402,7 +409,7 @@ export default function Dashboard() {
       const balanceBefore = activeCycle ? await computeTruckBalance(editingTruck.id, activeCycle.id) : null
 
       const { error } = await supabase.from('trucks')
-        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null })
+        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta })
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
@@ -427,8 +434,8 @@ export default function Dashboard() {
       // Save recurring expenses
       await saveRecurringExpenses(editingTruck.id)
 
-      const afterValues = { name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null }
-      const changes = diffFields(editingTruck, afterValues, ['name', 'number', 'discount_percent', 'is_lis', 'owner_name', 'vin_number'])
+      const afterValues = { name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta }
+      const changes = diffFields(editingTruck, afterValues, ['name', 'number', 'discount_percent', 'is_lis', 'owner_name', 'vin_number', 'ifta'])
       const prevDriverName = prevDriver?.name || null
       const newDriverName = newDriver?.name || null
       if (prevDriverName !== newDriverName) changes.driver = { from: prevDriverName, to: newDriverName }
@@ -443,7 +450,7 @@ export default function Dashboard() {
       else logAudit(session, truckAudit)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
-        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, company_id: getActiveCompanyId() })
+        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta, company_id: getActiveCompanyId() })
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
@@ -1139,6 +1146,24 @@ export default function Dashboard() {
                   />
                 )}
               </div>
+
+              {iftaEnabled && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-gray-400">Incluir en IFTA (dry van)</label>
+                      <p className="text-[10px] text-gray-600 mt-0.5">Sus millas y diesel entran al reporte IFTA. Los box trucks no declaran IFTA</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTruckIfta(!truckIfta)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${truckIfta ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${truckIfta ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Descuento sobre Orders (%)</label>
