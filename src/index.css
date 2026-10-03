@@ -114,10 +114,16 @@ html.light .bg-black\/60 {
    DARK MODE (default)
    ======================== */
 /* Page background — without it, pulling past the edge (overscroll bounce)
-   shows the browser's default white. gray-950 is inverted in light mode */
+   shows the browser's default white. Hex, NOT var(--color-gray-950): Tailwind v4
+   colors are oklch(), and html2canvas (every PDF: invoices, settlements, cycle
+   statement) reads the page background and crashes on oklch */
 html,
 body {
-  background-color: var(--color-gray-950);
+  background-color: #030712; /* gray-950 */
+}
+html.light,
+html.light body {
+  background-color: #ffffff; /* gray-950 in light mode */
 }
 
 /* Scrollbars: all invisible (content still scrolls). The only visible one is

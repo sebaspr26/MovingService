@@ -323,7 +323,7 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
                   key={row.id}
                   className={`border-b transition-colors ${
                     isLease && row.dispatcher_paid
-                      ? 'border-violet-900/60 bg-violet-950/30 hover:bg-violet-950/50'
+                      ? 'border-gray-800/50 bg-violet-950/30 hover:bg-violet-950/50'
                       : row.paid
                         ? 'border-gray-800/50 hover:bg-gray-800/30'
                         : 'border-gray-800/50 opacity-50 hover:opacity-70 hover:bg-gray-800/20'
