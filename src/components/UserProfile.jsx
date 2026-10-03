@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import DatePicker from './DatePicker'
 import { logAudit } from '../lib/auditLog'
+import { registerBiometrics, listBiometrics, removeBiometrics, biometricsEnabled, biometricLabel } from '../lib/auth'
 
 const US_STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
@@ -381,6 +382,7 @@ export default function UserProfile() {
         <div className="space-y-4">
           {AvatarBlock}
           {PersonalInfoBlock}
+          <BiometricsCard />
         </div>
       </div>
     )
@@ -401,6 +403,8 @@ export default function UserProfile() {
 
           {/* Avatar */}
           {AvatarBlock}
+
+          <BiometricsCard />
 
           {/* Datos personales */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -600,6 +604,87 @@ export default function UserProfile() {
 
         </div>
       </div>
+    </div>
+  )
+}
+
+// Face ID / Touch ID / fingerprint sign-in (Supabase passkeys): register this
+// device, list the registered ones and remove them. Top-level component (not
+// declared inside UserProfile) so it isn't remounted on every profile render.
+function BiometricsCard() {
+  const toast = useToast()
+  const [items, setItems] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [unavailable, setUnavailable] = useState(null)
+  // Hidden until passkeys are supported here AND enabled in Supabase
+  const [supported, setSupported] = useState(false)
+  const name = biometricLabel()
+
+  useEffect(() => {
+    biometricsEnabled().then(on => {
+      setSupported(on)
+      if (on) listBiometrics().then(setItems).catch(err => setUnavailable(err.message))
+    })
+  }, [])
+
+  async function enable() {
+    setBusy(true)
+    try {
+      await registerBiometrics()
+      setItems(await listBiometrics())
+      toast.success(`${name} activado en este dispositivo`)
+    } catch (err) {
+      if (err.message !== 'Cancelado') toast.error(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(item) {
+    const ok = await toast.confirm('¿Quitar este dispositivo? Ya no podrá entrar con Face ID / huella hasta registrarlo de nuevo.')
+    if (!ok) return
+    try {
+      await removeBiometrics(item.id)
+      setItems(prev => prev.filter(i => i.id !== item.id))
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  if (!supported) return null
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Entrar con {name}</p>
+      <p className="text-xs text-gray-500 mb-3">Entra a la app sin escribir tu contraseña, usando {name} de este dispositivo. Tu contraseña sigue funcionando.</p>
+      {unavailable ? (
+        <p className="text-xs text-yellow-500/90">{unavailable}</p>
+      ) : (
+        <>
+          {items?.length > 0 && (
+            <ul className="mb-3 divide-y divide-gray-800/60">
+              {items.map(i => (
+                <li key={i.id} className="flex items-center justify-between gap-2 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-200 truncate">{i.friendly_name || 'Dispositivo'}</p>
+                    <p className="text-[10px] text-gray-500">
+                      Registrado {new Date(i.created_at).toLocaleDateString('es-MX')}
+                      {i.last_used_at ? ` · último uso ${new Date(i.last_used_at).toLocaleDateString('es-MX')}` : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => remove(i)} className="shrink-0 text-[11px] text-gray-500 hover:text-red-400">Quitar</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            onClick={enable}
+            disabled={busy || items === null}
+            className="w-full py-2.5 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-500 disabled:opacity-50"
+          >
+            {busy ? 'Esperando...' : items?.length ? `Agregar este dispositivo` : `Activar ${name} en este dispositivo`}
+          </button>
+        </>
+      )}
     </div>
   )
 }

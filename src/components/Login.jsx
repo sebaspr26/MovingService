@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signIn } from '../lib/auth'
+import { signIn, signInWithBiometrics, biometricsEnabled, biometricLabel } from '../lib/auth'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -11,6 +11,23 @@ export default function Login() {
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
   const [view, setView] = useState('login') // 'login' | 'forgot'
+  const [bioLoading, setBioLoading] = useState(false)
+  const [canUseBiometrics, setCanUseBiometrics] = useState(false)
+  useEffect(() => { biometricsEnabled().then(setCanUseBiometrics) }, [])
+  const bioName = biometricLabel()
+
+  async function handleBiometrics() {
+    setError('')
+    setBioLoading(true)
+    try {
+      await signInWithBiometrics()
+      navigate('/', { replace: true })
+    } catch (err) {
+      if (err.message !== 'Cancelado') setError(err.message)
+    } finally {
+      setBioLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Fallback: show after 2.5s even if video never fires canplay
@@ -185,6 +202,25 @@ export default function Login() {
                     )}
                   </span>
                 </button>
+
+                {/* Face ID / Touch ID / huella (Supabase passkeys) */}
+                {canUseBiometrics && (
+                  <button
+                    type="button"
+                    onClick={handleBiometrics}
+                    disabled={bioLoading || loading}
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-gray-200 border border-white/15 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {bioLoading ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75H6A2.25 2.25 0 0 0 3.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0 1 20.25 6v1.5m0 9V18A2.25 2.25 0 0 1 18 20.25h-1.5m-9 0H6A2.25 2.25 0 0 1 3.75 18v-1.5M9 9.75v.75m6-.75v.75M12 9.75v3h-.75m-2.25 2.25s1 1.5 3 1.5 3-1.5 3-1.5" />
+                      </svg>
+                    )}
+                    Entrar con {bioName}
+                  </button>
+                )}
 
                 {/* Olvidaste contraseña */}
                 <div className="text-center pt-1">
