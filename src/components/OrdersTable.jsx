@@ -6,11 +6,12 @@ import { useToast, friendlyError } from './Toast'
 import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
+import { auditedBalanceWrite } from '../lib/balance'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 import DatePicker from './DatePicker'
 
-export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
+export default function OrdersTable({ truckId, truckName, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
   const toast = useToast()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
@@ -115,7 +116,11 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     const newPaid = !wasPaid
     const newStatus = newPaid ? 'paid' : 'invoiced'
     setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: newPaid, status: newStatus } : r))
-    const { error } = await supabase.from('orders').update({ paid: newPaid, status: newStatus }).eq('id', row.id)
+    const { error } = await auditedBalanceWrite(session, {
+      action: 'update_order', entityType: 'order', entityId: row.id, entityName: row.order_number,
+      truckId, cycleId: row.cycle_id || cycle?.id,
+      extraInfo: { truck: truckName || null, rate: row.rate, status: newStatus, changes: { paid: { from: wasPaid, to: newPaid } } },
+    }, () => supabase.from('orders').update({ paid: newPaid, status: newStatus }).eq('id', row.id))
     if (error) {
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, paid: wasPaid, status: row.status } : r))
       toast.error(friendlyError(error.message))
@@ -130,7 +135,11 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
     setRows(prev => prev.map(r => r.id === row.id ? { ...r, dispatcher_paid: newVal } : r))
     setAnimatingId(row.id)
     setTimeout(() => setAnimatingId(null), 400)
-    const { error } = await supabase.from('orders').update({ dispatcher_paid: newVal }).eq('id', row.id)
+    const { error } = await auditedBalanceWrite(session, {
+      action: 'update_order', entityType: 'order', entityId: row.id, entityName: row.order_number,
+      truckId, cycleId: row.cycle_id || cycle?.id,
+      extraInfo: { truck: truckName || null, rate: row.rate, status: row.status, changes: { dispatcher_paid: { from: !!row.dispatcher_paid, to: newVal } } },
+    }, () => supabase.from('orders').update({ dispatcher_paid: newVal }).eq('id', row.id))
     if (error) {
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, dispatcher_paid: row.dispatcher_paid } : r))
       toast.error(friendlyError(error.message))
@@ -166,7 +175,15 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
       }
       let result
       if (editRow) {
-        result = await supabase.from('orders').update(record).eq('id', editRow.id)
+        const changes = {}
+        for (const f of ['order_number', 'rate', 'apply_discount', 'pu_date', 'do_date', 'pu_city', 'do_city', 'miles']) {
+          if ((editRow[f] ?? null) !== (record[f] ?? null)) changes[f] = { from: editRow[f] ?? null, to: record[f] ?? null }
+        }
+        result = await auditedBalanceWrite(session, {
+          action: 'update_order', entityType: 'order', entityId: editRow.id, entityName: record.order_number,
+          truckId, cycleId: record.cycle_id,
+          extraInfo: { truck: truckName || null, rate: record.rate, status: editRow.status, changes },
+        }, () => supabase.from('orders').update(record).eq('id', editRow.id))
       } else {
         // Duplicate check by order_number
         const { data: existing } = await supabase.from('orders').select('id')
@@ -178,7 +195,11 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
         record.discount_percent = discountPct || 13
         record.created_by_email = session?.user?.email || null
         record.created_by_name = session?.user?.user_metadata?.name || null
-        result = await supabase.from('orders').insert(record)
+        result = await auditedBalanceWrite(session, {
+          action: 'create_order', entityType: 'order', entityName: record.order_number,
+          truckId, cycleId: record.cycle_id,
+          extraInfo: { truck: truckName || null, rate: record.rate },
+        }, () => supabase.from('orders').insert(record))
       }
       if (result.error) throw result.error
       closeModal()
@@ -193,7 +214,12 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
   async function handleDelete(id) {
     const ok = await toast.confirm('Eliminar esta orden?')
     if (!ok) return
-    const { error } = await supabase.from('orders').delete().eq('id', id)
+    const row = rows.find(r => r.id === id)
+    const { error } = await auditedBalanceWrite(session, {
+      action: 'delete_order', entityType: 'order', entityId: id, entityName: row?.order_number,
+      truckId, cycleId: row?.cycle_id || cycle?.id,
+      extraInfo: { truck: truckName || null, rate: row?.rate, status: row?.status, paid: !!row?.paid },
+    }, () => supabase.from('orders').delete().eq('id', id))
     if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()

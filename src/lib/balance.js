@@ -92,3 +92,83 @@ export async function logBalanceChange(session, { action, entityType, entityId, 
     console.warn('[logBalanceChange]', err)
   }
 }
+
+/**
+ * Runs a write that can change a truck's balance and records it in Auditoria —
+ * the same before/after pattern as OrderDetail/ExpensesTab, in one place so a
+ * call site can't forget the snapshot. `write` must return a Supabase result
+ * ({ data, error }); nothing is logged if it fails.
+ *
+ * Without truckId+cycleId the action is still logged, just without balance
+ * numbers. When the write moves money OUT of another truck/cycle too (an order
+ * reassigned to a different truck, or moved to another cycle), pass that one as
+ * `from: { truckId, cycleId, entityName }` and it gets its own entry.
+ */
+export async function auditedBalanceWrite(session, audit, write) {
+  const { truckId, cycleId, from } = audit
+  const tracked = !!(truckId && cycleId)
+  const fromTracked = !!(from?.truckId && from?.cycleId) && (from.truckId !== truckId || from.cycleId !== cycleId)
+  const [balanceBefore, fromBalanceBefore] = await Promise.all([
+    tracked ? computeTruckBalance(truckId, cycleId) : null,
+    fromTracked ? computeTruckBalance(from.truckId, from.cycleId) : null,
+  ])
+
+  const result = await write()
+  if (result?.error) return result
+
+  if (tracked) logBalanceChange(session, { ...audit, balanceBefore })
+  else logAudit(session, audit)
+  if (fromTracked) {
+    logBalanceChange(session, {
+      ...audit,
+      entityName: from.entityName ?? audit.entityName,
+      truckId: from.truckId,
+      cycleId: from.cycleId,
+      balanceBefore: fromBalanceBefore,
+      extraInfo: { ...audit.extraInfo, moved_out: true },
+    })
+  }
+  return result
+}
+
+// Driver fields that feed leaseDriverDebit() — changing any of them can move
+// the balance of the truck the driver is on (and the one he leaves)
+const DRIVER_BALANCE_FIELDS = ['truck_id', 'status', 'pay_mode', 'pay_rate']
+
+/**
+ * Like auditedBalanceWrite, for a write to a driver row. Reads the driver's
+ * current values itself, and if any balance-relevant field changes, logs one
+ * entry per affected truck (the one he leaves and the one he joins) that has an
+ * active cycle. `after` is the new values (only the keys being written);
+ * `after = null` means the driver is being deleted.
+ */
+export async function auditedDriverWrite(session, { driverId, action = 'update_driver', after }, write) {
+  const { data: before } = await supabase.from('drivers').select('name, truck_id, status, pay_mode, pay_rate').eq('id', driverId).maybeSingle()
+  const next = after === null ? { truck_id: null, status: 'deleted' } : { ...before, ...after }
+  const norm = (f, v) => (f === 'pay_rate' ? (v === null || v === undefined || v === '' ? null : Number(v)) : (v ?? null))
+  const changes = {}
+  for (const f of DRIVER_BALANCE_FIELDS) {
+    const a = norm(f, before?.[f])
+    const b = norm(f, next[f])
+    if (a !== b) changes[f] = { from: a, to: b }
+  }
+  if (!before || Object.keys(changes).length === 0) return write()
+
+  const truckIds = [...new Set([before.truck_id, next.truck_id].filter(Boolean))]
+  const [{ data: trucks }, cycles] = await Promise.all([
+    truckIds.length ? supabase.from('trucks').select('id, name').in('id', truckIds) : { data: [] },
+    Promise.all(truckIds.map(t => getActiveCycle(t))),
+  ])
+  const truckName = id => (trucks || []).find(t => t.id === id)?.name || null
+  if (changes.truck_id) changes.truck_id = { from: truckName(changes.truck_id.from), to: truckName(changes.truck_id.to) }
+  const tracked = truckIds.map((t, i) => ({ truckId: t, cycleId: cycles[i]?.id })).filter(x => x.cycleId)
+  const befores = await Promise.all(tracked.map(x => computeTruckBalance(x.truckId, x.cycleId)))
+
+  const result = await write()
+  if (result?.error) return result
+
+  const base = { action, entityType: 'driver', entityId: driverId, extraInfo: { driver: before.name, changes } }
+  if (tracked.length === 0) logAudit(session, { ...base, entityName: before.name })
+  tracked.forEach((x, i) => logBalanceChange(session, { ...base, entityName: truckName(x.truckId), truckId: x.truckId, cycleId: x.cycleId, balanceBefore: befores[i] }))
+  return result
+}

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
 import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
+import { STATUS_CONFIG } from '../lib/orders'
 
 const PAGE_SIZE = 50
 
@@ -34,6 +35,12 @@ const ACTIONS = {
   create_def: { label: 'DEF agregado', color: 'emerald', icon: ICON.create },
   update_def: { label: 'DEF editado', color: 'blue', icon: ICON.update },
   delete_def: { label: 'DEF eliminado', color: 'red', icon: ICON.delete },
+  create_accounting: { label: 'Contabilidad: registro agregado', color: 'emerald', icon: ICON.create },
+  update_accounting: { label: 'Contabilidad: registro editado', color: 'blue', icon: ICON.update },
+  delete_accounting: { label: 'Contabilidad: registro eliminado', color: 'red', icon: ICON.delete },
+  transfer_to_owner: { label: 'Transferido a propietario', color: 'yellow', icon: ICON.update },
+  update_driver: { label: 'Chofer editado', color: 'blue', icon: ICON.update },
+  delete_driver: { label: 'Chofer eliminado', color: 'red', icon: ICON.delete },
 }
 
 const COLOR_CLASSES = {
@@ -48,6 +55,41 @@ const COLOR_CLASSES = {
 const FIELD_LABELS = {
   name: 'Nombre', number: 'Número', discount_percent: 'Descuento %',
   is_lis: 'LIS (propietario externo)', owner_name: 'Propietario', vin_number: 'VIN', driver: 'Chofer',
+  paid: 'Pagada', dispatcher_paid: 'Pago al conductor', status: 'Status', rate: 'Rate',
+  apply_discount: 'Aplica descuento', truck_id: 'Camión', order_number: 'Orden #',
+  pu_date: 'Fecha pickup', do_date: 'Fecha delivery', pu_city: 'Ciudad pickup', do_city: 'Ciudad delivery', miles: 'Millas',
+  pay_mode: 'Modo de pago', pay_rate: 'Tarifa de pago',
+}
+
+const MONEY_FIELDS = new Set(['rate'])
+const PAY_MODES = { percentage: 'Porcentaje', flat_rate: 'Tarifa fija', per_mile: 'Por milla' }
+
+function fmtField(field, v) {
+  if (v === null || v === undefined || v === '') return '—'
+  if (MONEY_FIELDS.has(field) && !isNaN(Number(v))) return fmtMoney(Number(v))
+  if (field === 'status') return STATUS_CONFIG[v]?.label || String(v)
+  if (field === 'pay_mode') return PAY_MODES[v] || String(v)
+  return fmtVal(v)
+}
+
+// Field-by-field "antes → después" list, shared by every action that stores `changes`
+function ChangesList({ changes }) {
+  const keys = Object.keys(changes || {})
+  if (keys.length === 0) return null
+  return (
+    <div className="space-y-1.5">
+      {keys.map(k => (
+        <div key={k} className="flex items-center gap-2 text-xs">
+          <span className="text-gray-500 w-40 shrink-0">{FIELD_LABELS[k] || k}</span>
+          <span className="text-gray-400">{fmtField(k, changes[k].from)}</span>
+          <svg className="w-3 h-3 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0-4 4m4-4H3" />
+          </svg>
+          <span className="text-white font-medium">{fmtField(k, changes[k].to)}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const fmtMoney = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
@@ -179,12 +221,60 @@ function EntryDetails({ row, dispatcherNames }) {
     )
   } else if (['create_order', 'update_order', 'delete_order'].includes(row.action)) {
     content = (
+      <>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          <div><span className="text-gray-500">Camión:</span> <span className="text-gray-300">{fmtVal(info.truck)}</span></div>
+          <div><span className="text-gray-500">Rate:</span> <span className="text-gray-300">{info.rate != null ? fmtMoney(info.rate) : '—'}</span></div>
+          {info.status && <div><span className="text-gray-500">Status:</span> <span className="text-gray-300">{fmtField('status', info.status)}</span></div>}
+          {info.dispatcher && <div><span className="text-gray-500">Dispatcher:</span> <span className="text-gray-300">{dispatcherNames[info.dispatcher] || fmtVal(info.dispatcher)}</span></div>}
+        </div>
+        {info.changes && Object.keys(info.changes).length > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t border-gray-800/70"><ChangesList changes={info.changes} /></div>
+        )}
+      </>
+    )
+  } else if (['create_accounting', 'update_accounting', 'delete_accounting'].includes(row.action)) {
+    const before = info.before
+    content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        <div><span className="text-gray-500">Camión:</span> <span className="text-gray-300">{fmtVal(info.truck)}</span></div>
-        <div><span className="text-gray-500">Rate:</span> <span className="text-gray-300">{info.rate != null ? fmtMoney(info.rate) : '—'}</span></div>
-        {info.status && <div><span className="text-gray-500">Status:</span> <span className="text-gray-300">{fmtVal(info.status)}</span></div>}
-        {info.dispatcher && <div><span className="text-gray-500">Dispatcher:</span> <span className="text-gray-300">{dispatcherNames[info.dispatcher] || fmtVal(info.dispatcher)}</span></div>}
+        <div className="col-span-2"><span className="text-gray-500">Descripción:</span> <span className="text-gray-300">{fmtVal(info.description)}</span></div>
+        {info.reference && <div className="col-span-2"><span className="text-gray-500">Referencia:</span> <span className="text-gray-300">{fmtVal(info.reference)}</span></div>}
+        <div>
+          <span className="text-gray-500">Crédito:</span>{' '}
+          {before && (before.credit || null) !== (info.credit || null) && <span className="text-gray-500 line-through mr-1">{before.credit != null ? fmtMoney(before.credit) : '—'}</span>}
+          <span className="text-emerald-400">{info.credit != null ? fmtMoney(info.credit) : '—'}</span>
+        </div>
+        <div>
+          <span className="text-gray-500">Débito:</span>{' '}
+          {before && (before.debit || null) !== (info.debit || null) && <span className="text-gray-500 line-through mr-1">{before.debit != null ? fmtMoney(before.debit) : '—'}</span>}
+          <span className="text-red-400">{info.debit != null ? fmtMoney(info.debit) : '—'}</span>
+        </div>
       </div>
+    )
+  } else if (row.action === 'transfer_to_owner') {
+    content = (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Tipo:</span> <span className="text-gray-300">{fmtVal(info.type)}</span></div>
+        <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.amount != null ? fmtMoney(info.amount) : '—'}</span></div>
+        <div className="col-span-2"><span className="text-gray-500">Descripción:</span> <span className="text-gray-300">{fmtVal(info.description)}</span></div>
+        <div className="col-span-2 text-gray-600">Sale de los gastos del ciclo y pasa a Gastos Propietario (no cuenta en el balance)</div>
+      </div>
+    )
+  } else if (['update_driver', 'delete_driver'].includes(row.action)) {
+    content = (
+      <>
+        <p className="text-xs mb-1.5"><span className="text-gray-500">Chofer:</span> <span className="text-gray-300">{fmtVal(info.driver)}</span></p>
+        <ChangesList changes={info.changes} />
+      </>
+    )
+  }
+
+  if (content && info.moved_out) {
+    content = (
+      <>
+        <p className="text-[11px] text-yellow-500/80 mb-2">Movimiento de salida: la orden se movió a otro camión o ciclo</p>
+        {content}
+      </>
     )
   }
 
@@ -204,6 +294,8 @@ const HAS_DETAILS_ACTIONS = new Set([
   'create_diesel', 'update_diesel', 'delete_diesel',
   'create_def', 'update_def', 'delete_def',
   'create_order', 'update_order', 'delete_order',
+  'create_accounting', 'update_accounting', 'delete_accounting',
+  'transfer_to_owner', 'update_driver', 'delete_driver',
 ])
 
 export default function Auditoria() {
@@ -235,8 +327,16 @@ export default function Auditoria() {
   const [actionFilter, setActionFilter] = useState([])
   const [truckFilter, setTruckFilter] = useState([])
   const [userFilter, setUserFilter] = useState([])
+  const [search, setSearch] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const hasActiveFilters = dateFrom || dateTo || actionFilter.length > 0 || truckFilter.length > 0 || userFilter.length > 0
+  // Debounce so the query runs once the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => setSearchTerm(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const hasActiveFilters = dateFrom || dateTo || actionFilter.length > 0 || truckFilter.length > 0 || userFilter.length > 0 || searchTerm
 
   useEffect(() => {
     const cId = getActiveCompanyId()
@@ -268,8 +368,25 @@ export default function Auditoria() {
     if (actionFilter.length > 0) q = q.in('action', actionFilter)
     if (truckFilter.length > 0) q = q.in('entity_name', truckFilter)
     if (userFilter.length > 0) q = q.or(userFilter.map(u => `user_email.eq.${u},user_name.eq.${u}`).join(','))
+    if (searchTerm) {
+      // Free text over who/what plus the money details stored in extra_info.
+      // Quoted values so commas/parens typed by the user don't break the filter
+      const term = searchTerm.replace(/["\\]/g, '')
+      const like = `"*${term}*"`
+      const conds = [
+        'entity_name', 'user_name', 'user_email',
+        'extra_info->>description', 'extra_info->>reference', 'extra_info->>category',
+        'extra_info->>truck', 'extra_info->>driver', 'extra_info->>dispatcher', 'extra_info->>invoice_number',
+        'extra_info->>amount', 'extra_info->>value', 'extra_info->>rate', 'extra_info->>credit', 'extra_info->>debit',
+      ].map(col => `${col}.ilike.${like}`)
+      // Typing an action name ("diesel", "contabilidad", "pagada"...) matches those actions too
+      const lower = term.toLowerCase()
+      const matchingActions = Object.entries(ACTIONS).filter(([key, cfg]) => cfg.label.toLowerCase().includes(lower) || key.includes(lower)).map(([key]) => key)
+      if (matchingActions.length > 0) conds.push(`action.in.(${matchingActions.join(',')})`)
+      q = q.or(conds.join(','))
+    }
     return q
-  }, [dateFrom, dateTo, actionFilter, truckFilter, userFilter])
+  }, [dateFrom, dateTo, actionFilter, truckFilter, userFilter, searchTerm])
 
   useEffect(() => {
     setLoading(true)
@@ -292,7 +409,7 @@ export default function Auditoria() {
   }
 
   function clearFilters() {
-    setDateFrom(''); setDateTo(''); setActionFilter([]); setTruckFilter([]); setUserFilter([])
+    setDateFrom(''); setDateTo(''); setActionFilter([]); setTruckFilter([]); setUserFilter([]); setSearch(''); setSearchTerm('')
   }
 
   // Group by local calendar day
@@ -315,12 +432,31 @@ export default function Auditoria() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">Auditoría</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Historial de cambios en camiones y ciclos del Dashboard</p>
+          <p className="text-sm text-gray-500 mt-0.5">Historial de todo lo que mueve el balance: órdenes, gastos, contabilidad, ciclos, camiones y choferes</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 mb-5 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-[240px]">
+          <svg className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar camión, orden, usuario, monto..."
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-7 py-1.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-orange-500"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="w-full sm:w-[220px]">
           <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={({ from, to }) => { setDateFrom(from); setDateTo(to) }} placeholder="Rango de fechas" />
         </div>
@@ -354,7 +490,7 @@ export default function Auditoria() {
           </svg>
           <p className="text-sm text-gray-500">No hay registros de auditoría</p>
           <p className="text-xs text-gray-700 mt-1">
-            {hasActiveFilters ? 'Ningún registro coincide con los filtros seleccionados' : 'Aparecerán aquí los cambios en camiones y ciclos'}
+            {hasActiveFilters ? 'Ningún registro coincide con la búsqueda o los filtros' : 'Aparecerán aquí todos los movimientos que afectan el balance'}
           </p>
         </div>
       ) : (

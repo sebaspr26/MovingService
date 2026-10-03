@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
 import { logAudit, diffFields } from '../lib/auditLog'
+import { computeTruckBalance, logBalanceChange, auditedBalanceWrite } from '../lib/balance'
 import { leaseDriverDebit } from '../lib/orders'
 import DatePicker from './DatePicker'
 
@@ -132,11 +133,17 @@ export default function Dashboard() {
       }
       const todayDate = new Date().toISOString().split('T')[0]
 
-      await supabase.from('expenses').insert({
+      const { error: insertErr } = await auditedBalanceWrite(session, {
+        action: 'create_expense', entityType: 'expense', entityName: rec.trucks?.name || null,
+        truckId, cycleId: cycle.id,
+        extraInfo: { category: 'Recurrente', amount: Number(rec.amount), description: rec.description },
+      }, () => supabase.from('expenses').insert({
         truck_id: truckId, cycle_id: cycle.id, category: 'Recurrente',
         invoice_number: 'REC', description: rec.description, amount: Number(rec.amount),
         date: todayDate, period_start: todayDate, period_end: todayDate,
-      })
+      }))
+      // Don't mark the month as applied if the expense was never saved
+      if (insertErr) throw insertErr
 
       // Mark as applied this month
       const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
@@ -389,6 +396,11 @@ export default function Dashboard() {
       const prevDriver = drivers.find(d => d.truck_id === editingTruck.id)
       const newDriver = truckDriverId ? drivers.find(d => d.id === truckDriverId) : null
 
+      // LIS on/off, the % discount and the assigned driver (his pay_rate is the
+      // lease debit) all feed the balance — snapshot it so Auditoria shows the jump
+      const activeCycle = await getActiveCycle(editingTruck.id)
+      const balanceBefore = activeCycle ? await computeTruckBalance(editingTruck.id, activeCycle.id) : null
+
       const { error } = await supabase.from('trucks')
         .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null })
         .eq('id', editingTruck.id)
@@ -420,13 +432,15 @@ export default function Dashboard() {
       const prevDriverName = prevDriver?.name || null
       const newDriverName = newDriver?.name || null
       if (prevDriverName !== newDriverName) changes.driver = { from: prevDriverName, to: newDriverName }
-      logAudit(session, {
+      const truckAudit = {
         action: 'update_truck',
         entityType: 'truck',
         entityId: editingTruck.id,
         entityName: afterValues.name,
         extraInfo: { changes, recurring_expenses: recurringExpensesSnapshot() },
-      })
+      }
+      if (activeCycle) logBalanceChange(session, { ...truckAudit, truckId: editingTruck.id, cycleId: activeCycle.id, balanceBefore })
+      else logAudit(session, truckAudit)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
         .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, company_id: getActiveCompanyId() })

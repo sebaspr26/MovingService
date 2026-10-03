@@ -160,12 +160,25 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
       period_start: row.period_start || period.start,
       period_end: row.period_end || period.end,
     }
+    // Leaving the cycle's expenses raises the truck's balance (owner expenses
+    // don't count), so this is a balance change and must be audited
+    const balanceBefore = await computeTruckBalance(truckId, cycle?.id)
     const { error: insertErr } = await supabase.from('owner_expenses').insert(ownerRecord)
     if (insertErr) { toast.error(friendlyError(insertErr.message)); return }
     // Delete from original table
     const table = (row._type === 'expense' || row._type === 'chofer') ? 'expenses' : row._type
     const { error: delErr } = await supabase.from(table).delete().eq('id', row.id)
     if (delErr) { toast.error(friendlyError(delErr.message)); return }
+    logBalanceChange(session, {
+      action: 'transfer_to_owner',
+      entityType: row._type === 'diesel' || row._type === 'def' ? row._type : 'expense',
+      entityId: row.id,
+      entityName: truckName,
+      truckId,
+      cycleId: cycle?.id,
+      balanceBefore,
+      extraInfo: { amount: row._amount, description: ownerRecord.description, category: ownerRecord.category, type: typeLabel },
+    })
     fetchAll()
     if (onDataChange) onDataChange()
     toast.success(`${typeLabel} transferido a gastos del propietario`)

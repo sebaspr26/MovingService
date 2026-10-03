@@ -10,6 +10,7 @@ import { useToast } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
+import { auditedBalanceWrite } from '../lib/balance'
 import { useTheme } from '../lib/theme'
 
 function useCountUp(target, duration = 700) {
@@ -323,13 +324,25 @@ export default function OrdersView() {
     setLoading(false)
   }
 
+  // Every write here that flips `paid` (or rewrites the rate, for TONU) moves the
+  // truck's balance, so it goes through auditedBalanceWrite to land in Auditoria
+  function orderAudit(order, extra) {
+    return {
+      action: 'update_order', entityType: 'order', entityId: order.id, entityName: order.order_number,
+      truckId: order.truck_id, cycleId: order.cycle_id,
+      extraInfo: { truck: truckMap[order.truck_id]?.name || null, rate: order.rate, dispatcher: order.dispatcher, ...extra },
+    }
+  }
+
   async function handleTogglePaid(row) {
     const wasPaid = row.paid
     const newPaid = !wasPaid
     const newStatus = newPaid ? 'paid' : 'invoiced'
     const updates = { paid: newPaid, status: newStatus }
     setOrders(prev => prev.map(o => o.id === row.id ? { ...o, ...updates } : o))
-    const { error } = await supabase.from('orders').update(updates).eq('id', row.id)
+    const { error } = await auditedBalanceWrite(session,
+      orderAudit(row, { status: newStatus, changes: { paid: { from: !!wasPaid, to: newPaid }, status: { from: row.status, to: newStatus } } }),
+      () => supabase.from('orders').update(updates).eq('id', row.id))
     if (error) {
       setOrders(prev => prev.map(o => o.id === row.id ? { ...o, paid: wasPaid, status: row.status } : o))
     }
@@ -344,16 +357,33 @@ export default function OrdersView() {
     const updates = { status: newStatus }
     if (newStatus === 'paid') updates.paid = true
     if (newStatus !== 'paid' && newStatus !== 'tonu') updates.paid = false
+    const order = orders.find(o => o.id === orderId)
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o))
-    await supabase.from('orders').update(updates).eq('id', orderId)
+    const write = () => supabase.from('orders').update(updates).eq('id', orderId)
+    if (order && !!order.paid !== updates.paid) {
+      await auditedBalanceWrite(session,
+        orderAudit(order, { status: newStatus, changes: { paid: { from: !!order.paid, to: updates.paid }, status: { from: order.status, to: newStatus } } }),
+        write)
+    } else {
+      await write()
+    }
   }
 
   async function applyTonu() {
     if (!tonuTarget) return
     const price = Number(tonuPrice) || 150
     const updates = { status: 'tonu', rate: price, apply_discount: false, paid: true }
+    const order = orders.find(o => o.id === tonuTarget)
     setOrders(prev => prev.map(o => o.id === tonuTarget ? { ...o, ...updates } : o))
-    await supabase.from('orders').update(updates).eq('id', tonuTarget)
+    const write = () => supabase.from('orders').update(updates).eq('id', tonuTarget)
+    if (order) {
+      await auditedBalanceWrite(session, orderAudit(order, {
+        rate: price, status: 'tonu',
+        changes: { status: { from: order.status, to: 'tonu' }, rate: { from: order.rate, to: price }, paid: { from: !!order.paid, to: true }, apply_discount: { from: order.apply_discount !== false, to: false } },
+      }), write)
+    } else {
+      await write()
+    }
     toast.success(`TONU aplicado — ${fmt(price)}`)
     setTonuTarget(null)
   }

@@ -12,7 +12,7 @@ import { lookupByMc, lookupByDot, searchByName, findBestMatchByName } from '../l
 import { useToast, friendlyError } from './Toast'
 import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import { logAudit } from '../lib/auditLog'
-import { computeTruckBalance, logBalanceChange } from '../lib/balance'
+import { computeTruckBalance, logBalanceChange, auditedBalanceWrite } from '../lib/balance'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
@@ -247,6 +247,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
   const [cycleId, setCycleId] = useState(null)
+  // Last persisted values of the fields that move the balance — so edits can
+  // audit what the order WAS (paid → unpaid, moved to another truck/cycle)
+  const savedRef = useRef(null)
 
   const [commodity, setCommodity] = useState('')
   const [weight, setWeight] = useState('')
@@ -383,6 +386,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setPeriodStart(o.period_start || '')
       setPeriodEnd(o.period_end || '')
       setCycleId(o.cycle_id || null)
+      savedRef.current = { truck_id: o.truck_id || null, cycle_id: o.cycle_id || null, paid: !!o.paid, status: o.status, rate: o.rate, apply_discount: o.apply_discount !== false, discount_percent: o.discount_percent }
       setCommodity(o.commodity || '')
       setWeight(o.weight ?? '')
       setSpecialInstructions(o.special_instructions || '')
@@ -862,12 +866,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         do_city: doCity.trim() || null,
         period_start: pStart,
         period_end: pEnd,
-        paid: status === 'paid',
+        // TONU is terminal and paid (see applyTonu) — saving must not flip it back to unpaid
+        paid: status === 'paid' || status === 'tonu',
       }
 
       // Solo las ordenes pagadas afectan el balance del ciclo (via orderNet en el
       // credito) — el snapshot antes/despues solo tiene sentido para esas
-      const affectsBalance = record.paid && record.truck_id && record.cycle_id
+      const affectsBalance = isNew && record.paid && record.truck_id && record.cycle_id
       const balanceBefore = affectsBalance ? await computeTruckBalance(record.truck_id, record.cycle_id) : null
 
       let orderId = id
@@ -898,17 +903,25 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           logAudit(session, { action: 'create_order', entityType: 'order', entityId: orderId, entityName: record.order_number, extraInfo: auditInfo })
         }
       } else {
-        const { error } = await supabase.from('orders').update(record).eq('id', id)
-        if (error) throw error
-        const auditInfo = { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status }
-        if (affectsBalance) {
-          logBalanceChange(session, {
-            action: 'update_order', entityType: 'order', entityId: id, entityName: record.order_number,
-            truckId: record.truck_id, cycleId: record.cycle_id, balanceBefore, extraInfo: auditInfo,
-          })
-        } else {
-          logAudit(session, { action: 'update_order', entityType: 'order', entityId: id, entityName: record.order_number, extraInfo: auditInfo })
+        const saved = savedRef.current || {}
+        const changes = {}
+        for (const f of ['truck_id', 'cycle_id', 'paid', 'status', 'rate', 'apply_discount']) {
+          if ((saved[f] ?? null) !== (record[f] ?? null)) changes[f] = { from: saved[f] ?? null, to: record[f] ?? null }
         }
+        if (changes.truck_id) changes.truck_id = { from: trucks.find(t => t.id === saved.truck_id)?.name || null, to: trucks.find(t => t.id === record.truck_id)?.name || null }
+        delete changes.cycle_id
+        // Was paid before OR is paid now: either way the balance can move. Also
+        // covers the truck/cycle it was moved out of
+        const touchesBalance = saved.paid || record.paid
+        const { error } = await auditedBalanceWrite(session, {
+          action: 'update_order', entityType: 'order', entityId: id, entityName: record.order_number,
+          truckId: touchesBalance ? record.truck_id : null,
+          cycleId: touchesBalance ? record.cycle_id : null,
+          from: saved.paid ? { truckId: saved.truck_id, cycleId: saved.cycle_id } : undefined,
+          extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status, changes },
+        }, () => supabase.from('orders').update(record).eq('id', id))
+        if (error) throw error
+        savedRef.current = { truck_id: record.truck_id, cycle_id: record.cycle_id, paid: record.paid, status: record.status, rate: record.rate, apply_discount: record.apply_discount, discount_percent: saved.discount_percent }
       }
 
       // Save stops
@@ -958,15 +971,18 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   async function handleDelete() {
     const ok = await toast.confirm('¿Eliminar esta orden? Esta accion no se puede deshacer.')
     if (!ok) return
-    const affectsBalance = status === 'paid' && truckId && cycleId
-    const balanceBefore = affectsBalance ? await computeTruckBalance(truckId, cycleId) : null
+    // Use the persisted state: TONU orders are paid too, and unsaved edits in
+    // the form don't change what the delete actually removes from the balance
+    const saved = savedRef.current || {}
+    const affectsBalance = saved.paid && saved.truck_id && saved.cycle_id
+    const balanceBefore = affectsBalance ? await computeTruckBalance(saved.truck_id, saved.cycle_id) : null
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
     const auditInfo = { truck: trucks.find(t => t.id === truckId)?.name || null, rate: rate !== '' ? Number(rate) : null }
     if (affectsBalance) {
       logBalanceChange(session, {
         action: 'delete_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null,
-        truckId, cycleId, balanceBefore, extraInfo: auditInfo,
+        truckId: saved.truck_id, cycleId: saved.cycle_id, balanceBefore, extraInfo: auditInfo,
       })
     } else {
       logAudit(session, { action: 'delete_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null, extraInfo: auditInfo })
@@ -1028,7 +1044,18 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       const updates = { status: newStatus }
       if (newStatus === 'paid') updates.paid = true
       if (newStatus !== 'paid' && newStatus !== 'tonu') updates.paid = false
-      await supabase.from('orders').update(updates).eq('id', id)
+      const saved = savedRef.current || {}
+      const write = () => supabase.from('orders').update(updates).eq('id', id)
+      if ('paid' in updates && !!saved.paid !== updates.paid) {
+        await auditedBalanceWrite(session, {
+          action: 'update_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null,
+          truckId: saved.truck_id, cycleId: saved.cycle_id,
+          extraInfo: { truck: trucks.find(t => t.id === saved.truck_id)?.name || null, rate: saved.rate, status: newStatus, changes: { paid: { from: !!saved.paid, to: updates.paid }, status: { from: saved.status, to: newStatus } } },
+        }, write)
+      } else {
+        await write()
+      }
+      savedRef.current = { ...saved, status: newStatus, ...('paid' in updates && { paid: updates.paid }) }
     }
   }
 
@@ -2107,7 +2134,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                   setRate(String(price))
                   setApplyDiscount(false)
                   if (!isNew) {
-                    await supabase.from('orders').update({ status: 'tonu', rate: price, apply_discount: false, paid: true }).eq('id', id)
+                    const saved = savedRef.current || {}
+                    await auditedBalanceWrite(session, {
+                      action: 'update_order', entityType: 'order', entityId: id, entityName: orderNumber.trim() || null,
+                      truckId: saved.truck_id, cycleId: saved.cycle_id,
+                      extraInfo: {
+                        truck: trucks.find(t => t.id === saved.truck_id)?.name || null, rate: price, status: 'tonu',
+                        changes: { status: { from: saved.status, to: 'tonu' }, rate: { from: saved.rate, to: price }, paid: { from: !!saved.paid, to: true }, apply_discount: { from: saved.apply_discount, to: false } },
+                      },
+                    }, () => supabase.from('orders').update({ status: 'tonu', rate: price, apply_discount: false, paid: true }).eq('id', id))
+                    savedRef.current = { ...saved, status: 'tonu', rate: price, paid: true, apply_discount: false }
                   }
                   setShowTonuModal(false)
                   toast.success(`TONU aplicado — ${fmt(price)}`)

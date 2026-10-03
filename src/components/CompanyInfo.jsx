@@ -7,6 +7,7 @@ import PdfViewer from './PdfViewer'
 import { useAuth } from '../context/AuthContext'
 import { canDelete } from '../lib/permissions'
 import { downloadFromUrl } from '../lib/download'
+import { auditedDriverWrite } from '../lib/balance'
 
 const SECTIONS = [
   { key: 'company_docs', label: 'Company Documents', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /> },
@@ -917,7 +918,8 @@ function SectionChoferes() {
     try {
       const payload = { ...form, truck_id: form.truck_id || null }
       if (editing) {
-        const { error } = await supabase.from('drivers').update(payload).eq('id', editing.id)
+        const { error } = await auditedDriverWrite(session, { driverId: editing.id, after: payload },
+          () => supabase.from('drivers').update(payload).eq('id', editing.id))
         if (error) throw error
         toast.success('Chofer actualizado')
       } else {
@@ -936,7 +938,8 @@ function SectionChoferes() {
   async function handleDelete(driver) {
     const ok = await toast.confirm(`¿Eliminar chofer "${driver.name}"?`)
     if (!ok) return
-    const { error } = await supabase.from('drivers').delete().eq('id', driver.id)
+    const { error } = await auditedDriverWrite(session, { driverId: driver.id, action: 'delete_driver', after: null },
+      () => supabase.from('drivers').delete().eq('id', driver.id))
     if (error) { toast.error(friendlyError(error.message)); return }
     toast.success('Chofer eliminado')
     if (expanded === driver.id) setExpanded(null)

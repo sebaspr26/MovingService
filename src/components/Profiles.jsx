@@ -13,6 +13,7 @@ function getUserAvatarUrl(user) {
 }
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
+import { auditedDriverWrite } from '../lib/balance'
 
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --' }) {
   const [open, setOpen] = useState(false)
@@ -579,10 +580,9 @@ export default function Profiles() {
       // For drivers, also save pay_mode/pay_rate to drivers table
       const isDriverRole = permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease'
       if (isDriverRole && driverDbId) {
-        await supabase.from('drivers').update({
-          pay_mode: driverPayMode || null,
-          pay_rate: driverPayRate ? Number(driverPayRate) : 0,
-        }).eq('id', driverDbId)
+        const payUpdate = { pay_mode: driverPayMode || null, pay_rate: driverPayRate ? Number(driverPayRate) : 0 }
+        await auditedDriverWrite(session, { driverId: driverDbId, after: payUpdate },
+          () => supabase.from('drivers').update(payUpdate).eq('id', driverDbId))
       }
       toast.success('Permisos guardados')
       setPermUser(null)

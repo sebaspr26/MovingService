@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
+import { useAuth } from '../context/AuthContext'
+import { auditedBalanceWrite } from '../lib/balance'
 
 const fields = [
   { name: 'description', label: 'Descripcion', required: true },
@@ -11,8 +13,9 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-export default function AccountingTable({ truckId, period, cycle, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
+export default function AccountingTable({ truckId, truckName, period, cycle, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
   const toast = useToast()
+  const { session } = useAuth()
   const [rows, setRows] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -47,12 +50,24 @@ export default function AccountingTable({ truckId, period, cycle, onDataChange, 
         period_start: period.start,
         period_end: period.end,
       }
-      let result
-      if (editRow) {
-        result = await supabase.from('accounting').update(record).eq('id', editRow.id)
-      } else {
-        result = await supabase.from('accounting').insert(record)
+      const audit = {
+        action: editRow ? 'update_accounting' : 'create_accounting',
+        entityType: 'accounting',
+        entityId: editRow?.id,
+        entityName: truckName,
+        truckId,
+        cycleId: cycle?.id,
+        extraInfo: {
+          description: record.description,
+          reference: record.reference,
+          debit: record.debit,
+          credit: record.credit,
+          ...(editRow && { before: { description: editRow.description, debit: editRow.debit, credit: editRow.credit } }),
+        },
       }
+      const result = await auditedBalanceWrite(session, audit, () => editRow
+        ? supabase.from('accounting').update(record).eq('id', editRow.id)
+        : supabase.from('accounting').insert(record))
       if (result.error) throw result.error
       setShowModal(false)
       setEditRow(null)
@@ -67,7 +82,16 @@ export default function AccountingTable({ truckId, period, cycle, onDataChange, 
   async function handleDelete(id) {
     const ok = await toast.confirm('Eliminar este registro contable?')
     if (!ok) return
-    const { error } = await supabase.from('accounting').delete().eq('id', id)
+    const row = rows.find(r => r.id === id)
+    const { error } = await auditedBalanceWrite(session, {
+      action: 'delete_accounting',
+      entityType: 'accounting',
+      entityId: id,
+      entityName: truckName,
+      truckId,
+      cycleId: cycle?.id,
+      extraInfo: { description: row?.description, reference: row?.reference, debit: row?.debit, credit: row?.credit },
+    }, () => supabase.from('accounting').delete().eq('id', id))
     if (error) { toast.error(friendlyError(error.message)); return }
     fetchRows()
     if (onDataChange) onDataChange()
