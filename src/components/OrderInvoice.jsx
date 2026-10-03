@@ -519,68 +519,71 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
             buttons whenever they wrapped to more than one line */}
         <div className="sticky top-0 z-10 rounded-t-xl overflow-hidden">
         <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Invoice Preview</span>
-          <div className="flex flex-wrap justify-end gap-2">
+          <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Invoice<span className="hidden sm:inline"> Preview</span></span>
+          {/* Icon-only on phones (text labels from sm up); title/aria-label name each one */}
+          <div className="flex flex-wrap justify-end items-center gap-1.5 sm:gap-2">
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs whitespace-nowrap font-medium hover:bg-gray-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              title="Regenerar" aria-label="Regenerar invoice" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs whitespace-nowrap font-medium hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
-              <svg className={`w-3.5 h-3.5 ${regenerating ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${regenerating ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
               </svg>
-              Regenerar
+              <span className="hidden sm:inline">Regenerar</span>
             </button>
             <button
               onClick={() => setShowEmailConfirm(true)}
               disabled={sendingEmail}
-              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              title="Enviar email" aria-label="Enviar invoice por email" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
               </svg>
-              Enviar Email
+              <span className="hidden sm:inline">Enviar Email</span>
             </button>
             {docImages.pod.length > 0 && (
               <button
                 onClick={() => setShowPodEmailConfirm(true)}
                 disabled={sendingPod}
-                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-orange-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                title="Enviar POD" aria-label="Enviar POD por email" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-orange-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
-                Enviar POD
+                <span className="hidden sm:inline">Enviar POD</span>
               </button>
             )}
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-orange-500 transition-colors flex items-center gap-1.5"
+              title="Imprimir / PDF" aria-label="Imprimir o guardar PDF" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-orange-600 text-white rounded-lg text-xs whitespace-nowrap font-medium hover:bg-orange-500 transition-colors"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m0 0a48.159 48.159 0 0 1 12.5 0m-12.5 0v-2.134c0-1.399.562-2.78 1.655-3.655C7.956 2.61 9.37 2 12 2c2.63 0 4.044.61 5.095 1.444A4.867 4.867 0 0 1 18.75 7.09" />
               </svg>
-              Imprimir / PDF
+              <span className="hidden sm:inline">Imprimir / PDF</span>
             </button>
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="px-3 py-1.5 bg-gray-700 text-gray-200 rounded-lg text-xs whitespace-nowrap font-medium hover:bg-gray-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              title="Descargar" aria-label="Descargar invoice" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-gray-700 text-gray-200 rounded-lg text-xs whitespace-nowrap font-medium hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
               {downloading ? (
-                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
               )}
-              {downloading ? 'Generando...' : 'Descargar'}
+              <span className="hidden sm:inline">{downloading ? 'Generando...' : 'Descargar'}</span>
             </button>
-            <button onClick={onClose} className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs whitespace-nowrap hover:text-white transition-colors">
-              Cerrar
+            <span className="w-px h-5 bg-gray-700/70" aria-hidden="true" />
+            <button onClick={onClose} title="Cerrar" aria-label="Cerrar invoice" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs whitespace-nowrap hover:text-white transition-colors">
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              <span className="hidden sm:inline">Cerrar</span>
             </button>
           </div>
         </div>

@@ -1161,15 +1161,18 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+      {/* One row on every screen: back + title (truncates) on the left, actions on
+          the right. On phones the actions are equal-size icon buttons (they used to
+          wrap under the title, left-aligned, with Eliminar between the others) */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button onClick={async () => {
             if (dirty) {
               const ok = await toast.confirm('Tienes cambios sin guardar. ¿Salir sin guardar?')
               if (!ok) return
             }
             isDrawer ? onClose?.() : navigate('/orders')
-          }} className="text-gray-400 hover:text-white transition-colors">
+          }} className="shrink-0 text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               {isDrawer
                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -1177,24 +1180,38 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               }
             </svg>
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-white truncate">
+          <h1 className="text-lg sm:text-xl font-bold text-white truncate min-w-0">
             {isNew ? 'Nueva Orden' : `Orden ${orderNumber}`}
           </h1>
         </div>
-        <div className="flex gap-1.5 sm:gap-2 ml-8 sm:ml-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Destructive action kept apart from the rest */}
+          {!isNew && (
+            <>
+              <button onClick={handleDelete} title="Eliminar orden" aria-label="Eliminar orden" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-red-600/15 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+                <span className="hidden sm:inline">Eliminar</span>
+              </button>
+              <span className="w-px h-5 bg-gray-700/70 mx-0.5" aria-hidden="true" />
+            </>
+          )}
           <button
             type="button"
             onClick={() => scanRef.current?.click()}
             disabled={scanning}
-            className="px-2 sm:px-3 py-1.5 bg-purple-600/20 border border-purple-600/50 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-600/30 transition-colors disabled:opacity-50 flex items-center gap-1"
+            title="Escanear RC"
+            aria-label="Escanear RC"
+            className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-purple-600/20 border border-purple-600/50 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-600/30 transition-colors disabled:opacity-50"
           >
             {scanning ? (
-              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
               </svg>
@@ -1202,20 +1219,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             <span className="hidden sm:inline">{scanning ? 'Analizando...' : 'Escanear'}</span>
           </button>
           <input ref={scanRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleScan(e.target.files[0])} />
-          {!isNew && (
-            <button onClick={handleDelete} className="px-2 sm:px-3 py-1.5 bg-red-600/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors">
-              <span className="hidden sm:inline">Eliminar</span>
-              <svg className="w-3.5 h-3.5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-              </svg>
-            </button>
-          )}
           {!isNew && (status === 'invoiced' || status === 'paid' || status === 'tonu' || (status === 'delivered' && hasPod)) && (
             <button
               onClick={() => setShowInvoice(true)}
-              className="px-2 sm:px-3 py-1.5 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-600/30 transition-colors flex items-center gap-1"
+              title={status === 'delivered' ? 'Generar factura' : 'Ver invoice'}
+              aria-label={status === 'delivered' ? 'Generar factura' : 'Ver invoice'}
+              className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-600/30 transition-colors"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
               </svg>
               <span className="hidden sm:inline">{status === 'delivered' ? 'Generar Factura' : 'Invoice'}</span>
@@ -1224,7 +1235,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-3 sm:px-4 py-1.5 bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
+            className="h-8 px-3 sm:px-4 inline-flex items-center bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
