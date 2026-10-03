@@ -211,7 +211,9 @@ export async function routeMilesByState(locations) {
   const origin = `${coords[0].lat},${coords[0].lng}`
   const destination = `${coords[coords.length - 1].lat},${coords[coords.length - 1].lng}`
   const vias = coords.slice(1, -1).map(c => `&via=${c.lat},${c.lng}`).join('')
-  const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&spans=stateCode,length&apiKey=${API_KEY}`
+  const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&spans=stateCode,length&departureTime=any&apiKey=${API_KEY}`
+  // departureTime=any: time-independent route, so the same order always splits
+  // the same way between states (by default HERE routes with current traffic)
   const res = await fetch(url)
   if (!res.ok) {
     console.warn(`[HERE StateMiles] HTTP ${res.status}`)
