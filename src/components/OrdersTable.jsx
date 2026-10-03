@@ -7,7 +7,7 @@ import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { auditedBalanceWrite } from '../lib/balance'
-import { computeDeadhead } from '../lib/deadhead'
+import { computeDeadhead, refreshFollowingDeadheads } from '../lib/deadhead'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 import DatePicker from './DatePicker'
@@ -212,6 +212,7 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
         }, () => supabase.from('orders').insert(record))
       }
       if (result.error) throw result.error
+      refreshFollowingDeadheads({ truckId, fromDate: editRow && editRow.pu_date < record.pu_date ? editRow.pu_date : record.pu_date, excludeOrderId: editRow?.id, session })
       closeModal()
       fetchRows()
       if (onDataChange) onDataChange()
@@ -231,6 +232,7 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
       extraInfo: { truck: truckName || null, rate: row?.rate, status: row?.status, paid: !!row?.paid },
     }, () => supabase.from('orders').delete().eq('id', id))
     if (error) { toast.error(friendlyError(error.message)); return }
+    if (row?.pu_date) refreshFollowingDeadheads({ truckId, fromDate: row.pu_date, excludeOrderId: id, session })
     fetchRows()
     if (onDataChange) onDataChange()
     toast.success('Orden eliminada')

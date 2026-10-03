@@ -60,6 +60,7 @@ const FIELD_LABELS = {
   pu_date: 'Fecha pickup', do_date: 'Fecha delivery', pu_city: 'Ciudad pickup', do_city: 'Ciudad delivery', miles: 'Millas',
   pay_mode: 'Modo de pago', pay_rate: 'Tarifa de pago',
   ifta: 'IFTA (dry van)',
+  dead_miles: 'Millas vacías (DH)',
 }
 
 const MONEY_FIELDS = new Set(['rate'])
@@ -232,6 +233,7 @@ function EntryDetails({ row, dispatcherNames }) {
         {info.changes && Object.keys(info.changes).length > 0 && (
           <div className="mt-2.5 pt-2.5 border-t border-gray-800/70"><ChangesList changes={info.changes} /></div>
         )}
+        {info.reason && <p className="mt-2 text-xs text-gray-500">{info.reason}</p>}
       </>
     )
   } else if (['create_accounting', 'update_accounting', 'delete_accounting'].includes(row.action)) {

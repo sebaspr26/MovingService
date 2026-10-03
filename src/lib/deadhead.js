@@ -55,3 +55,45 @@ export function firstPickupPlace(stops, puCity) {
   if (p) return p.address || [p.city, p.state].filter(Boolean).join(', ')
   return puCity || ''
 }
+
+/**
+ * A truck's DH depends on its previous delivery, so creating, editing or
+ * deleting an order changes the DH of the truck's NEXT order(s). DH was only
+ * computed when an order was created, so an order registered late (or moved
+ * to another date/truck) left the following order with a DH from the wrong
+ * place — 24 of 27 absurd DHs found in Oct 2026 were this.
+ *
+ * Recomputes the DH of the next `count` orders of `truckId` picked up on or
+ * after `fromDate`, writes the ones that changed and logs them in Auditoría.
+ * Fire-and-forget: never throws.
+ */
+export async function refreshFollowingDeadheads({ truckId, fromDate, excludeOrderId, session, count = 2 }) {
+  if (!truckId || !fromDate) return
+  try {
+    const { logAudit } = await import('./auditLog')
+    let q = supabase.from('orders')
+      .select('id, order_number, pu_date, pu_city, dead_miles, status')
+      .eq('truck_id', truckId).gte('pu_date', fromDate)
+      .order('pu_date').order('created_at').limit(count + 3)
+    if (excludeOrderId) q = q.neq('id', excludeOrderId)
+    const { data } = await q
+    const next = (data || []).filter(o => o.pu_city && !['canceled', 'tonu'].includes(o.status)).slice(0, count)
+    for (const o of next) {
+      const dh = await computeDeadhead({ truckId, pickupDate: o.pu_date, pickupPlace: o.pu_city, excludeOrderId: o.id })
+      const miles = dh ? dh.miles : 0
+      const before = Number(o.dead_miles) || 0
+      if (Math.abs(miles - before) < 1) continue
+      const { error } = await supabase.from('orders').update({ dead_miles: miles }).eq('id', o.id)
+      if (error) continue
+      logAudit(session, {
+        action: 'update_order', entityType: 'order', entityId: o.id, entityName: o.order_number,
+        extraInfo: {
+          changes: { dead_miles: { from: before, to: miles } },
+          reason: dh ? `DH recalculado: la entrega anterior del camión ahora es ${dh.from} (orden #${dh.prevOrderNumber})` : 'DH recalculado: el camión no tiene entrega anterior',
+        },
+      })
+    }
+  } catch (err) {
+    console.warn('[refreshFollowingDeadheads]', err)
+  }
+}

@@ -18,7 +18,7 @@ import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
 import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
-import { computeDeadhead, firstPickupPlace } from '../lib/deadhead'
+import { computeDeadhead, firstPickupPlace, refreshFollowingDeadheads } from '../lib/deadhead'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -393,7 +393,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setPeriodStart(o.period_start || '')
       setPeriodEnd(o.period_end || '')
       setCycleId(o.cycle_id || null)
-      savedRef.current = { truck_id: o.truck_id || null, cycle_id: o.cycle_id || null, paid: !!o.paid, status: o.status, rate: o.rate, apply_discount: o.apply_discount !== false, discount_percent: o.discount_percent }
+      savedRef.current = { truck_id: o.truck_id || null, cycle_id: o.cycle_id || null, paid: !!o.paid, status: o.status, rate: o.rate, apply_discount: o.apply_discount !== false, discount_percent: o.discount_percent, pu_date: o.pu_date || null }
       setCommodity(o.commodity || '')
       setWeight(o.weight ?? '')
       setSpecialInstructions(o.special_instructions || '')
@@ -995,7 +995,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           extraInfo: { truck: trucks.find(t => t.id === truckId)?.name || null, rate: record.rate, status: record.status, changes },
         }, () => supabase.from('orders').update(record).eq('id', id))
         if (error) throw error
-        savedRef.current = { truck_id: record.truck_id, cycle_id: record.cycle_id, paid: record.paid, status: record.status, rate: record.rate, apply_discount: record.apply_discount, discount_percent: saved.discount_percent }
+        savedRef.current = { truck_id: record.truck_id, cycle_id: record.cycle_id, paid: record.paid, status: record.status, rate: record.rate, apply_discount: record.apply_discount, discount_percent: saved.discount_percent, pu_date: record.pu_date }
+        // Where this order was before the edit: the order that used to follow it
+        // there gets a new previous delivery too
+        if (saved.truck_id && saved.pu_date && (saved.truck_id !== record.truck_id || saved.pu_date !== record.pu_date)) {
+          refreshFollowingDeadheads({ truckId: saved.truck_id, fromDate: saved.pu_date, excludeOrderId: id, session })
+        }
+      }
+      // This order is (now) the previous delivery of the truck's next order(s)
+      if (record.truck_id && record.pu_date) {
+        refreshFollowingDeadheads({ truckId: record.truck_id, fromDate: record.pu_date, excludeOrderId: orderId, session })
       }
 
       // Save stops
@@ -1052,6 +1061,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     const balanceBefore = affectsBalance ? await computeTruckBalance(saved.truck_id, saved.cycle_id) : null
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) { toast.error(friendlyError(error.message)); return }
+    // The next order of this truck loses its previous delivery
+    if (saved.truck_id && saved.pu_date) refreshFollowingDeadheads({ truckId: saved.truck_id, fromDate: saved.pu_date, excludeOrderId: id, session })
     const auditInfo = { truck: trucks.find(t => t.id === truckId)?.name || null, rate: rate !== '' ? Number(rate) : null }
     if (affectsBalance) {
       logBalanceChange(session, {
