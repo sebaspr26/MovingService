@@ -1,159 +1,55 @@
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MODEL = 'google/gemini-2.5-flash'
+import { supabase } from './supabase'
 
-const PROMPT = `Analyze this receipt/invoice image and extract the data.
-Determine the type of document and return the appropriate format.
+// The AI call (OpenRouter -> Gemini 2.5 Flash) runs in api/scan.js so the
+// OpenRouter key never reaches the browser.
+const SCAN_URL = '/api/scan'
+const REQUEST_TIMEOUT_MS = 60000
 
-IMPORTANT: A single receipt may contain MULTIPLE items (e.g. diesel AND DEF on one fuel receipt, or multiple repairs on one invoice). Extract ALL items found.
-
-For cities, ALWAYS include the US state abbreviation in format "CITY, ST" (e.g. "MIAMI, FL", "DALLAS, TX", "LUDLOW, VT").
-
-If it's a LOAD/ORDER (bill of lading, rate confirmation, load sheet):
-{
-  "type": "order",
-  "data": {
-    "order_number": "string (load # or PRO #)",
-    "ref_number": "string (reference, PO, or pickup number if available)",
-    "pu_date": "YYYY-MM-DD (first pickup date)",
-    "pu_city": "CITY, ST",
-    "do_date": "YYYY-MM-DD (last delivery date)",
-    "do_city": "CITY, ST",
-    "miles": number,
-    "rate": number (total rate/linehaul),
-    "equipment_type": "string (e.g. Dry Van, Flatbed, Reefer, Step Deck, 26ft Box Truck, etc.)",
-    "broker": {
-      "name": "string (broker/company name)",
-      "contact": "string (contact person name)",
-      "phone": "string",
-      "email": "string",
-      "mc_number": "string (MC number — REQUIRED: read the EXACT MC number printed on THIS document. Look for MC#, MC-XXXXXX, MC:XXXXXX, Motor Carrier number in header, footer, fine print, sidebar, terms section. DO NOT guess or use memorized MC numbers for known brokers — always read the actual number from the document. Return ONLY digits, no prefixes.)",
-      "dot_number": "string (DOT number — REQUIRED: scan the ENTIRE document for DOT#, USDOT, DOT-XXXXXX, DOT:XXXXXX. Check header, footer, fine print, sidebar, terms section. Return ONLY digits, no prefixes.)",
-      "address": "string"
-    },
-    "stops": [
-      {
-        "type": "pickup or delivery",
-        "location_name": "string (facility/company name)",
-        "address": "string (full street address with city, state, zip)",
-        "city": "CITY, ST",
-        "state": "ST",
-        "date": "YYYY-MM-DD",
-        "time": "HH:MM (24h format, start/from time)",
-        "time_end": "HH:MM (24h format, end/to time)",
-        "schedule_type": "appointment or range (appointment = both times are the same e.g. 5:00 AM - 5:00 AM, range = different times e.g. 6:00 AM - 12:00 PM)",
-        "ref_number": "string (stop-level reference/PO if any)",
-        "notes": "string"
-      }
-    ],
-    "commodity": "string (what is being shipped)",
-    "weight": number (total weight in lbs, 0 if unknown),
-    "special_instructions": "string (any special notes)"
-  }
-}
-
-For ANY other receipt (fuel, DEF, maintenance, tolls, repairs, etc), return this multi-item format:
-{
-  "invoice_number": "string",
-  "date": "YYYY-MM-DD",
-  "city": "CITY, ST",
-  "items": [
-    { "type": "diesel", "gallons": number, "value": number },
-    { "type": "def", "gallons": number, "value": number },
-    { "type": "expense", "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|DEF|Otros", "description": "brief description", "amount": number }
-  ]
-}
-
-Rules:
-- Use 0 for numbers you can't read
-- Use "" for text you can't read
-- Cities MUST include US state abbreviation: "CITY, ST" format
-- Source documents use US date format: mm/dd/yyyy (MONTH first, then DAY, then YEAR). Example: "6/1/2026" means June 1st → output "2026-06-01", NOT "2026-01-06"
-- Output dates must be YYYY-MM-DD format
-- IMPORTANT: Receipts and load confirmations are always from the current operational year. Always use the current year for any date you extract. If the document appears to show a different year, treat it as an OCR error and use the current year instead.
-- For amounts, extract the total amount paid per item
-- If a fuel receipt has BOTH diesel AND DEF, include BOTH as separate items in the array
-- If a receipt has multiple services/repairs, include each as a separate expense item
-- For rate confirmations, extract ALL stops in order (pickups first, then deliveries). Include location names and appointment times.
-- For stop times: if a stop shows "5:00 AM - 5:00 AM" (same time twice), it's schedule_type "appointment". If it shows "6:00 AM - 12:00 PM" (different times), it's schedule_type "range". Extract both time (start) and time_end (end) in 24h HH:MM format.
-- Only use "type": "order" format for load confirmations or bills of lading
-- CRITICAL: For rate confirmations, you MUST extract BOTH MC# AND DOT# numbers by READING them directly from the document. NEVER guess, infer, or use memorized numbers — even for well-known brokers like TQL, CH Robinson, Coyote, Echo, or XPO. The number on THIS specific document is the only correct answer. Search EVERY part of the document: header, footer, fine print, sidebar, terms & conditions, signature block. Look for patterns: "MC-123456", "MC# 123456", "MC:123456", "MC 123456", "USDOT 123456", "DOT# 123456", "DOT: 123456", "DOT 123456". Extract the BROKER's MC and DOT numbers (the company issuing the rate confirmation), NOT the carrier's. Return only the numeric digits (e.g. "381344" not "MC#381344"). If you cannot clearly read a number, return "" instead of guessing.
-- Return ONLY valid JSON, no markdown, no explanation`
+// Vercel rejects request bodies over 4.5MB; base64 adds ~33%
+const MAX_PDF_BYTES = 3 * 1024 * 1024
+// Downscale photos before sending: smaller upload and fewer image tokens
+const MAX_IMAGE_SIDE = 1600
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
 let isProcessing = false
 
-async function callOpenRouter(messages) {
-  const body = {
-    model: MODEL,
-    messages,
-    response_format: { type: 'json_object' },
-    temperature: 0.1,
-  }
-
-  const response = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_KEY}`,
-      'HTTP-Referer': window.location.origin,
-    },
-    body: JSON.stringify(body),
-  })
-
-  if (response.ok) return response
-
-  // Silent retry only for 503 (momentary blip)
-  if (response.status === 503) {
-    await new Promise(r => setTimeout(r, 1000))
-    const retry = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
-        'HTTP-Referer': window.location.origin,
-      },
-      body: JSON.stringify(body),
-    })
-    if (retry.ok) return retry
-    throw new Error('Servicio no disponible. Intenta de nuevo en unos momentos.')
-  }
-
-  if (response.status === 429) throw new Error('Limite de requests alcanzado. Intenta de nuevo en unos segundos.')
-  if (response.status === 400) throw new Error('Imagen no valida o formato no soportado.')
-  throw new Error(`Error del servidor (${response.status}). Intenta de nuevo.`)
-}
-
 export async function analyzeReceipt(imageFile) {
-  if (!OPENROUTER_KEY) throw new Error('API key de OpenRouter no configurada')
   if (isProcessing) throw new Error('Ya se esta procesando una imagen. Espera un momento.')
 
   isProcessing = true
   try {
-    const base64 = await fileToBase64(imageFile)
-    const mimeType = imageFile.type || 'image/jpeg'
+    const { base64, mimeType } = await prepareFile(imageFile)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Sesion no valida. Vuelve a iniciar sesion.')
 
-    const messages = [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: PROMPT },
-          {
-            type: 'image_url',
-            image_url: { url: `data:${mimeType};base64,${base64}` },
-          },
-        ],
-      },
-    ]
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    let response
+    try {
+      response = await fetch(SCAN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ base64, mimeType, fileName: imageFile.name }),
+        signal: controller.signal,
+      })
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('El escaneo tardo demasiado. Intenta de nuevo.')
+      throw err
+    } finally {
+      clearTimeout(timer)
+    }
 
-    const response = await callOpenRouter(messages)
-    const result = await response.json()
-    const text = result.choices?.[0]?.message?.content
+    const result = await response.json().catch(() => null)
+    if (!response.ok) {
+      if (response.status === 413) throw new Error('El archivo es muy pesado. Usa una imagen o PDF mas liviano.')
+      throw new Error(result?.error || `Error del servidor (${response.status}). Intenta de nuevo.`)
+    }
+    if (!result) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
 
-    if (!text) throw new Error('No se pudo extraer datos de la imagen. Intenta con una foto mas clara.')
-
-    const parsed = JSON.parse(text)
-    return normalizeScannedDates(parsed)
+    return normalizeScannedDates(result)
   } finally {
     isProcessing = false
   }
@@ -191,6 +87,32 @@ function normalizeScannedDates(result) {
   }
 
   return result
+}
+
+async function prepareFile(file) {
+  const mimeType = file.type || 'image/jpeg'
+  if (mimeType === 'application/pdf') {
+    if (file.size > MAX_PDF_BYTES) throw new Error('El PDF es muy pesado (max 3MB). Usa una version mas liviana o una foto.')
+    return { base64: await fileToBase64(file), mimeType }
+  }
+  try {
+    return await downscaleImage(file)
+  } catch {
+    // Formats the browser can't draw (e.g. HEIC on some browsers) go as-is
+    return { base64: await fileToBase64(file), mimeType }
+  }
+}
+
+async function downscaleImage(file) {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+  return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' }
 }
 
 function fileToBase64(file) {

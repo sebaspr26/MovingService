@@ -54,7 +54,7 @@ src/
     auditLog.js         - logAudit(session, {action, entityType, entityId, entityName, extraInfo}) inserta en tabla audit_log con company_id + user_id/user_email/user_name del actor. diffFields() calcula el diff de campos para logs de update. Cobertura NO es 100%: ordenes creadas via OrdersTable.jsx (quick-add en TruckView) no llaman logAudit, solo las creadas via OrderDetail.jsx
     here.js             - HERE Maps API: geocoding, truck routing (loaded miles + DH), polyline decode. Console warnings en errores
     fmcsa.js            - FMCSA API: lookupByMc, lookupByDot, searchByName (autocomplete brokers)
-    gemini.js           - API OpenRouter -> Gemini 2.5 Flash, extrae RC completo (broker, stops, rate items, commodity)
+    gemini.js           - Cliente del scanner: comprime imagen (max 1600px) y llama a /api/scan con el token de sesion. La llamada a OpenRouter -> Gemini 2.5 Flash vive en api/scan.js
     company.js          - CRUD company_settings en Supabase (getCompanySettings, updateCompanyInfo, updateBillingInfo, updateLogo, removeLogo, getLogoUrl). Cache en memoria
     permissions.js      - MODULES array, defaultPermissions(), isSuperAdmin(), canAccess(), getAllowedTruckIds(). getAllowedTruckIds retorna null (super_admin=sin filtro) o [] (sin trucks asignados = no ve nada) o array de IDs
     theme.jsx           - ThemeProvider + useTheme hook. Persiste en localStorage. Aplica clase 'light' en html
@@ -356,7 +356,7 @@ Cada modulo tiene `key`, `label`, `icon` (SVG path), `subs[]`:
 VITE_SUPABASE_URL=https://mxbtyvnfunoaqjupmmdy.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
 VITE_HERE_API_KEY=xxx (HERE Maps - truck routing + geocoding)
-VITE_OPENROUTER_KEY=xxx (OpenRouter - Gemini AI scanner)
+OPENROUTER_KEY=xxx (OpenRouter - Gemini AI scanner, SOLO en Vercel para api/scan.js — NUNCA con prefijo VITE_, Vite lo mete al JS publico)
 VITE_FMCSA_KEY=xxx (FMCSA - broker/carrier lookup, solo funciona desde EEUU)
 RESEND_KEY=xxx (Resend - envio de emails, configurado en Vercel env vars)
 SUPABASE_SERVICE_ROLE_KEY=xxx (solo en Vercel, para api/invite-user.js)
