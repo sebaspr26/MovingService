@@ -82,26 +82,26 @@ html.light :is(
   --color-white: #ffffff;
 }
 
-/* Scrollbar adapts to theme — only on desktop with mouse */
+/* Main scrollbar adapts to theme — only on desktop with mouse */
 @media (hover: hover) and (pointer: fine) {
-  html.light * {
+  html.light,
+  html.light .main-scroll {
     scrollbar-color: #93c5fd #e5e7eb;
   }
 
-  html.light ::-webkit-scrollbar-track {
+  html.light::-webkit-scrollbar-track,
+  html.light .main-scroll::-webkit-scrollbar-track {
     background: #e5e7eb;
   }
 
-  html.light ::-webkit-scrollbar-thumb {
+  html.light::-webkit-scrollbar-thumb,
+  html.light .main-scroll::-webkit-scrollbar-thumb {
     background: #93c5fd;
   }
 
-  html.light ::-webkit-scrollbar-thumb:hover {
+  html.light::-webkit-scrollbar-thumb:hover,
+  html.light .main-scroll::-webkit-scrollbar-thumb:hover {
     background: #60a5fa;
-  }
-
-  html.light ::-webkit-scrollbar-corner {
-    background: #e5e7eb;
   }
 }
 
@@ -113,7 +113,16 @@ html.light .bg-black\/60 {
 /* ========================
    DARK MODE (default)
    ======================== */
-/* Scrollbar: invisible por defecto (mobile), naranja solo en desktop con mouse */
+/* Page background — without it, pulling past the edge (overscroll bounce)
+   shows the browser's default white. gray-950 is inverted in light mode */
+html,
+body {
+  background-color: var(--color-gray-950);
+}
+
+/* Scrollbars: all invisible (content still scrolls). The only visible one is
+   the main page scroll — <main class="main-scroll"> in Layout, or the page
+   itself on standalone screens (login, welcome) — and only on desktop with mouse */
 * {
   scrollbar-width: none;
 }
@@ -122,28 +131,33 @@ html.light .bg-black\/60 {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  * {
+  html,
+  .main-scroll {
     scrollbar-width: thin;
     scrollbar-color: #ea580c #1f2937;
   }
 
-  ::-webkit-scrollbar {
+  html::-webkit-scrollbar,
+  .main-scroll::-webkit-scrollbar {
     display: block;
     width: 6px;
     height: 6px;
   }
 
-  ::-webkit-scrollbar-track {
+  html::-webkit-scrollbar-track,
+  .main-scroll::-webkit-scrollbar-track {
     background: #1f2937;
     border-radius: 4px;
   }
 
-  ::-webkit-scrollbar-thumb {
+  html::-webkit-scrollbar-thumb,
+  .main-scroll::-webkit-scrollbar-thumb {
     background: #ea580c;
     border-radius: 4px;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
+  html::-webkit-scrollbar-thumb:hover,
+  .main-scroll::-webkit-scrollbar-thumb:hover {
     background: #c2410c;
   }
 }
@@ -165,9 +179,6 @@ select.sel option {
   color: #f3f4f6;
 }
 
-::-webkit-scrollbar-corner {
-  background: #1f2937;
-}
 
 /* Side panel slide-in (nuevo pago, etc.) */
 @keyframes panel-slide-in {

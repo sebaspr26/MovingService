@@ -671,7 +671,7 @@ export default function Layout() {
           )}
         </header>
 
-        <main className="flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-20 lg:pb-6">
+        <main className="main-scroll flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-20 lg:pb-6">
           <div key={location.pathname} className="animate-tab-in">
             <Outlet />
           </div>
