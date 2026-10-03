@@ -970,43 +970,121 @@ export default function OrdersView() {
       )}
 
       {/* Mobile stats — floating pill above bottom nav */}
-      {(() => {
-        const totalRate = filtered.reduce((s, o) => s + (Number(o.rate) || 0), 0)
-        const totalMiles = filtered.reduce((s, o) => s + (Number(o.miles) || 0), 0)
-        const totalDH = filtered.reduce((s, o) => s + (Number(o.dead_miles) || 0), 0)
-        const totalMilesAll = totalMiles + totalDH
-        const rpm = totalMilesAll > 0 ? totalRate / totalMilesAll : 0
-        if (!filtered.length) return null
-        return (
-          <div
-            className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border border-gray-700/60 px-4 py-3 ${isSuperAdmin(session) || canAccess(session, 'dashboard') ? 'bottom-[88px]' : 'bottom-[66px]'}`}
-            style={{
-              background: theme === 'light' ? 'rgba(243,244,246,0.95)' : 'rgba(17,17,24,0.92)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: theme === 'light' ? '0 8px 32px rgba(0,0,0,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
-            }}
-          >
-            <div className="grid grid-cols-4 gap-2">
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Rate</span>
-                <span className="text-sm font-bold text-green-400">${Math.round(totalRate).toLocaleString()}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Millas</span>
-                <span className="text-sm font-bold text-blue-400">{Math.round(totalMiles).toLocaleString()}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">DH</span>
-                <span className="text-sm font-bold text-orange-400">{Math.round(totalDH).toLocaleString()}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">RPM</span>
-                <span className="text-sm font-bold text-cyan-400">${rpm.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+      {filtered.length > 0 && (
+        <MobileStatsBar
+          orders={filtered}
+          theme={theme}
+          bottomClass={isSuperAdmin(session) || canAccess(session, 'dashboard') ? 'bottom-[88px]' : 'bottom-[66px]'}
+        />
+      )}
     </div>
+  )
+}
+
+// Phone-only totals pill (Rate / Millas / DH / RPM). It used to sit fixed over
+// the list and always covered the last order. Now: it shows while scrolling and
+// hides shortly after the list stops; a tap pins it; a tap anywhere else hides
+// it. While hidden, a small "Totales" chip brings it back without scrolling.
+const STATS_IDLE_MS = 1600
+
+function MobileStatsBar({ orders, theme, bottomClass }) {
+  const [mode, setMode] = useState('peek') // 'hidden' | 'peek' (showing while scrolling) | 'pinned'
+  const barRef = useRef(null)
+  const idleTimer = useRef(null)
+  const modeRef = useRef(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
+
+  // Shown for a moment on load, then out of the way
+  useEffect(() => {
+    idleTimer.current = setTimeout(() => setMode(m => (m === 'peek' ? 'hidden' : m)), 2500)
+    return () => clearTimeout(idleTimer.current)
+  }, [])
+
+  // Scrolling the page shows it; it hides again once the list stops
+  useEffect(() => {
+    const scroller = document.querySelector('main.main-scroll') || window
+    function onScroll() {
+      if (modeRef.current === 'pinned') return
+      setMode('peek')
+      clearTimeout(idleTimer.current)
+      idleTimer.current = setTimeout(() => setMode(m => (m === 'peek' ? 'hidden' : m)), STATS_IDLE_MS)
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Pinned: any tap outside the pill hides it
+  useEffect(() => {
+    if (mode !== 'pinned') return
+    function onDown(e) {
+      if (barRef.current?.contains(e.target)) return
+      setMode('hidden')
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [mode])
+
+  function pin() {
+    clearTimeout(idleTimer.current)
+    setMode('pinned')
+  }
+
+  const totalRate = orders.reduce((s, o) => s + (Number(o.rate) || 0), 0)
+  const totalMiles = orders.reduce((s, o) => s + (Number(o.miles) || 0), 0)
+  const totalDH = orders.reduce((s, o) => s + (Number(o.dead_miles) || 0), 0)
+  const totalMilesAll = totalMiles + totalDH
+  const rpm = totalMilesAll > 0 ? totalRate / totalMilesAll : 0
+  const visible = mode !== 'hidden'
+  const surface = {
+    background: theme === 'light' ? 'rgba(243,244,246,0.95)' : 'rgba(17,17,24,0.92)',
+    backdropFilter: 'blur(20px)',
+    boxShadow: theme === 'light' ? '0 8px 32px rgba(0,0,0,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
+  }
+
+  return (
+    <>
+      <div
+        ref={barRef}
+        onClick={pin}
+        aria-hidden={!visible}
+        className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border px-4 py-3 transition-all duration-300 ease-out ${bottomClass} ${
+          mode === 'pinned' ? 'border-orange-500/40' : 'border-gray-700/60'
+        } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+        style={surface}
+      >
+        {mode === 'pinned' && <span className="absolute top-1.5 right-2.5 w-1.5 h-1.5 rounded-full bg-orange-500" title="Fija · toca fuera para ocultar" />}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Rate</span>
+            <span className="text-sm font-bold text-green-400">${Math.round(totalRate).toLocaleString()}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Millas</span>
+            <span className="text-sm font-bold text-blue-400">{Math.round(totalMiles).toLocaleString()}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">DH</span>
+            <span className="text-sm font-bold text-orange-400">{Math.round(totalDH).toLocaleString()}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">RPM</span>
+            <span className="text-sm font-bold text-cyan-400">${rpm.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden: small chip to bring the totals back (and keep them) */}
+      <button
+        type="button"
+        onClick={pin}
+        aria-label="Mostrar totales"
+        className={`sm:hidden fixed right-4 z-40 rounded-full border border-gray-700/60 px-3 py-1.5 text-[11px] font-medium text-gray-300 transition-all duration-300 ${bottomClass} ${
+          visible ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
+        }`}
+        style={surface}
+      >
+        Totales
+      </button>
+    </>
   )
 }
