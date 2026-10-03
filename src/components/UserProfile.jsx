@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import DatePicker from './DatePicker'
+import { logAudit } from '../lib/auditLog'
 
 const US_STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
@@ -76,6 +77,8 @@ export default function UserProfile() {
   const [driverRecord, setDriverRecord] = useState(null)
   const [driverDocs, setDriverDocs] = useState([])
   const [assignedTruck, setAssignedTruck] = useState(null)
+  const [vin, setVin] = useState('')
+  const [savingVin, setSavingVin] = useState(false)
   const [driverLoading, setDriverLoading] = useState(false)
   // Editable driver credentials
   const [licenseNumber, setLicenseNumber] = useState('')
@@ -94,7 +97,10 @@ export default function UserProfile() {
     if (!isDriver || !user?.email) return
     setDriverLoading(true)
     ;(async () => {
-      const { data: dr } = await supabase.from('drivers').select('*').eq('email', user.email).maybeSingle()
+      // Emails were sometimes saved with different capitalization than the
+      // account's, and an exact match then showed the driver nothing at all
+      const { data: candidates } = await supabase.from('drivers').select('*').ilike('email', user.email.trim())
+      const dr = (candidates || []).find(d => (d.email || '').trim().toLowerCase() === user.email.trim().toLowerCase()) || null
       if (dr) {
         setDriverRecord(dr)
         setLicenseNumber(dr.license_number || '')
@@ -104,11 +110,12 @@ export default function UserProfile() {
         const driverDocsP = supabase.from('driver_documents').select('*').eq('driver_id', dr.id)
         if (dr.truck_id) {
           const [truckRes, tdocsRes, ddocsRes] = await Promise.all([
-            supabase.from('trucks').select('name, number, id').eq('id', dr.truck_id).maybeSingle(),
+            supabase.from('trucks').select('name, number, id, vin_number').eq('id', dr.truck_id).maybeSingle(),
             supabase.from('truck_documents').select('*').eq('truck_id', dr.truck_id),
             driverDocsP,
           ])
           setAssignedTruck(truckRes.data)
+          setVin(truckRes.data?.vin_number || '')
           setTruckDocs(tdocsRes.data || [])
           setDriverDocs(ddocsRes.data || [])
         } else {
@@ -119,6 +126,33 @@ export default function UserProfile() {
       setDriverLoading(false)
     })()
   }, [isDriver, user?.email])
+
+  async function handleSaveVin() {
+    if (!assignedTruck) return
+    const next = vin.trim().toUpperCase()
+    const before = assignedTruck.vin_number || ''
+    if (next === before) return
+    if (next && next.length !== 17) {
+      const ok = await toast.confirm(`Un VIN normalmente tiene 17 caracteres y este tiene ${next.length}. ¿Guardarlo de todas formas?`)
+      if (!ok) return
+    }
+    setSavingVin(true)
+    try {
+      const { error } = await supabase.from('trucks').update({ vin_number: next || null }).eq('id', assignedTruck.id)
+      if (error) throw error
+      setAssignedTruck(t => ({ ...t, vin_number: next || null }))
+      setVin(next)
+      logAudit(session, {
+        action: 'update_truck', entityType: 'truck', entityId: assignedTruck.id, entityName: assignedTruck.name,
+        extraInfo: { changes: { vin_number: { from: before || null, to: next || null } } },
+      })
+      toast.success('VIN guardado')
+    } catch (err) {
+      toast.error('No se pudo guardar el VIN: ' + err.message)
+    } finally {
+      setSavingVin(false)
+    }
+  }
 
   const initials = name
     ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -487,6 +521,35 @@ export default function UserProfile() {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Mi camión — the driver can fill in the truck's VIN number himself */}
+          {!driverLoading && assignedTruck && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Mi camión</p>
+              <p className="text-sm text-white font-medium">{assignedTruck.name}{assignedTruck.number ? ` · #${assignedTruck.number}` : ''}</p>
+              <label className="block text-[10px] text-gray-500 mt-3 mb-1">VIN (número de identificación del vehículo)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={vin}
+                  onChange={e => setVin(e.target.value.toUpperCase())}
+                  maxLength={20}
+                  placeholder="17 caracteres, ej. 1FUJGLDR5CLBP8834"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono tracking-wide focus:outline-none focus:border-orange-500/70"
+                />
+                <button
+                  onClick={handleSaveVin}
+                  disabled={savingVin || vin.trim().toUpperCase() === (assignedTruck.vin_number || '')}
+                  className="shrink-0 px-3 py-2 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 disabled:opacity-40"
+                >
+                  {savingVin ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-600 mt-1.5">Está en la puerta del conductor o en la tarjeta de registro. La foto del VIN se sube abajo.</p>
             </div>
           )}
 

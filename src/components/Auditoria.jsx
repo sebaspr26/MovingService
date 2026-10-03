@@ -332,6 +332,7 @@ export default function Auditoria() {
   const [userFilter, setUserFilter] = useState([])
   const [search, setSearch] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [showFilters, setShowFilters] = useState(false) // phones only
 
   // Debounce so the query runs once the user stops typing
   useEffect(() => {
@@ -339,6 +340,7 @@ export default function Auditoria() {
     return () => clearTimeout(t)
   }, [search])
 
+  const activeFilterCount = [dateFrom || dateTo, actionFilter.length, truckFilter.length, userFilter.length].filter(Boolean).length
   const hasActiveFilters = dateFrom || dateTo || actionFilter.length > 0 || truckFilter.length > 0 || userFilter.length > 0 || searchTerm
 
   useEffect(() => {
@@ -441,7 +443,9 @@ export default function Auditoria() {
 
       {/* Filters */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 mb-5 flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-[240px]">
+        {/* Search always visible; on phones the other filters fold behind "Filtros" */}
+        <div className="flex gap-2 w-full sm:w-[240px]">
+        <div className="relative flex-1 min-w-0">
           <svg className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
@@ -460,16 +464,29 @@ export default function Auditoria() {
             </button>
           )}
         </div>
-        <div className="w-full sm:w-[220px]">
+        <button
+          type="button"
+          onClick={() => setShowFilters(v => !v)}
+          aria-expanded={showFilters}
+          className={`sm:hidden shrink-0 inline-flex items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+            showFilters || activeFilterCount ? 'border-orange-600/50 text-orange-300 bg-orange-600/10' : 'border-gray-700 text-gray-400'
+          }`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+          Filtros
+          {activeFilterCount > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-orange-600 text-white text-[10px] leading-4 text-center">{activeFilterCount}</span>}
+        </button>
+        </div>
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-full sm:w-[220px]`}>
           <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={({ from, to }) => { setDateFrom(from); setDateTo(to) }} placeholder="Rango de fechas" />
         </div>
-        <div className="w-[calc(50%-4px)] sm:w-[150px]">
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
           <MultiSelect options={actionOptions} value={actionFilter} onChange={setActionFilter} placeholder="Acción" />
         </div>
-        <div className="w-[calc(50%-4px)] sm:w-[150px]">
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
           <MultiSelect options={truckOptions} value={truckFilter} onChange={setTruckFilter} placeholder="Camión" />
         </div>
-        <div className="w-[calc(50%-4px)] sm:w-[150px]">
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
           <MultiSelect options={userOptions} value={userFilter} onChange={setUserFilter} placeholder="Usuario" />
         </div>
         {hasActiveFilters && (
