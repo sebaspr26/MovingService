@@ -89,25 +89,9 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
               </svg>
               <h4 className="text-sm font-semibold text-emerald-400">Ciclo Cerrado</h4>
             </div>
-            <div className="flex items-center gap-4">
-              <button
-              onClick={handleDownloadReport}
-              disabled={generatingReport}
-              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-            >
-              {generatingReport ? (
-                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-              )}
-              {generatingReport ? 'Generando...' : 'Descargar reporte'}
+            <button onClick={handleReopen} className="text-xs text-gray-500 hover:text-yellow-400 transition-colors">
+              Reabrir
             </button>
-              <button onClick={handleReopen} className="text-xs text-gray-500 hover:text-yellow-400 transition-colors">
-                Reabrir
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -139,6 +123,13 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
               )
             })}
           </div>
+
+          <ReportButton
+            onClick={handleDownloadReport}
+            loading={generatingReport}
+            label="Descargar reporte del ciclo (PDF)"
+            className="mt-4 w-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-600/20"
+          />
         </div>
       ) : showCierre ? (
         <div className="bg-gradient-to-r from-yellow-900/20 to-gray-900 rounded-xl p-4 sm:p-5 border border-yellow-800/50">
@@ -210,31 +201,42 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
         </div>
       ) : (
         <div className="text-center py-4">
-          <button
-            onClick={() => { setCierreInput(''); setCierreDate(new Date().toISOString().split('T')[0]); setShowCierre(true) }}
-            className="px-6 py-3 bg-yellow-600 text-white rounded-xl text-sm font-semibold hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20"
-          >
-            Cerrar Ciclo
-          </button>
-          <p className="text-[10px] text-gray-600 mt-2">Finalizar el ciclo y repartir dividendos</p>
-          <div className="mt-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
             <button
-              onClick={handleDownloadReport}
-              disabled={generatingReport}
-              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              onClick={() => { setCierreInput(''); setCierreDate(new Date().toISOString().split('T')[0]); setShowCierre(true) }}
+              className="px-6 py-3 bg-yellow-600 text-white rounded-xl text-sm font-semibold hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20"
             >
-              {generatingReport ? (
-                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-              )}
-              {generatingReport ? 'Generando...' : 'Reporte preliminar del ciclo'}
+              Cerrar Ciclo
             </button>
+            <ReportButton
+              onClick={handleDownloadReport}
+              loading={generatingReport}
+              label="Reporte preliminar (PDF)"
+              className="border border-gray-600 text-gray-200 hover:border-emerald-500 hover:text-white hover:bg-emerald-600/10"
+            />
           </div>
+          <p className="text-[10px] text-gray-600 mt-2">Finalizar el ciclo y repartir dividendos · el reporte se descarga solo al cerrar</p>
         </div>
       )}
     </div>
+  )
+}
+
+function ReportButton({ onClick, loading, label, className = '' }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 ${className}`}
+    >
+      {loading ? (
+        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+      )}
+      {loading ? 'Generando reporte...' : label}
+    </button>
   )
 }
