@@ -477,17 +477,25 @@ export default function Auditoria() {
           {activeFilterCount > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-orange-600 text-white text-[10px] leading-4 text-center">{activeFilterCount}</span>}
         </button>
         </div>
-        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-full sm:w-[220px]`}>
+        {/* Phones: unfolds by animating grid rows 0fr -> 1fr; desktop: display:contents
+            keeps the filters inline in the bar */}
+        <div className={`basis-full grid sm:contents transition-[grid-template-rows,opacity,margin] duration-300 ease-out ${showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 -mt-2 sm:mt-0'}`}>
+        <div className="min-h-0 overflow-hidden sm:contents">
+        <div className="flex flex-wrap gap-2 sm:contents">
+        <div className="w-full sm:w-[220px]">
           <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={({ from, to }) => { setDateFrom(from); setDateTo(to) }} placeholder="Rango de fechas" />
         </div>
-        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
+        <div className="w-[calc(50%-4px)] sm:w-[150px]">
           <MultiSelect options={actionOptions} value={actionFilter} onChange={setActionFilter} placeholder="Acción" />
         </div>
-        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
+        <div className="w-[calc(50%-4px)] sm:w-[150px]">
           <MultiSelect options={truckOptions} value={truckFilter} onChange={setTruckFilter} placeholder="Camión" />
         </div>
-        <div className={`${showFilters ? 'block' : 'hidden'} sm:block w-[calc(50%-4px)] sm:w-[150px]`}>
+        <div className="w-[calc(50%-4px)] sm:w-[150px]">
           <MultiSelect options={userOptions} value={userFilter} onChange={setUserFilter} placeholder="Usuario" />
+        </div>
+        </div>
+        </div>
         </div>
         {hasActiveFilters && (
           <button onClick={clearFilters} className="ml-auto text-xs text-gray-500 hover:text-orange-400 transition-colors flex items-center gap-1">

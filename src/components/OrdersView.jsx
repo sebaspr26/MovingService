@@ -590,8 +590,12 @@ export default function OrdersView() {
             {activeFilterCount > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-orange-600 text-white text-[10px] leading-4 text-center">{activeFilterCount}</span>}
           </button>
           </div>
-          {/* Selects — grid 2 col en mobile (solo con Filtros abierto), inline en desktop */}
-          <div className={`${showFilters ? 'grid' : 'hidden'} sm:contents grid-cols-2 gap-2 w-full`}>
+          {/* Selects — grid 2 col en mobile (solo con Filtros abierto), inline en desktop.
+              Phones: unfolds by animating grid rows 0fr -> 1fr; desktop: the wrappers are
+              display:contents so the selects stay inline in the filter row */}
+          <div className={`grid sm:contents transition-[grid-template-rows,opacity,margin] duration-300 ease-out ${showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 -mt-2 sm:mt-0'}`}>
+          <div className="min-h-0 overflow-hidden sm:contents">
+          <div className="grid grid-cols-2 gap-2 w-full sm:contents">
             <div className="sm:w-[120px]">
               <MultiSelect value={filterTrucks} onChange={setFilterTrucks} placeholder="Truck" options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))} />
             </div>
@@ -604,6 +608,8 @@ export default function OrdersView() {
             <div className="sm:w-[180px]">
               <DateRangePicker dateFrom={filterDateFrom} dateTo={filterDateTo} onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }} />
             </div>
+          </div>
+          </div>
           </div>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors px-2.5 py-1 w-full sm:w-auto text-center">Limpiar filtros</button>
