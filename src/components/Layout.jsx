@@ -15,7 +15,6 @@ export default function Layout() {
   const { companies, activeCompany } = useCompany()
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
-  const [showPagos, setShowPagos] = useState(false)
   const { theme, toggleTheme } = useTheme()
 
   const companyName = activeCompany?.company_info?.company_name || activeCompany?.display_name || 'ETG Moving Services'
@@ -76,7 +75,7 @@ export default function Layout() {
   }
   const location = useLocation()
   const navigate = useNavigate()
-  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers', '/historial-pagos', '/auditoria']
+  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers', '/historial-pagos', '/auditoria', '/reportes', '/reportes/ifta', '/reportes/auditoria']
   const isSubPage = !topLevelPaths.includes(location.pathname)
   const [showMobileUserMenu, setShowMobileUserMenu] = useState(false)
   const [showMobileSwitcher, setShowMobileSwitcher] = useState(false)
@@ -125,12 +124,6 @@ export default function Layout() {
       superAdminOnly: true,
       label: 'Perfiles',
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />,
-    },
-    {
-      to: '/auditoria',
-      superAdminOnly: true,
-      label: 'Auditoría',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />,
     },
     {
       to: '/historial-pagos',
@@ -319,81 +312,30 @@ export default function Layout() {
 
             {/* Pagos — solo admin/super_admin */}
             {showPagosSection && (
-              <div>
-                <button
-                  onClick={() => setShowPagos(v => !v)}
-                  title={collapsed ? 'Pagos' : undefined}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap w-full ${
-                    showPagos ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                  } ${collapsed ? 'justify-center' : ''}`}
-                  style={{ transition: 'color 0.2s, background 0.2s' }}
-                >
-                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                  </svg>
-                  <span
-                    className="flex-1 text-left"
-                    style={{
-                      width: collapsed ? 0 : 'auto',
-                      opacity: collapsed ? 0 : 1,
-                      transition: 'opacity 0.2s ease',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    Pagos
-                  </span>
-                  {!collapsed && (
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      style={{
-                        transform: showPagos ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                      }}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  )}
-                </button>
+              <NavSection
+                label="Pagos"
+                color="green"
+                collapsed={collapsed}
+                icon="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
+                items={[
+                  { to: '/pagos/conductores', label: 'Pago Conductores', icon: 'M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' },
+                  { to: '/pagos/dispatchers', label: 'Pago Dispatchers', icon: 'M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155' },
+                ]}
+              />
+            )}
 
-                {/* Animated sub-menu */}
-                <div
-                  style={{
-                    maxHeight: showPagos && !collapsed ? '120px' : '0px',
-                    overflow: 'hidden',
-                    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                >
-                  <div className="mt-1 ml-4 space-y-1 border-l border-gray-700/60 pl-3 pb-1">
-                    <NavLink
-                      to="/pagos/conductores"
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                        }`
-                      }
-                    >
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      </svg>
-                      Pago Conductores
-                    </NavLink>
-                    <NavLink
-                      to="/pagos/dispatchers"
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive ? 'text-green-400 bg-green-600/10' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                        }`
-                      }
-                    >
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-                      </svg>
-                      Pago Dispatchers
-                    </NavLink>
-                  </div>
-                </div>
-              </div>
+            {/* Reportes — solo super_admin */}
+            {isSuperAdmin(session) && (
+              <NavSection
+                label="Reportes"
+                color="blue"
+                collapsed={collapsed}
+                icon="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+                items={[
+                  { to: '/reportes/ifta', label: 'IFTA', icon: 'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z' },
+                  { to: '/reportes/auditoria', label: 'Auditoría', icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25' },
+                ]}
+              />
             )}
           </div>
 
@@ -791,6 +733,88 @@ export default function Layout() {
         />
       )}
 
+    </div>
+  )
+}
+
+const SECTION_COLORS = {
+  green: { open: 'text-green-400 bg-green-600/10' },
+  blue: { open: 'text-blue-400 bg-blue-600/10' },
+}
+
+// Collapsible sidebar group (Pagos, Reportes): a toggle row plus animated sub-links.
+// Starts open when the current route is one of its items.
+function NavSection({ label, icon, items, color, collapsed }) {
+  const location = useLocation()
+  const inSection = items.some(i => location.pathname.startsWith(i.to))
+  const [open, setOpen] = useState(inSection)
+  const active = SECTION_COLORS[color]?.open || SECTION_COLORS.green.open
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        title={collapsed ? label : undefined}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap w-full ${
+          open || inSection ? active : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+        } ${collapsed ? 'justify-center' : ''}`}
+        style={{ transition: 'color 0.2s, background 0.2s' }}
+      >
+        <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+        </svg>
+        <span
+          className="flex-1 text-left"
+          style={{
+            width: collapsed ? 0 : 'auto',
+            opacity: collapsed ? 0 : 1,
+            transition: 'opacity 0.2s ease',
+            overflow: 'hidden',
+          }}
+        >
+          {label}
+        </span>
+        {!collapsed && (
+          <svg
+            className="w-4 h-4 shrink-0"
+            style={{
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+          </svg>
+        )}
+      </button>
+
+      {/* Animated sub-menu */}
+      <div
+        style={{
+          maxHeight: open && !collapsed ? `${items.length * 44 + 12}px` : '0px',
+          overflow: 'hidden',
+          transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <div className="mt-1 ml-4 space-y-1 border-l border-gray-700/60 pl-3 pb-1">
+          {items.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? active : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                }`
+              }
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+              </svg>
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
