@@ -17,6 +17,7 @@ import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
 import PdfViewer from './PdfViewer'
+import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -450,6 +451,17 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     const b = allBrokers.find(x => x.id === brokerId)
     if (!b) return
     setBrokerType(b.type || 'broker')
+    // The same company is often stored more than once under slightly different
+    // names — if another copy already has the MC#, reuse it (the MC# autosave
+    // effect then persists it on this broker too) instead of asking again
+    if (!b.mc_number && mcAutoFillAttemptedRef.current !== brokerId) {
+      const storedMc = findStoredMc(allBrokers, b)
+      if (storedMc) {
+        mcAutoFillAttemptedRef.current = brokerId
+        if (!mcInputRef.current.trim()) setMcInput(storedMc)
+        return
+      }
+    }
     // Auto-fill MC#/DOT# via FMCSA name search if missing
     if ((!b.mc_number || !b.dot_number) && mcAutoFillAttemptedRef.current !== brokerId) {
       mcAutoFillAttemptedRef.current = brokerId
@@ -457,6 +469,19 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       if (searchingForMc) setMcSearching(true)
       ;(async () => {
         try {
+          // Then the MC# stored for this broker in another of our companies
+          let mcFromOtherCompany = false
+          if (searchingForMc) {
+            const otherMc = await lookupStoredMcAnyCompany(supabase, b.name)
+            const current = allBrokersRef.current.find(x => x.id === b.id) || b
+            if (otherMc && !current.mc_number) {
+              await supabase.from('brokers').update({ mc_number: otherMc }).eq('id', b.id)
+              setAllBrokers(prev => prev.map(x => x.id === b.id ? { ...x, mc_number: otherMc } : x))
+              if (!mcInputRef.current.trim()) setMcInput(otherMc)
+              mcFromOtherCompany = true
+              if (b.dot_number) return
+            }
+          }
           const match = await findBestMatchByName(b.name)
           if (match) {
             // Re-check against the LATEST broker data, not the closure captured
@@ -465,7 +490,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             // and that must win over an unreliable fuzzy name match
             const current = allBrokersRef.current.find(x => x.id === b.id) || b
             const updates = {}
-            if (!current.mc_number && match.mc_number) updates.mc_number = match.mc_number
+            if (!current.mc_number && !mcFromOtherCompany && match.mc_number) updates.mc_number = match.mc_number
             if (!current.dot_number && match.dot_number) updates.dot_number = match.dot_number
             if (Object.keys(updates).length > 0) {
               await supabase.from('brokers').update(updates).eq('id', b.id)
@@ -656,12 +681,19 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         if (d.broker && d.broker.name) {
           // Email del RC va a la orden, no al broker
           if (d.broker.email) setBrokerEmail(d.broker.email)
-          const existing = allBrokers.find(b => b.name.toLowerCase() === d.broker.name.toLowerCase())
+          // Same MC#/DOT#, or same name ignoring LLC/Inc/punctuation/case — the RC
+          // spelling varies load to load and exact matching created duplicates
+          const existing = findBrokerMatch(allBrokers, d.broker)
           if (existing) {
             setBrokerId(existing.id)
-            // Update MC#/DOT# if missing — from scan first, then FMCSA name search
+            // Update MC#/DOT# if missing — from the RC first, then an MC# already
+            // stored on a duplicate of this broker, then FMCSA name search
             const updates = {}
             if (!existing.mc_number && d.broker.mc_number) updates.mc_number = d.broker.mc_number
+            if (!existing.mc_number && !updates.mc_number) {
+              const storedMc = findStoredMc(allBrokers, existing) || await lookupStoredMcAnyCompany(supabase, existing.name)
+              if (storedMc) updates.mc_number = storedMc
+            }
             if (!existing.dot_number && d.broker.dot_number) updates.dot_number = d.broker.dot_number
             const mcSoFar = updates.mc_number || existing.mc_number
             const dotSoFar = updates.dot_number || existing.dot_number
@@ -678,6 +710,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               await supabase.from('brokers').update(updates).eq('id', existing.id)
               setAllBrokers(prev => prev.map(b => b.id === existing.id ? { ...b, ...updates } : b))
             }
+            // The MC# field was synced when the broker got selected (still empty
+            // then) — show what was just found, or Save would write it back empty
+            const foundMc = updates.mc_number || existing.mc_number
+            if (foundMc && !mcInputRef.current.trim()) setMcInput(foundMc)
           } else {
             const brokerRecord = {
               type: 'broker',
@@ -689,6 +725,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               phone: d.broker.phone || null,
               email: d.broker.email || null,
             }
+            // MC# this broker already has in another of our companies
+            if (!brokerRecord.mc_number) brokerRecord.mc_number = (await lookupStoredMcAnyCompany(supabase, d.broker.name)) || null
             // FMCSA: fill missing MC/DOT via name search
             if (!brokerRecord.mc_number || !brokerRecord.dot_number) {
               try {
@@ -793,6 +831,23 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   async function createBroker() {
     if (!newBroker.name.trim()) { toast.warning('Nombre del broker es requerido'); return }
+    // Already stored under another spelling (or same MC#/DOT#) — use that one
+    // instead of creating a duplicate that starts without the MC#
+    const existing = findBrokerMatch(allBrokers, newBroker)
+    if (existing) {
+      // Store the typed MC# on the broker itself (not just the input): the MC#
+      // field re-syncs from the broker record as soon as it gets selected
+      const typedMc = newBroker.mc_number.trim()
+      if (typedMc && !existing.mc_number) {
+        await supabase.from('brokers').update({ mc_number: typedMc }).eq('id', existing.id)
+        setAllBrokers(prev => prev.map(b => b.id === existing.id ? { ...b, mc_number: typedMc } : b))
+      }
+      setBrokerId(existing.id)
+      setShowNewBroker(false)
+      setNewBroker({ name: '', mc_number: '', dot_number: '', ref_number: '', address: '', phone: '', email: '' })
+      toast.success(`Broker ya registrado: ${existing.name}`)
+      return
+    }
     try {
       const { data, error } = await supabase.from('brokers').insert({
         ...newBroker,
@@ -814,6 +869,14 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   async function handleSave() {
     if (!orderNumber.trim()) { toast.warning('Orden # es requerido'); return }
     if (isNew && !dispatcher.trim()) { toast.warning('Dispatcher es requerido'); return }
+    // MC# del broker es obligatorio: sin el no se crea la orden (ni se sube su RC).
+    // Los clientes directos (type 'customer') no tienen MC#
+    if (showNewBroker && newBroker.name.trim()) { toast.warning('Termina de agregar el broker (boton Crear) antes de guardar la orden'); return }
+    if (isNew && !brokerId) { toast.warning('Selecciona el broker de la orden — su MC# es obligatorio'); return }
+    if (brokerId && (selectedBroker?.type || 'broker') !== 'customer' && !mcInput.trim()) {
+      toast.warning('El MC# del broker es obligatorio. Escribelo en la seccion Cliente / Broker')
+      return
+    }
     // truck_id is optional — no truck = booked status
     if (!rate && rate !== 0) { toast.warning('Rate es requerido'); return }
 
