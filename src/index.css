@@ -362,3 +362,14 @@ select.sel option {
     clip-path: circle(150% at var(--theme-x, 50%) var(--theme-y, 50%));
   }
 }
+
+/* ========================
+   iPhone notch / Dynamic Island and home indicator. env() values are only
+   non-zero with viewport-fit=cover (index.html); with the app added to the
+   Home Screen (black-translucent status bar) the page runs under the clock
+   ======================== */
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+/* Main content clears the phone bottom nav (+ home indicator) */
+.pb-nav { padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 1024px) { .pb-nav { padding-bottom: 1.5rem; } }

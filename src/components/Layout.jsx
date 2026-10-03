@@ -476,7 +476,7 @@ export default function Layout() {
         style={{ transition: 'margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
       >
         {/* Mobile top bar */}
-        <header className="lg:hidden relative flex items-center h-14 px-4 border-b border-gray-800 bg-gray-900 shrink-0">
+        <header className="lg:hidden relative flex items-center px-4 border-b border-gray-800 bg-gray-900 shrink-0 safe-top" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
           {isSubPage ? (
             <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -619,7 +619,7 @@ export default function Layout() {
           )}
         </header>
 
-        <main className="main-scroll flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-20 lg:pb-6">
+        <main className="main-scroll flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-nav">
           <div key={location.pathname} className="animate-tab-in">
             <Outlet />
           </div>

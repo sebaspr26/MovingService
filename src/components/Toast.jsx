@@ -61,7 +61,7 @@ export function ToastProvider({ children }) {
       {children}
 
       {/* Toast container - top right */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: '380px' }}>
+      <div className="fixed right-4 z-[100] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: '380px', top: 'max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))' }}>
         {toasts.map(t => (
           <ToastItem key={t.id} toast={t} onClose={() => dismiss(t.id)} />
         ))}

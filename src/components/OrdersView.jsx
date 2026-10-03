@@ -945,7 +945,7 @@ export default function OrdersView() {
           />
           {/* Panel */}
           <div
-            className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out ${
+            className={`relative w-full max-w-4xl bg-gray-950 border-l border-gray-800 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out safe-top safe-bottom ${
               drawerVisible ? 'translate-x-0' : 'translate-x-full'
             }`}
           >
@@ -997,7 +997,7 @@ export default function OrdersView() {
         <MobileStatsBar
           orders={filtered}
           theme={theme}
-          bottomClass={isSuperAdmin(session) || canAccess(session, 'dashboard') ? 'bottom-[88px]' : 'bottom-[66px]'}
+          bottomOffset={isSuperAdmin(session) || canAccess(session, 'dashboard') ? 88 : 66}
         />
       )}
     </div>
@@ -1010,7 +1010,7 @@ export default function OrdersView() {
 // it. While hidden, a small "Totales" chip brings it back without scrolling.
 const STATS_IDLE_MS = 1600
 
-function MobileStatsBar({ orders, theme, bottomClass }) {
+function MobileStatsBar({ orders, theme, bottomOffset }) {
   const [mode, setMode] = useState('peek') // 'hidden' | 'peek' (showing while scrolling) | 'pinned'
   const barRef = useRef(null)
   const idleTimer = useRef(null)
@@ -1058,6 +1058,8 @@ function MobileStatsBar({ orders, theme, bottomClass }) {
   const totalMilesAll = totalMiles + totalDH
   const rpm = totalMilesAll > 0 ? totalRate / totalMilesAll : 0
   const visible = mode !== 'hidden'
+  // Above the bottom nav, which grows by the iPhone home-indicator inset
+  const bottom = `calc(${bottomOffset}px + env(safe-area-inset-bottom, 0px))`
   const surface = {
     background: theme === 'light' ? 'rgba(243,244,246,0.95)' : 'rgba(17,17,24,0.92)',
     backdropFilter: 'blur(20px)',
@@ -1070,10 +1072,10 @@ function MobileStatsBar({ orders, theme, bottomClass }) {
         ref={barRef}
         onClick={pin}
         aria-hidden={!visible}
-        className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border px-4 py-3 transition-all duration-300 ease-out ${bottomClass} ${
+        className={`sm:hidden fixed left-4 right-4 z-40 rounded-2xl border px-4 py-3 transition-all duration-300 ease-out ${
           mode === 'pinned' ? 'border-orange-500/40' : 'border-gray-700/60'
         } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
-        style={surface}
+        style={{ ...surface, bottom }}
       >
         {mode === 'pinned' && <span className="absolute top-1.5 right-2.5 w-1.5 h-1.5 rounded-full bg-orange-500" title="Fija · toca fuera para ocultar" />}
         <div className="grid grid-cols-4 gap-2">
@@ -1101,10 +1103,10 @@ function MobileStatsBar({ orders, theme, bottomClass }) {
         type="button"
         onClick={pin}
         aria-label="Mostrar totales"
-        className={`sm:hidden fixed right-4 z-40 rounded-full border border-gray-700/60 px-3 py-1.5 text-[11px] font-medium text-gray-300 transition-all duration-300 ${bottomClass} ${
+        className={`sm:hidden fixed right-4 z-40 rounded-full border border-gray-700/60 px-3 py-1.5 text-[11px] font-medium text-gray-300 transition-all duration-300 ${
           visible ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
         }`}
-        style={surface}
+        style={{ ...surface, bottom }}
       >
         Totales
       </button>

@@ -329,7 +329,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`} />
       <div
-        className={`absolute right-0 top-0 h-full w-full max-w-lg bg-gray-950 border-l border-gray-800 overflow-y-auto flex flex-col transform transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 top-0 h-full w-full max-w-lg bg-gray-950 border-l border-gray-800 overflow-y-auto flex flex-col safe-top safe-bottom transform transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">
