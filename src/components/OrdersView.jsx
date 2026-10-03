@@ -525,15 +525,18 @@ export default function OrdersView() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar orden, ciudad, broker... (varias: 123, 456 o 123 | 456)"
               title="Para buscar varias ordenes a la vez, separa los numeros de orden o referencia con coma (,) o barra (|)"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
+              className={`w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500 ${codesFound.length > 0 ? 'pr-12' : 'pr-3'}`}
             />
+            {/* Multi-code count lives inside the box so it never shifts the row */}
             {codesFound.length > 0 && (
-              <p className="mt-1 text-[10px] text-gray-500">
-                {codesFound.length} de {searchCodes.length} encontrados
-                {codesNotFound.length > 0 && (
-                  <span className="text-yellow-500"> · Sin resultados: {codesNotFound.join(', ')}</span>
-                )}
-              </p>
+              <span
+                title={`${codesFound.length} de ${searchCodes.length} encontrados`}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums pointer-events-none ${
+                  codesNotFound.length > 0 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-gray-700/60 text-gray-400'
+                }`}
+              >
+                {codesFound.length}/{searchCodes.length}
+              </span>
             )}
           </div>
           {/* Selects — grid 2 col en mobile, inline en desktop */}
@@ -555,6 +558,11 @@ export default function OrdersView() {
             <button onClick={clearFilters} className="text-xs text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors px-2.5 py-1 w-full sm:w-auto text-center">Limpiar filtros</button>
           )}
         </div>
+        {codesNotFound.length > 0 && (
+          <p className="mt-2 pt-2 border-t border-gray-800/60 text-[11px] text-yellow-500/90 break-words">
+            Sin resultados: {codesNotFound.join(', ')}
+          </p>
+        )}
       </div>
 
       {/* Layout: tabla + panel lateral derecho de estados */}
