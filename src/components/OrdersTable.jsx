@@ -7,6 +7,7 @@ import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { auditedBalanceWrite } from '../lib/balance'
+import { computeDeadhead } from '../lib/deadhead'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 import DatePicker from './DatePicker'
@@ -173,6 +174,15 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
         period_start: period.start,
         period_end: period.end,
       }
+      // Deadhead from the truck's previous delivery (quick-add never had one)
+      const pickupChanged = !editRow || editRow.pu_city !== record.pu_city || editRow.pu_date !== record.pu_date
+      if (pickupChanged || !(Number(editRow?.dead_miles) > 0)) {
+        try {
+          const dh = await computeDeadhead({ truckId, pickupDate: record.pu_date, pickupPlace: record.pu_city, excludeOrderId: editRow?.id })
+          record.dead_miles = dh ? dh.miles : 0
+        } catch { /* DH is secondary — never block the order */ }
+      }
+
       let result
       if (editRow) {
         const changes = {}

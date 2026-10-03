@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import { auditedBalanceWrite } from '../lib/balance'
+import { computeDeadhead } from '../lib/deadhead'
 import { useTheme } from '../lib/theme'
 
 function useCountUp(target, duration = 700) {
@@ -171,6 +172,7 @@ export default function OrdersView() {
   const userRole = session?.user?.user_metadata?.role
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [orders, setOrders] = useState([])
+  const [dhProgress, setDhProgress] = useState(null)
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
   const [paymentMap, setPaymentMap] = useState({})
@@ -481,6 +483,46 @@ export default function OrdersView() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  // Orders that ran with a truck but have no DH. A truck's first order has no
+  // previous delivery to start from, so it's left out
+  const firstOrderByTruck = {}
+  for (const o of orders) {
+    if (!o.truck_id || !o.pu_date) continue
+    const f = firstOrderByTruck[o.truck_id]
+    if (!f || o.pu_date < f.pu_date) firstOrderByTruck[o.truck_id] = o
+  }
+  const missingDh = orders.filter(o =>
+    o.truck_id && o.pu_date && o.pu_city && !['canceled', 'tonu'].includes(o.status) &&
+    !(Number(o.dead_miles) > 0) && firstOrderByTruck[o.truck_id]?.id !== o.id)
+
+  async function handleFillDh() {
+    const ok = await toast.confirm(`Calcular el DH de ${missingDh.length} órdenes que no lo tienen, desde la entrega anterior de su camión? Solo se llenan las que están vacías.`, { confirmText: 'Calcular DH' })
+    if (!ok) return
+    setDhProgress({ done: 0, total: missingDh.length })
+    let filled = 0
+    let noPrev = 0
+    const updated = {}
+    try {
+      for (let i = 0; i < missingDh.length; i += 3) {
+        await Promise.all(missingDh.slice(i, i + 3).map(async o => {
+          try {
+            const dh = await computeDeadhead({ truckId: o.truck_id, pickupDate: o.pu_date, pickupPlace: o.pu_city, excludeOrderId: o.id })
+            if (!dh) { noPrev++; return }
+            const { error } = await supabase.from('orders').update({ dead_miles: dh.miles })
+              .eq('id', o.id).or('dead_miles.is.null,dead_miles.eq.0')
+            if (!error) { filled++; updated[o.id] = dh.miles }
+          } catch { noPrev++ }
+        }))
+        setDhProgress({ done: Math.min(i + 3, missingDh.length), total: missingDh.length })
+      }
+    } finally {
+      setOrders(prev => prev.map(o => updated[o.id] != null ? { ...o, dead_miles: updated[o.id] } : o))
+      delete ordersCacheMap[session?.user?.id]
+      setDhProgress(null)
+      toast.success(`DH calculado en ${filled} órdenes${noPrev ? ` · ${noPrev} sin entrega anterior o sin ruta` : ''}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -498,6 +540,23 @@ export default function OrdersView() {
           <h1 className="text-2xl font-bold text-white">Ordenes / Cargas</h1>
           <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {isSuperAdmin(session) && missingDh.length > 0 && (
+          dhProgress ? (
+            <div className="w-48">
+              <div className="h-2 rounded-full bg-gray-800 overflow-hidden"><div className="h-full bg-orange-500 transition-all" style={{ width: `${(dhProgress.done / Math.max(dhProgress.total, 1)) * 100}%` }} /></div>
+              <p className="text-[11px] text-gray-500 mt-1">DH: {dhProgress.done} de {dhProgress.total}...</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleFillDh}
+              title="Ordenes con camion y sin DH (millas vacias desde la entrega anterior del camion)"
+              className="px-3 py-2 rounded-lg border border-orange-600/40 text-orange-300 text-sm hover:bg-orange-600/10 w-fit"
+            >
+              Completar DH ({missingDh.length})
+            </button>
+          )
+        )}
         {!isDriver && (
           <button
             onClick={() => openDrawer('new')}
@@ -509,6 +568,7 @@ export default function OrdersView() {
             Nueva Orden
           </button>
         )}
+        </div>
       </div>
 
       {/* Filtros */}

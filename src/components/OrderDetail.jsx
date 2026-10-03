@@ -18,6 +18,7 @@ import OrderInvoice from './OrderInvoice'
 import DatePicker from './DatePicker'
 import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
+import { computeDeadhead, firstPickupPlace } from '../lib/deadhead'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -297,7 +298,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   // Route calculation
   const [calculatingRoute, setCalculatingRoute] = useState(false)
   const [routeInfo, setRouteInfo] = useState(null) // { totalMiles, totalMinutes, legs }
-  const [dhInfo, setDhInfo] = useState(null) // { distanceMiles, durationMinutes }
+  const [dhInfo, setDhInfo] = useState(null) // { distanceMiles, durationMinutes, from, prevOrderNumber }
+  // DH is recalculated whenever truck / pickup date / pickup place change.
+  // dhBasisRef = inputs of the DH currently shown (so a loaded order keeps its
+  // saved DH until one of them changes); dhManualRef = the user typed it
+  const dhBasisRef = useRef(null)
+  const dhManualRef = useRef(false)
 
   useEffect(() => {
     Promise.all([
@@ -537,47 +543,44 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     setStops(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, sequence: i })))
   }
 
-  async function calculateDH(selectedTruckId) {
-    if (!selectedTruckId) return
-    try {
-      const orderId = isNew ? null : id
-      const query = supabase.from('orders').select('do_city, do_date, id')
-        .eq('truck_id', selectedTruckId)
-        .not('do_date', 'is', null)
-        .not('do_city', 'is', null)
-        .order('do_date', { ascending: false })
-        .limit(10)
-      if (orderId) query.neq('id', orderId)
+  const pickupDate = puDate || stops.find(s => s.type === 'pickup')?.date || ''
+  const pickupPlace = firstPickupPlace(stops, puCity)
+  const dhBasis = truckId && pickupDate && pickupPlace ? `${truckId}|${pickupDate}|${pickupPlace}` : null
 
-      const { data: prevOrders } = await query
-      if (!prevOrders || prevOrders.length === 0) {
-        // No previous orders — clear DH
+  async function runDH({ force = false } = {}) {
+    if (!dhBasis) return null
+    if (!force && dhBasisRef.current === dhBasis) return null
+    dhBasisRef.current = dhBasis
+    try {
+      const dh = await computeDeadhead({ truckId, pickupDate, pickupPlace, excludeOrderId: isNew ? null : id })
+      if (dhBasisRef.current !== dhBasis) return null // inputs changed meanwhile
+      if (dh) {
+        setDhInfo({ distanceMiles: dh.miles, durationMinutes: dh.durationMinutes, from: dh.from, prevOrderNumber: dh.prevOrderNumber })
+        setDeadMiles(String(dh.miles))
+      } else {
+        // No previous delivery for this truck before this pickup: no DH
         setDhInfo(null)
         setDeadMiles('')
-        return
       }
-
-      const thisPickup = puDate || stops.find(s => s.type === 'pickup')?.date
-      if (thisPickup) {
-        const prevOrder = prevOrders.find(o => o.do_date && o.do_date <= thisPickup) || prevOrders[0]
-        if (prevOrder?.do_city) {
-          const firstPickup = stops.find(s => s.type === 'pickup')
-          const pickupLoc = firstPickup ? [firstPickup.city, firstPickup.state].filter(Boolean).join(', ') : puCity
-          if (pickupLoc) {
-            const dh = await calculateTruckRoute(prevOrder.do_city, pickupLoc)
-            if (dh) {
-              setDhInfo(dh)
-              setDeadMiles(String(dh.distanceMiles))
-              return
-            }
-          }
-        }
-      }
-      // No valid calculation — clear DH
-      setDhInfo(null)
-      setDeadMiles('')
-    } catch (_) { /* silent — DH is secondary */ }
+      if (!isNew) setDirty(true)
+      return dh
+    } catch {
+      return null // DH is secondary — never block the order
+    }
   }
+
+  // Recalculate when truck, pickup date or pickup place change (also after an
+  // RC scan fills the stops, and for orders created with a preselected truck)
+  useEffect(() => {
+    if (!dhBasis || dhManualRef.current) return
+    // An existing order that already has a DH keeps it until an input changes
+    if (!isNew && dhBasisRef.current === null && Number(deadMiles) > 0) {
+      dhBasisRef.current = dhBasis
+      return
+    }
+    const t = setTimeout(() => { runDH() }, 700)
+    return () => clearTimeout(t)
+  }, [dhBasis]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function autoCalculateRoute(stopsArr) {
     const locs = (stopsArr || stops)
@@ -619,8 +622,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         toast.error('No se pudo calcular la ruta. Verifica las ciudades.')
       }
 
-      // Calculate DH
-      if (truckId) await calculateDH(truckId)
+      // Calculate DH (explicit button: recompute even if inputs didn't change)
+      dhManualRef.current = false
+      await runDH({ force: true })
     } catch (err) {
       toast.error('Error calculando ruta: ' + (err.message || err))
     } finally {
@@ -900,6 +904,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       const pStart = periodStart || puDate || new Date().toISOString().split('T')[0]
       const pEnd = periodEnd || doDate || pStart
 
+      // DH still empty (e.g. saved before the recalculation finished): compute it now
+      let deadMilesToSave = deadMiles !== '' ? Number(deadMiles) : 0
+      if (!deadMilesToSave && !dhManualRef.current && dhBasis) {
+        const dh = await runDH({ force: true })
+        if (dh) deadMilesToSave = dh.miles
+      }
+
       // For new orders with a truck, ensure we use the active cycle
       const finalCycleId = (isNew && truckId) ? await getActiveCycleId(truckId) : (cycleId || null)
       const record = {
@@ -916,7 +927,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         rate: rate !== '' ? Number(rate) : 0,
         apply_discount: applyDiscount,
         miles: miles !== '' ? Number(miles) : 0,
-        dead_miles: deadMiles !== '' ? Number(deadMiles) : 0,
+        dead_miles: deadMilesToSave,
         invoice_notes: invoiceNotes.trim() || null,
         commodity: commodity.trim() || null,
         weight: weight !== '' ? Number(weight) : 0,
@@ -1354,7 +1365,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     setDriverId(assignedDriver?.id || null)
                     if (val && status === 'booked') setStatus('assigned')
                     if (!val && status === 'assigned') setStatus('booked')
-                    if (val) { calculateDH(val); autoCalculateRoute() }
+                    if (val) autoCalculateRoute()
                   }}
                   options={[{ value: '', label: '-- Seleccionar --' }, ...trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))]}
                 />
@@ -1389,7 +1400,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
               <Field label="Rate ($)" value={rate} onChange={setRate} type="number" step="0.01" required />
               <Field label="Miles" value={miles} onChange={setMiles} type="number" step="0.01" />
-              <Field label="Dead Head" value={deadMiles} onChange={setDeadMiles} type="number" step="0.01" />
+              <Field label="Dead Head" value={deadMiles} onChange={v => { dhManualRef.current = true; setDeadMiles(v) }} type="number" step="0.01" />
 
               {/* Discount toggle compact */}
               <div className={`sm:col-span-2 rounded-lg p-2.5 border transition-colors ${
@@ -1566,6 +1577,12 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                         <span className="text-gray-500">Tiempo DH:</span>
                         <span className="text-gray-300 ml-1">{formatDuration(dhInfo.durationMinutes)}</span>
                       </div>
+                      {dhInfo.from && (
+                        <div className="min-w-0 truncate">
+                          <span className="text-gray-500">Desde:</span>
+                          <span className="text-gray-300 ml-1">{dhInfo.from}{dhInfo.prevOrderNumber ? ` (orden #${dhInfo.prevOrderNumber})` : ''}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1574,7 +1591,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               {/* Miles fields */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <Field label="Loaded Miles" value={miles} onChange={setMiles} type="number" step="0.01" />
-                <Field label="Dead Head Miles" value={deadMiles} onChange={setDeadMiles} type="number" step="0.01" />
+                <Field label="Dead Head Miles" value={deadMiles} onChange={v => { dhManualRef.current = true; setDeadMiles(v) }} type="number" step="0.01" />
               </div>
             </div>
           </Section>
