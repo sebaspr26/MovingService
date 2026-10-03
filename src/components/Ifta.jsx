@@ -35,6 +35,37 @@ export default function Ifta() {
   const { activeCompany, loading } = useCompany()
   const [year, setYear] = useState(YEARS[0] || new Date().getFullYear())
   const [detail, setDetail] = useState(null)
+  // Bumped after "Calcular todo" so every card reloads its numbers
+  const [version, setVersion] = useState(0)
+  const [bulk, setBulk] = useState(null)
+  const toast = useToast()
+
+  // State miles for every quarter of the year in one go, one quarter at a time
+  async function handleFillYear() {
+    setBulk({ done: 0, total: 0, label: 'Buscando órdenes...' })
+    try {
+      const loaded = []
+      for (const q of quartersOf(year)) loaded.push(await loadQuarterData(activeCompany.id, year, q))
+      const total = loaded.reduce((s, d) => s + d.orders.filter(o => o.needsMiles).length, 0)
+      if (!total) { toast.success(`Todos los trimestres de ${year} ya tienen las millas calculadas`); return }
+      let doneBefore = 0
+      const failed = []
+      for (const d of loaded) {
+        const pending = d.orders.filter(o => o.needsMiles).length
+        if (!pending) continue
+        const res = await fillStateMiles(d.orders, done => setBulk({ done: doneBefore + done, total, label: `Q${d.quarter} ${year}` }))
+        failed.push(...res.failed)
+        doneBefore += pending
+      }
+      if (failed.length) toast.warning(`No se pudo calcular la ruta de ${failed.length} orden(es): ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? '...' : ''}`)
+      else toast.success(`Millas por estado de ${year} calculadas (${total} órdenes)`)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setBulk(null)
+      setVersion(v => v + 1)
+    }
+  }
 
   if (!loading && !hasFeature(activeCompany, 'ifta')) {
     return (
@@ -56,12 +87,24 @@ export default function Ifta() {
           <h1 className="text-xl sm:text-2xl font-bold text-white">IFTA</h1>
           <p className="text-sm text-gray-500 mt-0.5">Impuesto de combustible por estado · camiones marcados como dry van</p>
         </div>
+        <div className="flex items-center gap-3">
+        {bulk ? (
+          <div className="w-56">
+            <div className="h-2 rounded-full bg-gray-800 overflow-hidden"><div className="h-full bg-blue-600 transition-all" style={{ width: `${bulk.total ? (bulk.done / bulk.total) * 100 : 5}%` }} /></div>
+            <p className="text-[11px] text-gray-500 mt-1">{bulk.total ? `${bulk.label}: ${bulk.done} de ${bulk.total} órdenes...` : bulk.label}</p>
+          </div>
+        ) : (
+          <button onClick={handleFillYear} disabled={!activeCompany} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 disabled:opacity-50">
+            Calcular todo {year}
+          </button>
+        )}
         <label className="flex items-center gap-2 text-xs text-gray-500">
           Año
           <select value={year} onChange={e => setYear(Number(e.target.value))} className="sel bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-blue-500">
             {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </label>
+        </div>
       </div>
 
       {quarters.length === 0 ? (
@@ -69,7 +112,7 @@ export default function Ifta() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
           {quarters.map(q => (
-            <QuarterCard key={`${activeCompany.id}-${year}-${q}`} company={activeCompany} year={year} quarter={q} onOpen={setDetail} />
+            <QuarterCard key={`${activeCompany.id}-${year}-${q}-${version}`} company={activeCompany} year={year} quarter={q} onOpen={setDetail} />
           ))}
         </div>
       )}
