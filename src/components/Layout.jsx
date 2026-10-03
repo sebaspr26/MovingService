@@ -755,13 +755,16 @@ function NavSection({ label, icon, items: rawItems, color, collapsed }) {
   const items = rawItems.filter(Boolean)
   const location = useLocation()
   const inSection = items.some(i => location.pathname.startsWith(i.to))
-  const [open, setOpen] = useState(inSection)
+  // Until the user toggles it, follow the route — items can appear after mount
+  // (IFTA shows once the company loads), so a mount-time default isn't enough
+  const [openState, setOpen] = useState(null)
+  const open = openState ?? inSection
   const active = SECTION_COLORS[color]?.open || SECTION_COLORS.green.open
 
   return (
     <div>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         title={collapsed ? label : undefined}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap w-full ${
           open || inSection ? active : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'

@@ -7,6 +7,7 @@ import { computeTruckBalance, logBalanceChange, logBalanceChain } from '../lib/b
 import { uploadReceipt } from '../lib/receipts'
 import ReceiptViewer from './ReceiptViewer'
 import DatePicker from './DatePicker'
+import { stateOfCity } from '../lib/ifta'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -201,6 +202,11 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
         const where = `${label}, linea ${li + 1}`
         if (line.type === 'diesel' || line.type === 'def') {
           if (!line.value && line.value !== 0) { toast.warning(`${where}: ingresa el valor`); return }
+          // IFTA needs where and how much diesel was bought
+          if (line.type === 'diesel') {
+            if (!(Number(line.gallons) > 0)) { toast.warning(`${where}: ingresa los galones del diesel`); return }
+            if (!stateOfCity(r.city)) { toast.warning(`${label}: escribe la ciudad con su estado, ej. "MIAMI, FL" (lo necesita IFTA)`); return }
+          }
         } else {
           if (!line.amount && line.amount !== 0) { toast.warning(`${where}: ingresa el monto`); return }
           if (!line.description) { toast.warning(`${where}: ingresa la descripcion`); return }

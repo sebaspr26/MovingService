@@ -4,8 +4,20 @@ const API_KEY = import.meta.env.VITE_HERE_API_KEY
  * Geocode an address/city string to { lat, lng }
  * Returns null if not found.
  */
+// Same place geocoded once per session (IFTA recomputes hundreds of routes
+// that share cities)
+const geocodeCache = new Map()
+
 export async function geocode(query) {
   if (!query || !query.trim()) return null
+  const key = query.trim().toUpperCase()
+  if (geocodeCache.has(key)) return geocodeCache.get(key)
+  const result = await geocodeUncached(query)
+  if (result) geocodeCache.set(key, result)
+  return result
+}
+
+async function geocodeUncached(query) {
   const url = `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(query)}&in=countryCode:USA&apiKey=${API_KEY}`
   const res = await fetch(url)
   if (!res.ok) {
