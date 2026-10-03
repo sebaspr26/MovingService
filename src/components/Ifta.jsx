@@ -1,6 +1,21 @@
-// IFTA (International Fuel Tax Agreement) report — super admin only.
+import { Link } from 'react-router-dom'
+import { useCompany } from '../context/CompanyContext'
+import { hasFeature } from '../lib/company'
+
+// IFTA (International Fuel Tax Agreement) report — super admin only, and only
+// for companies that turned the module on in Configuración.
 // Placeholder: the quarterly miles/fuel-by-state report is built next.
 export default function Ifta() {
+  const { activeCompany, loading } = useCompany()
+  if (!loading && !hasFeature(activeCompany, 'ifta')) {
+    return (
+      <div className="animate-tab-in max-w-md mx-auto text-center pt-16">
+        <h1 className="text-xl font-bold text-white">IFTA no está activado</h1>
+        <p className="text-sm text-gray-500 mt-2">Este módulo se activa por empresa. Actívalo para esta empresa en Configuración.</p>
+        <Link to="/settings" className="inline-block mt-5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500">Ir a Configuración</Link>
+      </div>
+    )
+  }
   return (
     <div className="animate-tab-in">
       <div className="mb-6">

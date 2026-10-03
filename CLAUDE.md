@@ -104,6 +104,7 @@ supabase/
   030_order_carried_over.sql - carried_over boolean en orders (ordenes traidas de un ciclo cerrado sin pagar, ver Carry-over en seccion Ciclos)
   031_created_by.sql         - created_by_email/created_by_name en orders y expenses (columna "Agregado por" en TruckView, solo aplica hacia adelante, no hay forma de backfillear filas viejas)
   033_receipt_images.sql     - receipt_path en expenses/diesel/def/owner_expenses: foto/PDF del recibo en Storage (order-docs, prefijo receipts/). Varias filas pueden compartir la misma foto (varios recibos en una imagen). Ver lib/receipts.js y ReceiptViewer.jsx
+  034_ifta.sql               - IFTA: company_settings.features (jsonb, { ifta: true } por empresa, Configuracion > Modulos), trucks.ifta (solo dry van), orders.state_miles (millas por estado de la ruta HERE, loaded/empty), tabla ifta_filings (trimestres declarados)
 ```
 
 ## Database Tables (Supabase)

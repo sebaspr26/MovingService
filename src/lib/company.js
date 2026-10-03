@@ -139,3 +139,25 @@ export function invalidateCache(companyId) {
   if (companyId) delete cacheMap[companyId]
   else Object.keys(cacheMap).forEach(k => delete cacheMap[k])
 }
+
+// Per-company module switches (company_settings.features, 034_ifta.sql),
+// e.g. { ifta: true }. Managed from Configuración > Módulos de la empresa.
+export function hasFeature(company, key) {
+  return company?.features?.[key] === true
+}
+
+export async function setCompanyFeature(key, enabled, companyId) {
+  const id = companyId || getActiveCompanyId()
+  const settings = await getCompanySettings(id)
+  const features = { ...(settings.features || {}), [key]: !!enabled }
+  const { data, error } = await supabase.from('company_settings')
+    .update({ features, updated_at: new Date().toISOString() })
+    .eq('id', settings.id)
+    .select().single()
+  if (error) {
+    if (/features/i.test(error.message || '')) throw new Error('Falta aplicar la actualizacion de la base de datos (034_ifta.sql)', { cause: error })
+    throw error
+  }
+  cacheMap[settings.id] = data
+  return data
+}
