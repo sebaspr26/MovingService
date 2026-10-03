@@ -7,6 +7,10 @@ import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } f
 import { searchByName, lookupByMc, lookupByDot } from '../lib/fmcsa'
 import { downloadBase64Pdf } from '../lib/download'
 
+// Bill From / Bill To / Remit To box: shrinks and wraps long emails, min 180px
+// so three fit in a row on the page and they stack on a phone
+const ADDRESS_BOX = { flex: '1 1 180px', minWidth: 0, overflowWrap: 'anywhere', background: '#f8fafc', borderRadius: '6px', padding: '10px' }
+
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
 function friendlyEmailError(status, message) {
@@ -635,11 +639,14 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               </table>
             </div>
 
-            {/* Bill From / Bill To / Remit To — single row */}
+            {/* Bill From / Bill To / Remit To — one row on the PDF/print page (720px
+                wide), stacking on narrow screens. Each box can shrink and break long
+                emails: with flex:1 alone a box couldn't get narrower than its longest
+                unbreakable word, so long emails pushed Remit To off the page */}
             {(sectionVisibility.billFrom || sectionVisibility.billTo || (sectionVisibility.remitTo && remitInfo.remit_name)) && (
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '25px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '25px' }}>
               {sectionVisibility.billFrom && (
-              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+              <div style={ADDRESS_BOX}>
                 <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill From</p>
                 <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{billingInfo.billing_name || companyName.toUpperCase()}</p>
                 <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
@@ -654,7 +661,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               </div>
               )}
               {sectionVisibility.billTo && (
-              <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+              <div style={ADDRESS_BOX}>
                 <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bill To</p>
                 {broker ? (
                   <>
@@ -672,7 +679,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               </div>
               )}
               {sectionVisibility.remitTo && remitInfo.remit_name && (
-                <div style={{ flex: 1, background: '#f8fafc', borderRadius: '6px', padding: '10px' }}>
+                <div style={ADDRESS_BOX}>
                   <p style={{ color: '#dc2626', fontWeight: '700', fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remit To</p>
                   <p style={{ fontWeight: '600', fontSize: '11px', lineHeight: '1.3' }}>{remitInfo.remit_name}</p>
                   <p style={{ fontSize: '10px', color: '#64748b', lineHeight: '1.4' }}>
