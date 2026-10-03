@@ -149,7 +149,14 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
     }
   }
 
-  function DocSection({ type }) {
+  // Called as a plain function, NOT rendered as <DocSection />: a component
+  // declared inside OrderDocuments is a new type on every render, so React
+  // remounted the section — including its <input type="file"> — whenever the
+  // order re-rendered. On phones the picker/camera backgrounds the page and the
+  // app re-renders when it comes back (session refresh, DH recalculation...),
+  // so the chosen file landed on an input that no longer existed: nothing
+  // happened, no "Subiendo...", no error. Desktop pickers don't trigger that.
+  function renderDocSection(type) {
     const typeDocs = docs.filter(d => d.doc_type === type.key)
     const ref = fileRefs[type.key]
     const isUploading = uploading === type.key
@@ -158,6 +165,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
 
     return (
       <div
+        key={type.key}
         className={`border-b border-gray-800 last:border-b-0 transition-colors ${isDragging ? 'bg-gray-800/30' : ''}`}
         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); dragCounters.current[type.key]++; setDraggingType(type.key) }}
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -274,7 +282,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
           <div className="h-10 bg-gray-800 rounded animate-pulse" />
         </div>
       ) : (
-        DOC_TYPES.map(t => <DocSection key={t.key} type={t} />)
+        DOC_TYPES.map(t => renderDocSection(t))
       )}
 
       {/* Document viewer (invoice-style modal with pdf.js rendering) */}
