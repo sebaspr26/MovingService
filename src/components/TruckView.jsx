@@ -11,6 +11,7 @@ import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
 import CashBox from './CashBox'
 import OwnerExpensesTable from './OwnerExpensesTable'
+import DatePicker from './DatePicker'
 
 function fmt_d(d) { return d.toISOString().split('T')[0] }
 
@@ -325,11 +326,10 @@ export default function TruckView() {
           {!isDriver && (openingCycle ? (
             <div className="inline-flex flex-col items-center gap-3">
               <label className="text-sm text-gray-400">Fecha de inicio del ciclo:</label>
-              <input
-                type="date"
+              <DatePicker
                 value={newCycleDate}
-                onChange={(e) => setNewCycleDate(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                onChange={setNewCycleDate}
+                className="w-44 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500"
               />
               <div className="flex gap-2">
                 <button onClick={() => setOpeningCycle(false)}
@@ -384,11 +384,10 @@ export default function TruckView() {
               {openingCycle ? (
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 inline-flex items-center gap-3">
                   <label className="text-sm text-gray-400">Fecha inicio:</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={newCycleDate}
-                    onChange={(e) => setNewCycleDate(e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                    onChange={setNewCycleDate}
+                    className="w-44 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500"
                   />
                   <button onClick={() => setOpeningCycle(false)}
                     className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">

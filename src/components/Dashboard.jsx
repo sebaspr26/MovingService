@@ -12,6 +12,7 @@ import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/p
 import { useTheme } from '../lib/theme'
 import { logAudit, diffFields } from '../lib/auditLog'
 import { leaseDriverDebit } from '../lib/orders'
+import DatePicker from './DatePicker'
 
 // Cache dashboard data to avoid re-fetching on every navigation
 let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
@@ -876,12 +877,13 @@ export default function Dashboard() {
                       <div className="mt-3 pt-3 border-t border-gray-800">
                         {openCycleTarget?.id === truck.id ? (
                           <div className="flex items-center gap-2">
-                            <input
-                              type="date"
-                              value={openCycleDate}
-                              onChange={(e) => setOpenCycleDate(e.target.value)}
-                              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
-                            />
+                            <div className="flex-1 min-w-0">
+                              <DatePicker
+                                value={openCycleDate}
+                                onChange={setOpenCycleDate}
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs hover:border-gray-500"
+                              />
+                            </div>
                             <button onClick={() => setOpenCycleTarget(null)}
                               className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
                               Cancelar
@@ -905,11 +907,10 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-500 mb-3">Sin ciclos</p>
                     {isDriver ? null : openCycleTarget?.id === truck.id ? (
                       <div className="flex flex-col items-center gap-2">
-                        <input
-                          type="date"
+                        <DatePicker
                           value={openCycleDate}
-                          onChange={(e) => setOpenCycleDate(e.target.value)}
-                          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
+                          onChange={setOpenCycleDate}
+                          className="w-40 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs hover:border-gray-500"
                         />
                         <div className="flex gap-2">
                           <button onClick={() => setOpenCycleTarget(null)}

@@ -20,7 +20,15 @@ function fmt(d) {
   return `${y}-${m}-${day}`
 }
 
-export default function DatePicker({ value, onChange, placeholder = 'Seleccionar...' }) {
+const POPUP_WIDTH = 260
+const POPUP_HEIGHT = 330
+
+const DEFAULT_TRIGGER = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs hover:border-gray-500'
+
+// className overrides the trigger box (size/colors) so the picker can match the
+// surrounding form; style is for inline-styled forms (e.g. SetPassword glass inputs).
+// min is a YYYY-MM-DD string — earlier days are disabled.
+export default function DatePicker({ value, onChange, placeholder = 'Seleccionar...', className = DEFAULT_TRIGGER, style, min }) {
   const today = new Date()
   const parsed = value ? new Date(value + 'T00:00:00') : null
   const [open, setOpen] = useState(false)
@@ -52,6 +60,13 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
     setOpen(false)
   }
 
+  function selectToday() {
+    onChange(fmt(today))
+    setViewMonth(today.getMonth())
+    setViewYear(today.getFullYear())
+    setOpen(false)
+  }
+
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
   const todayStr = fmt(today)
@@ -74,7 +89,8 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
         ref={btnRef}
         type="button"
         onClick={handleOpen}
-        className={`w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left focus:outline-none hover:border-gray-500 flex items-center justify-between gap-2 transition-colors ${
+        style={style}
+        className={`${className} text-left focus:outline-none flex items-center justify-between gap-2 transition-colors ${
           value ? 'text-gray-100' : 'text-gray-500'
         }`}
       >
@@ -89,7 +105,13 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
           <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
           <div
             className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-3 w-[260px]"
-            style={{ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 272) }}
+            style={{
+              // Open upward when there's no room below (cards at the bottom of the Dashboard, modals)
+              ...(rect.bottom + 4 + POPUP_HEIGHT > window.innerHeight && rect.top - 4 - POPUP_HEIGHT > 0
+                ? { bottom: window.innerHeight - rect.top + 4 }
+                : { top: rect.bottom + 4 }),
+              left: Math.max(8, Math.min(rect.left, window.innerWidth - POPUP_WIDTH - 12)),
+            }}
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
@@ -125,15 +147,19 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
                 const dateStr = fmt(new Date(viewYear, viewMonth, day))
                 const isSelected = dateStr === value
                 const isToday = dateStr === todayStr
+                const isDisabled = min && dateStr < min
                 return (
                   <button
                     key={day}
                     type="button"
+                    disabled={isDisabled}
                     onClick={() => selectDay(day)}
                     className={`w-8 h-8 mx-auto rounded-lg text-xs font-medium transition-colors ${
                       isSelected
                         ? 'bg-orange-600 text-white'
-                        : isToday
+                        : isDisabled
+                          ? 'text-gray-700 cursor-not-allowed'
+                          : isToday
                           ? 'bg-gray-800 text-blue-400 ring-1 ring-blue-500/50'
                           : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
@@ -146,13 +172,15 @@ export default function DatePicker({ value, onChange, placeholder = 'Seleccionar
 
             {/* Footer */}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => { selectDay(today.getDate()); setViewMonth(today.getMonth()); setViewYear(today.getFullYear()) }}
-                className="text-[10px] text-blue-400 hover:text-orange-300 transition-colors"
-              >
-                Hoy
-              </button>
+              {!(min && todayStr < min) ? (
+                <button
+                  type="button"
+                  onClick={selectToday}
+                  className="text-[10px] text-blue-400 hover:text-orange-300 transition-colors"
+                >
+                  Hoy
+                </button>
+              ) : <span />}
               {value && (
                 <button
                   type="button"

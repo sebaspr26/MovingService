@@ -8,6 +8,7 @@ import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
+import DatePicker from './DatePicker'
 
 export default function OrdersTable({ truckId, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
   const toast = useToast()
@@ -489,14 +490,22 @@ export default function OrdersTable({ truckId, period, cycle, onDataChange, read
               ].map(f => (
                 <div key={f.label}>
                   <label className="block text-sm font-medium text-gray-400 mb-1">{f.label}</label>
-                  <input
-                    type={f.type || 'text'}
-                    step={f.step}
-                    value={f.value}
-                    onChange={(e) => f.set(e.target.value)}
-                    required={f.required}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                  />
+                  {f.type === 'date' ? (
+                    <DatePicker
+                      value={f.value}
+                      onChange={f.set}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500"
+                    />
+                  ) : (
+                    <input
+                      type={f.type || 'text'}
+                      step={f.step}
+                      value={f.value}
+                      onChange={(e) => f.set(e.target.value)}
+                      required={f.required}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
+                    />
+                  )}
                 </div>
               ))}
 

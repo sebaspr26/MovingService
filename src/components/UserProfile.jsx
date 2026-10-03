@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
+import DatePicker from './DatePicker'
 
 const US_STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
@@ -429,16 +430,16 @@ export default function UserProfile() {
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">Venc. Licencia</label>
-                    <input type="date" value={licenseExpiry}
-                      onChange={e => { setLicenseExpiry(e.target.value); setDriverDirty(true) }}
-                      className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                    <DatePicker value={licenseExpiry}
+                      onChange={v => { setLicenseExpiry(v); setDriverDirty(true) }}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500" />
                     {expiryBadge(licenseExpiry) && <div className="mt-1">{expiryBadge(licenseExpiry)}</div>}
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">Venc. Medical Card</label>
-                    <input type="date" value={medicalExpiry}
-                      onChange={e => { setMedicalExpiry(e.target.value); setDriverDirty(true) }}
-                      className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/70" />
+                    <DatePicker value={medicalExpiry}
+                      onChange={v => { setMedicalExpiry(v); setDriverDirty(true) }}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500" />
                     {expiryBadge(medicalExpiry) && <div className="mt-1">{expiryBadge(medicalExpiry)}</div>}
                   </div>
                 </div>

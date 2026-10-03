@@ -1018,11 +1018,11 @@ function SectionChoferes() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Vencimiento Licencia</label>
-              <input value={form.license_expiry} onChange={e => setForm({...form, license_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
+              <DatePicker value={form.license_expiry || ''} onChange={v => setForm({...form, license_expiry: v})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Vencimiento Tarjeta Medica</label>
-              <input value={form.medical_card_expiry} onChange={e => setForm({...form, medical_card_expiry: e.target.value})} type="date" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500" />
+              <DatePicker value={form.medical_card_expiry || ''} onChange={v => setForm({...form, medical_card_expiry: v})} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500" />
             </div>
           </div>
           <div className="flex items-center gap-3 pt-2 flex-wrap">

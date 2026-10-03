@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import DatePicker from './DatePicker'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -15,6 +16,12 @@ function formatPhone(raw) {
   if (digits.length <= 3) return digits
   if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
+// Local YYYY-MM-DD — toISOString() is UTC and would block "today" in the US evening
+function localToday() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 const glassInput = {
@@ -512,7 +519,7 @@ export default function SetPassword() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Vencimiento *</label>
-                        <GlassInput type="date" value={licenseExpiry} onChange={e => { setLicenseExpiry(e.target.value); setError('') }} min={new Date().toISOString().split('T')[0]} />
+                        <DatePicker value={licenseExpiry} onChange={v => { setLicenseExpiry(v); setError('') }} min={localToday()} className="w-full py-3 px-4 rounded-xl text-sm font-semibold" style={glassInput} />
                       </div>
                     </div>
                     <div>
@@ -527,7 +534,7 @@ export default function SetPassword() {
                   <form onSubmit={handleDriverSubmit} className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Vencimiento tarjeta médica *</label>
-                      <GlassInput type="date" value={medicalExpiry} onChange={e => { setMedicalExpiry(e.target.value); setError('') }} min={new Date().toISOString().split('T')[0]} />
+                      <DatePicker value={medicalExpiry} onChange={v => { setMedicalExpiry(v); setError('') }} min={localToday()} className="w-full py-3 px-4 rounded-xl text-sm font-semibold" style={glassInput} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Documento tarjeta médica *</label>

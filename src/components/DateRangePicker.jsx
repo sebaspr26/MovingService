@@ -23,6 +23,10 @@ export default function DateRangePicker({ dateFrom, dateTo, onChange, placeholde
   const [hoverDate, setHoverDate] = useState(null)
 
   const ref = useRef()
+  // On mobile the calendar is portaled to <body>, outside `ref`, so it needs its
+  // own ref — otherwise every tap on a day counts as an "outside" click and
+  // closes the picker before the selection registers
+  const popupRef = useRef()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -39,12 +43,11 @@ export default function DateRangePicker({ dateFrom, dateTo, onChange, placeholde
       setViewMonth(d.getMonth())
     }
     function outside(e) {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false)
-      }
+      if (ref.current?.contains(e.target) || popupRef.current?.contains(e.target)) return
+      setOpen(false)
     }
-    document.addEventListener('mousedown', outside)
-    return () => document.removeEventListener('mousedown', outside)
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
   }, [open])
 
   function prevMonth() { if (viewMonth===0){setViewMonth(11);setViewYear(y=>y-1)}else setViewMonth(m=>m-1) }
@@ -98,7 +101,7 @@ export default function DateRangePicker({ dateFrom, dateTo, onChange, placeholde
     <>
       {isMobile && <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setOpen(false)} />}
       <div
-        ref={isMobile ? null : ref}
+        ref={popupRef}
         className={`z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-3 select-none ${
           isMobile
             ? 'fixed left-4 right-4 top-1/2 -translate-y-1/2'

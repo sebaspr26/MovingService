@@ -4,6 +4,7 @@ import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
+import DatePicker from './DatePicker'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -397,12 +398,10 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Fecha *</label>
-              <input
-                type="date"
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                required
+                onChange={setDate}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500"
               />
             </div>
             <div>

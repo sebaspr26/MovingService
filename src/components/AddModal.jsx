@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast } from './Toast'
+import DatePicker from './DatePicker'
 
 export default function AddModal({ isOpen, onClose, onSave, fields, initialData, title, onScan }) {
   const toast = useToast()
@@ -205,6 +206,12 @@ export default function AddModal({ isOpen, onClose, onSave, fields, initialData,
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
+              ) : field.type === 'date' ? (
+                <DatePicker
+                  value={formData[field.name] || ''}
+                  onChange={(v) => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500"
+                />
               ) : (
                 <input
                   type={field.type || 'text'}
