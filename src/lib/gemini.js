@@ -7,13 +7,17 @@ const REQUEST_TIMEOUT_MS = 60000
 
 // Vercel rejects request bodies over 4.5MB; base64 adds ~33%
 const MAX_PDF_BYTES = 3 * 1024 * 1024
-// Downscale photos before sending: smaller upload and fewer image tokens
-const MAX_IMAGE_SIDE = 1600
+// Downscale photos before sending: smaller upload and fewer image tokens. Not
+// lower than this — with several receipts in one photo each one is a fraction
+// of the image and small print stops being readable
+const MAX_IMAGE_SIDE = 2400
 
 // Global lock — prevents duplicate calls from StrictMode or double clicks
 let isProcessing = false
 
-export async function analyzeReceipt(imageFile) {
+// kind: 'receipt' for the expenses screen (returns { receipts: [...] }, one per
+// receipt in the image); anything else uses the general receipt/RC prompt
+export async function analyzeReceipt(imageFile, { kind } = {}) {
   if (isProcessing) throw new Error('Ya se esta procesando una imagen. Espera un momento.')
 
   isProcessing = true
@@ -32,11 +36,11 @@ export async function analyzeReceipt(imageFile) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ base64, mimeType, fileName: imageFile.name }),
+        body: JSON.stringify({ base64, mimeType, fileName: imageFile.name, kind }),
         signal: controller.signal,
       })
     } catch (err) {
-      if (err.name === 'AbortError') throw new Error('El escaneo tardo demasiado. Intenta de nuevo.')
+      if (err.name === 'AbortError') throw new Error('El escaneo tardo demasiado. Intenta de nuevo.', { cause: err })
       throw err
     } finally {
       clearTimeout(timer)
@@ -68,10 +72,19 @@ function forceCurrentYear(dateStr) {
 }
 
 function normalizeScannedDates(result) {
+  // With several receipts in one photo the model sometimes answers with a bare
+  // array of receipts instead of { receipts: [...] } — the expenses screen read
+  // that as "nothing found"
+  if (Array.isArray(result)) result = { receipts: result }
   if (!result || typeof result !== 'object') return result
 
   // Top-level receipt date (multi-item format)
   if (result.date) result.date = forceCurrentYear(result.date)
+
+  // Several receipts in one image (kind: 'receipt')
+  if (Array.isArray(result.receipts)) {
+    result.receipts = result.receipts.map(r => ({ ...r, date: forceCurrentYear(r.date) }))
+  }
 
   // Legacy single-item data + orders
   if (result.data) {
@@ -111,7 +124,7 @@ async function downscaleImage(file) {
   canvas.height = Math.round(bitmap.height * scale)
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   bitmap.close()
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
   return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' }
 }
 

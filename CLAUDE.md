@@ -103,6 +103,7 @@ supabase/
   029_audit_log_company.sql  - company_id en audit_log
   030_order_carried_over.sql - carried_over boolean en orders (ordenes traidas de un ciclo cerrado sin pagar, ver Carry-over en seccion Ciclos)
   031_created_by.sql         - created_by_email/created_by_name en orders y expenses (columna "Agregado por" en TruckView, solo aplica hacia adelante, no hay forma de backfillear filas viejas)
+  033_receipt_images.sql     - receipt_path en expenses/diesel/def/owner_expenses: foto/PDF del recibo en Storage (order-docs, prefijo receipts/). Varias filas pueden compartir la misma foto (varios recibos en una imagen). Ver lib/receipts.js y ReceiptViewer.jsx
 ```
 
 ## Database Tables (Supabase)

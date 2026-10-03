@@ -5,6 +5,7 @@ import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import AddReceiptModal from './AddReceiptModal'
+import ReceiptViewer from './ReceiptViewer'
 
 
 const FILTERS = [
@@ -19,6 +20,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const toast = useToast()
   const navigate = useNavigate()
   const { session } = useAuth()
+  const [viewingReceipt, setViewingReceipt] = useState(null)
   const [filter, setFilter] = useState('all')
   const [dieselRows, setDieselRows] = useState([])
   const [defRows, setDefRows] = useState([])
@@ -159,6 +161,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
       date: row.date,
       period_start: row.period_start || period.start,
       period_end: row.period_end || period.end,
+      ...(row.receipt_path && { receipt_path: row.receipt_path }),
     }
     // Leaving the cycle's expenses raises the truck's balance (owner expenses
     // don't count), so this is a balance change and must be audited
@@ -197,6 +200,13 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
 
   return (
     <div>
+      {viewingReceipt && (
+        <ReceiptViewer
+          path={viewingReceipt.receipt_path}
+          title={`Recibo ${viewingReceipt.invoice_number || ''} ${viewingReceipt.date || ''}`.trim()}
+          onClose={() => setViewingReceipt(null)}
+        />
+      )}
       {/* Filters */}
       <div className="flex flex-wrap gap-1.5 mb-4">
         {FILTERS.map(f => (
@@ -309,6 +319,17 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                           {row._desc}
                         </span>
                       ) : row._desc}
+                      {row.receipt_path && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setViewingReceipt(row) }}
+                          className="ml-1.5 inline-flex align-middle p-0.5 text-gray-500 hover:text-orange-400"
+                          title="Ver foto del recibo"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                     <div className="py-2.5 pr-3 text-right text-red-400 font-medium">{fmt(row._amount)}</div>
                     <div className="py-2.5 pr-3 text-gray-500 text-xs">

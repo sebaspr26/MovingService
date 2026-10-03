@@ -93,6 +93,41 @@ Rules:
 - CRITICAL: For rate confirmations, you MUST extract BOTH MC# AND DOT# numbers by READING them directly from the document. NEVER guess, infer, or use memorized numbers — even for well-known brokers like TQL, CH Robinson, Coyote, Echo, or XPO. The number on THIS specific document is the only correct answer. Search EVERY part of the document: header, footer, fine print, sidebar, terms & conditions, signature block. Look for patterns: "MC-123456", "MC# 123456", "MC:123456", "MC 123456", "USDOT 123456", "DOT# 123456", "DOT: 123456", "DOT 123456". Extract the BROKER's MC and DOT numbers (the company issuing the rate confirmation), NOT the carrier's. Return only the numeric digits (e.g. "381344" not "MC#381344"). If you cannot clearly read a number, return "" instead of guessing.
 - Return ONLY valid JSON, no markdown, no explanation`
 
+// Receipts-only prompt (expenses screen). The general PROMPT above describes ONE
+// receipt, so a photo with two receipts came back merged, with only one of
+// them, or empty. This one asks for every receipt in the image separately.
+const RECEIPT_PROMPT = `You are reading expense receipts for a trucking company (fuel stations, DEF, repairs, tolls, parking, tires, insurance, food, etc.).
+
+The image may contain ONE OR SEVERAL separate receipts photographed together (side by side, overlapping, stacked, rotated, partially folded). First count how many distinct receipts are visible — each paper ticket or invoice is a separate receipt even if they are from the same store. Then extract EACH receipt separately. Never merge two receipts into one, and never drop one.
+
+Return ONLY valid JSON in this format:
+{
+  "receipts": [
+    {
+      "invoice_number": "string (receipt/invoice/ticket/transaction number)",
+      "date": "YYYY-MM-DD",
+      "city": "CITY, ST",
+      "vendor": "string (store or company name)",
+      "items": [
+        { "type": "diesel", "gallons": number, "value": number },
+        { "type": "def", "gallons": number, "value": number },
+        { "type": "expense", "category": "one of: Mantenimiento|Seguro|Peajes|Reparacion|Llantas|Lavado|Parqueo|Multas|Comida|DEF|Otros", "description": "brief description", "amount": number }
+      ]
+    }
+  ]
+}
+
+Rules:
+- One object in "receipts" per physical receipt in the image, in the order they appear (left to right, top to bottom).
+- A fuel receipt with BOTH diesel and DEF has both as separate items of that same receipt.
+- A repair/maintenance invoice with several services has each service as a separate expense item.
+- For each item use the amount actually paid for that item (with taxes if the receipt only shows a total).
+- If a receipt is hard to read, still include it with what you can read: 0 for unreadable numbers, "" for unreadable text. Only return an empty "receipts" array if the image contains no receipt at all.
+- Cities MUST be "CITY, ST" with the US state abbreviation.
+- Source dates are US format mm/dd/yyyy (MONTH first). "6/1/2026" means June 1st -> "2026-06-01".
+- Receipts are from the current operational year; use the current year for every date.
+- Return ONLY valid JSON, no markdown, no explanation.`
+
 async function postOpenRouter(body) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -122,7 +157,7 @@ export default async function handler(req, res) {
   const { data: userData, error: authError } = await supabase.auth.getUser(token)
   if (authError || !userData?.user) return res.status(401).json({ error: 'Sesion no valida. Vuelve a iniciar sesion.' })
 
-  const { base64, mimeType, fileName } = req.body || {}
+  const { base64, mimeType, fileName, kind } = req.body || {}
   if (!base64 || !mimeType) return res.status(400).json({ error: 'Falta el archivo' })
   if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
     return res.status(400).json({ error: 'Imagen no valida o formato no soportado.' })
@@ -135,7 +170,7 @@ export default async function handler(req, res) {
 
   const body = {
     model: MODEL,
-    messages: [{ role: 'user', content: [{ type: 'text', text: PROMPT }, attachment] }],
+    messages: [{ role: 'user', content: [{ type: 'text', text: kind === 'receipt' ? RECEIPT_PROMPT : PROMPT }, attachment] }],
     response_format: { type: 'json_object' },
     temperature: 0.1,
     max_tokens: MAX_OUTPUT_TOKENS,

@@ -172,3 +172,40 @@ export async function auditedDriverWrite(session, { driverId, action = 'update_d
   tracked.forEach((x, i) => logBalanceChange(session, { ...base, entityName: truckName(x.truckId), truckId: x.truckId, cycleId: x.cycleId, balanceBefore: befores[i] }))
   return result
 }
+
+/**
+ * Logs several writes made together on ONE truck/cycle (e.g. a receipt with
+ * diesel + DEF + an expense, or several receipts from one photo) as a chain:
+ * each entry's before/after follows from the previous one, instead of all of
+ * them showing the same "before" and jumping straight to the final balance.
+ * `balanceBefore` is the truck balance captured before the first write; each
+ * entry carries its own `delta` (+credit / -debit). Fire-and-forget, like
+ * logBalanceChange.
+ */
+export async function logBalanceChain(session, { truckId, cycleId, balanceBefore, entries }) {
+  try {
+    const companyId = getActiveCompanyId()
+    const [finalBalance, totalAfter] = await Promise.all([
+      computeTruckBalance(truckId, cycleId),
+      computeTotalBalance(companyId),
+    ])
+    // Company total before the whole batch; the batch only moved this truck
+    let total = totalAfter - (finalBalance - balanceBefore)
+    let running = balanceBefore
+    for (const e of entries) {
+      const after = running + (Number(e.delta) || 0)
+      const totalNext = total + (after - running)
+      await logAudit(session, {
+        action: e.action,
+        entityType: e.entityType,
+        entityId: e.entityId,
+        entityName: e.entityName,
+        extraInfo: { ...e.extraInfo, balanceBefore: running, balanceAfter: after, totalBalanceBefore: total, totalBalanceAfter: totalNext },
+      })
+      running = after
+      total = totalNext
+    }
+  } catch (err) {
+    console.warn('[logBalanceChain]', err)
+  }
+}
