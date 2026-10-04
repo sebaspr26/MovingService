@@ -86,9 +86,8 @@ export default function Ifta() {
   const { activeCompany, loading } = useCompany()
   const [year, setYear] = useState(DEFAULT_YEAR)
   const [detail, setDetail] = useState(null)
-  // General (null) or one truck — applies to every quarter and the detail
+  // IFTA trucks with their drivers, for the per-driver tabs in the detail
   const [fleet, setFleet] = useState([])
-  const [truckId, setTruckId] = useState(null)
   const [openOrder, setOpenOrder] = useState(null)
   const [orderVisible, setOrderVisible] = useState(false)
   const [openFuel, setOpenFuel] = useState(null)
@@ -185,17 +184,9 @@ export default function Ifta() {
         </div>
       </div>
 
-      {fleet.length > 1 && (
-        <div className="mb-4 space-y-2">
-          <TruckTabs fleet={fleet} value={truckId} onChange={setTruckId} />
-          <TruckNote truck={fleet.find(t => t.id === truckId)} />
-        </div>
-      )}
-
       <div className="space-y-3">
         {[1, 2, 3, 4].map(q => started.includes(q)
-          ? <QuarterCard key={`${activeCompany.id}-${year}-${q}-${version}`} company={activeCompany} year={year} quarter={q}
-              truck={fleet.find(t => t.id === truckId) || null} onOpen={d => setDetail({ ...d, truckId })} />
+          ? <QuarterCard key={`${activeCompany.id}-${year}-${q}-${version}`} company={activeCompany} year={year} quarter={q} onOpen={setDetail} />
           : <FutureQuarter key={q} year={year} quarter={q} />)}
       </div>
 
@@ -235,21 +226,18 @@ function useQuarter(companyId, year, quarter) {
   return [state, reload]
 }
 
-function QuarterCard({ company, year, quarter, truck, onOpen }) {
+function QuarterCard({ company, year, quarter, onOpen }) {
   const toast = useToast()
-  const [{ loading, error, data: fullData, rates, filing }, reload] = useQuarter(company.id, year, quarter)
-  const data = useMemo(() => onlyTruck(fullData, truck?.id), [fullData, truck?.id])
+  const [{ loading, error, data, rates, filing }, reload] = useQuarter(company.id, year, quarter)
   const calc = useMemo(() => data ? computeQuarter(data, rates) : null, [data, rates])
-  const truckLabel = truck ? truckFull(truck) : null
   const [progress, setProgress] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const { from, to } = quarterRange(year, quarter)
 
   async function handleFill() {
-    setProgress({ done: 0, total: fullData.orders.filter(o => o.needsMiles).length })
+    setProgress({ done: 0, total: calc.pendingOrders.length })
     try {
-      // Always the whole fleet: miles depend on each truck's previous delivery only
-      const { failed } = await fillStateMiles(fullData.orders, (done, total) => setProgress({ done, total }))
+      const { failed } = await fillStateMiles(data.orders, (done, total) => setProgress({ done, total }))
       if (failed.length) toast.warning(`No se pudo calcular la ruta de ${failed.length} orden(es): ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? '...' : ''}`)
       else toast.success('Millas por estado calculadas')
     } finally {
@@ -260,7 +248,7 @@ function QuarterCard({ company, year, quarter, truck, onOpen }) {
 
   function handleExcel() {
     try {
-      downloadIftaExcel({ company, year, quarter, data, calc, truckLabel })
+      downloadIftaExcel({ company, year, quarter, data, calc })
     } catch (err) {
       toast.error('No se pudo generar el Excel: ' + err.message)
     }
@@ -269,7 +257,7 @@ function QuarterCard({ company, year, quarter, truck, onOpen }) {
   async function handleDownload() {
     setDownloading(true)
     try {
-      await downloadIftaReport({ company, year, quarter, data, calc, filing: truck ? null : filing, truckLabel })
+      await downloadIftaReport({ company, year, quarter, data, calc, filing })
     } catch (err) {
       toast.error('No se pudo generar el reporte: ' + err.message)
     } finally {
@@ -328,7 +316,7 @@ function QuarterCard({ company, year, quarter, truck, onOpen }) {
             )}
           </div>
         ) : !data.orders.length && !data.diesel.length ? (
-          <p className="text-sm text-gray-500 text-center">Sin órdenes ni diesel{truck ? ' de este camión' : ''} en este trimestre.</p>
+          <p className="text-sm text-gray-500 text-center">Sin órdenes ni diesel en este trimestre.</p>
         ) : calc.mpg == null ? (
           <QuarterSummary calc={calc} data={data} />
         ) : !rates ? (
@@ -361,7 +349,7 @@ function QuarterCard({ company, year, quarter, truck, onOpen }) {
             Excel
           </button>
           <button
-            onClick={() => onOpen({ company, year, quarter, data: fullData, filing, rates, onChanged: reload })}
+            onClick={() => onOpen({ company, year, quarter, data, filing, rates, onChanged: reload })}
             disabled={!calc}
             title="Ver detalle y recorrido"
             className="px-3 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 inline-flex items-center justify-center gap-1.5 text-sm"
@@ -479,12 +467,12 @@ function QuarterSummary({ calc, data }) {
   )
 }
 
-function QuarterDetail({ company, year, quarter, data: fullData, rates, filing, fleet, truckId: initialTruck, hidden, covered, onOpenOrder, onOpenFuel, onChanged, onClose }) {
+function QuarterDetail({ company, year, quarter, data: fullData, rates, filing, fleet, hidden, covered, onOpenOrder, onOpenFuel, onChanged, onClose }) {
   const toast = useToast()
   const { session } = useAuth()
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('summary')
-  const [truckId, setTruckId] = useState(initialTruck || null)
+  const [truckId, setTruckId] = useState(null)
   const data = useMemo(() => onlyTruck(fullData, truckId), [fullData, truckId])
   const calc = useMemo(() => computeQuarter(data, rates), [data, rates])
   // Filing is always for the whole fleet

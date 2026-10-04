@@ -36,7 +36,7 @@ const CSS = `
   .foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; display: flex; justify-content: space-between; }
 `
 
-function buildHtml({ company, year, quarter, data, calc, filing, truckLabel }) {
+function buildHtml({ company, year, quarter, data, calc, filing }) {
   const info = company?.company_info || {}
   const companyName = info.company_name || info.dba || 'Empresa'
   const logo = company?.logo_path ? getLogoUrl(company.logo_path) : null
@@ -77,7 +77,6 @@ function buildHtml({ company, year, quarter, data, calc, filing, truckLabel }) {
       <div class="title">
         <h1>REPORTE IFTA</h1>
         <div><b>Q${quarter} ${year}</b></div>
-        ${truckLabel ? `<div><b>${esc(truckLabel)}</b></div><div class="muted">Estimado de este camión — la declaración oficial es la de toda la flota</div>` : ''}
         <div class="muted">${usDate(from)} — ${usDate(to)}</div>
         ${filing ? `<div class="muted">Declarado el ${new Date(filing.filed_at).toLocaleDateString('es-MX')}</div>` : ''}
       </div>
@@ -115,6 +114,5 @@ function buildHtml({ company, year, quarter, data, calc, filing, truckLabel }) {
 export async function downloadIftaReport(args) {
   const base64 = await htmlToPdfBase64(buildHtml(args), { containerWidth: 900 })
   const safe = String(args.company?.company_info?.company_name || 'Empresa').replace(/[^\w-]+/g, '_')
-  const truck = args.truckLabel ? `_${String(args.truckLabel).replace(/[^\w-]+/g, '_')}` : ''
-  downloadBase64Pdf(base64, `IFTA_${safe}${truck}_Q${args.quarter}_${args.year}.pdf`)
+  downloadBase64Pdf(base64, `IFTA_${safe}_Q${args.quarter}_${args.year}.pdf`)
 }
