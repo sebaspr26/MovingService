@@ -248,7 +248,7 @@ function QuarterCard({ company, year, quarter, onOpen }) {
             <p className="text-xs text-amber-400 mt-1">Faltan las tasas oficiales de Q{quarter} {year} para calcular el impuesto.</p>
           </div>
         ) : (
-          <QuarterSummary calc={calc} />
+          <QuarterSummary calc={calc} data={data} />
         )}
       </div>
 
@@ -334,12 +334,23 @@ function Donut({ items, total }) {
   )
 }
 
-function QuarterSummary({ calc }) {
+function QuarterSummary({ calc, data }) {
   const items = topStates(calc)
+  const alerts = calc.warnings.length + calc.fuelIssues.length
+  const stats = [
+    ['Millas', fmtNum(calc.totalMiles)],
+    ['Galones', fmtNum(calc.totalGallons, 1)],
+    ['MPG', calc.mpg.toFixed(2), calc.mpg < 4 || calc.mpg > 9],
+    ['Órdenes', fmtNum(data.orders.length)],
+    ['Cargas de diesel', fmtNum(data.diesel.length)],
+    ['Alertas', alerts ? `⚠ ${alerts}` : '0', alerts > 0],
+  ]
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4">
+    // Stats sit beside the chart when there's room, below it otherwise
+    <div className="flex flex-wrap items-center gap-4 xl:gap-8">
+      <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-4">
       <Donut items={items} total={calc.totalDue} />
-      <div className="flex-1 w-full space-y-1.5">
+      <div className="w-full sm:w-64 shrink-0 space-y-1.5">
         {items.map((it, i) => (
           <div key={it.state} className="flex items-center gap-2 text-sm">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }} />
@@ -348,10 +359,15 @@ function QuarterSummary({ calc }) {
             <span className="w-10 text-right text-xs text-gray-500 tabular-nums">{it.pct}%</span>
           </div>
         ))}
-        <p className="text-[11px] text-gray-600 pt-1">{fmtNum(calc.totalMiles)} mi · {fmtNum(calc.totalGallons, 1)} gal · {calc.mpg.toFixed(2)} MPG</p>
-        {(calc.warnings.length > 0 || calc.fuelIssues.length > 0) && (
-          <p className="text-[11px] text-amber-400">⚠ {calc.warnings.length + calc.fuelIssues.length} alerta(s) para revisar en el detalle</p>
-        )}
+      </div>
+      </div>
+      <div className="grow basis-[300px] grid grid-cols-3 gap-2">
+        {stats.map(([label, value, warn]) => (
+          <div key={label} className="rounded-lg bg-gray-800/40 px-3 py-2 min-w-0">
+            <p className="text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</p>
+            <p className={`text-sm font-semibold tabular-nums ${warn ? 'text-amber-400' : 'text-gray-100'}`}>{value}</p>
+          </div>
+        ))}
       </div>
     </div>
   )
