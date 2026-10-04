@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 import { useAuth } from '../context/AuthContext'
 import { hasFeature } from '../lib/company'
-import { loadQuarterData, computeQuarter, fillStateMiles, quarterRange } from '../lib/ifta'
+import { loadQuarterData, computeQuarter, fillStateMiles, quarterRange, loadedPlaces, stateOfCity } from '../lib/ifta'
 import { ratesFor, IFTA_DIESEL_RATES } from '../lib/iftaRates'
 import { downloadIftaReport } from '../lib/iftaReport'
 import { downloadIftaExcel } from '../lib/iftaExcel'
@@ -318,6 +318,7 @@ function QuarterDetail({ company, year, quarter, data, calc, filing, onChanged, 
   const toast = useToast()
   const { session } = useAuth()
   const [saving, setSaving] = useState(false)
+  const [tab, setTab] = useState('summary')
   const truckName = id => data.trucks.find(t => t.id === id)?.name || '—'
 
   useEffect(() => {
@@ -371,7 +372,17 @@ function QuarterDetail({ company, year, quarter, data, calc, filing, onChanged, 
           </div>
         </div>
 
+        <div className="flex gap-1 px-5 pt-3 border-b border-gray-800">
+          {[['summary', 'Resumen'], ['trip', 'Recorrido']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={`px-3 py-1.5 -mb-px text-xs font-medium border-b-2 transition-colors ${tab === key ? 'border-blue-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex-1 min-h-0 overflow-auto overscroll-none p-5 space-y-6">
+          {tab === 'trip' ? <TripLog data={data} /> : <>
           {filing && (
             <p className={`text-xs rounded-lg px-3 py-2 ${filedDiffers ? 'bg-amber-900/30 text-amber-300' : 'bg-blue-900/20 text-blue-300'}`}>
               Declarado el {new Date(filing.filed_at).toLocaleDateString('es-MX')}{filing.filed_by ? ` por ${filing.filed_by}` : ''} con un total de {fmtMoney(filing.totals?.totalDue)}.
@@ -447,9 +458,140 @@ function QuarterDetail({ company, year, quarter, data, calc, filing, onChanged, 
               </ul>
             </section>
           )}
+          </>}
         </div>
       </div>
     </div>,
     document.body,
+  )
+}
+
+// ── Recorrido: the truck's quarter step by step ──
+// Every order split into its two legs (empty from the previous delivery, then
+// loaded) and every diesel purchase, in date order, with running totals —
+// the raw data behind the per-state numbers, to check it by hand.
+
+const sumMiles = obj => Object.values(obj || {}).reduce((s, v) => s + v, 0)
+const fmtStates = obj => Object.entries(obj || {}).filter(([, mi]) => mi >= 0.5)
+  .sort((a, b) => b[1] - a[1]).map(([st, mi]) => `${st} ${fmtNum(mi)}`).join(' · ')
+
+function buildTrip(data, truckId) {
+  const events = []
+  for (const o of data.orders.filter(x => x.truck_id === truckId)) {
+    // Same miles computeQuarter counts: state_miles when present (even stale)
+    const calc = !!o.state_miles
+    events.push({ kind: 'order', date: o.pu_date, sort: `${o.pu_date}|0|${o.do_date || ''}`, order: o, places: loadedPlaces(o, o.stops),
+      empty: calc ? sumMiles(o.state_miles.empty) : Number(o.dead_miles) || 0,
+      loaded: calc ? sumMiles(o.state_miles.loaded) : Number(o.miles) || 0,
+      calc, stale: o.needsMiles })
+  }
+  for (const f of data.diesel.filter(x => x.truck_id === truckId)) {
+    events.push({ kind: 'fuel', date: f.date, sort: `${f.date}|1`, fuel: f, gallons: Number(f.gallons) || 0, state: stateOfCity(f.city) })
+  }
+  events.sort((a, b) => a.sort.localeCompare(b.sort))
+
+  let miles = 0, gallons = 0, lastDo = null
+  for (const e of events) {
+    if (e.kind === 'order') {
+      miles += e.empty + e.loaded
+      // A pickup before the previous delivery means overlapping dates
+      e.overlap = lastDo && e.order.pu_date < lastDo
+      if (e.order.do_date) lastDo = e.order.do_date
+    } else gallons += e.gallons
+    e.totalMiles = miles
+    e.totalGallons = gallons
+  }
+  return { events, miles, gallons }
+}
+
+function TripLog({ data }) {
+  const trucks = data.trucks.filter(t => data.orders.some(o => o.truck_id === t.id) || data.diesel.some(f => f.truck_id === t.id))
+  const [truckId, setTruckId] = useState(trucks[0]?.id || null)
+  if (!trucks.length) return <p className="text-sm text-gray-500 text-center py-10">No hay órdenes ni diesel en este trimestre.</p>
+  const { events, miles, gallons } = buildTrip(data, truckId)
+  const orders = events.filter(e => e.kind === 'order').length
+
+  return (
+    <section className="space-y-3">
+      {trucks.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {trucks.map(t => (
+            <button key={t.id} onClick={() => setTruckId(t.id)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${t.id === truckId ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-700 text-gray-400 hover:text-gray-200'}`}>
+              {t.name}{t.number ? ` #${t.number}` : ''}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-gray-500">
+        {orders} órdenes · {events.length - orders} cargas de diesel · {fmtNum(miles)} mi · {fmtNum(gallons, 1)} gal{gallons ? ` · ${(miles / gallons).toFixed(2)} MPG` : ''}
+      </p>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead><tr className="text-[11px] uppercase text-gray-500 border-b border-gray-800">
+            <th className="text-left py-2 pr-3">Fecha</th><th className="text-left pr-3">Movimiento</th><th className="text-left pr-3">De → a</th>
+            <th className="text-left pr-3">Estados</th><th className="text-right pr-3">Millas</th><th className="text-right pr-3">Galones</th><th className="text-right">Acumulado</th>
+          </tr></thead>
+          <tbody>
+            {events.map(e => e.kind === 'order' ? (
+              <OrderLegs key={e.order.id} e={e} />
+            ) : (
+              <tr key={e.fuel.id} className="border-b border-gray-800/60 bg-orange-500/5">
+                <td className="py-1.5 pr-3 text-gray-300 tabular-nums whitespace-nowrap">{shortDate(e.date)}</td>
+                <td className="pr-3"><span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400">Diesel</span>{e.fuel.invoice_number && <span className="block text-[11px] text-gray-600">Fact. {e.fuel.invoice_number}</span>}</td>
+                <td className="pr-3 text-gray-300">{e.fuel.city || <span className="text-amber-400">sin ciudad</span>}</td>
+                <td className="pr-3 text-gray-400">{e.state || <span className="text-amber-400">sin estado</span>}</td>
+                <td className="pr-3" />
+                <td className="pr-3 text-right tabular-nums text-orange-300">{e.gallons ? fmtNum(e.gallons, 2) : <span className="text-amber-400">—</span>}<span className="block text-[11px] text-gray-600">{fmtMoney(e.fuel.value)}</span></td>
+                <td className="text-right tabular-nums text-[11px] text-gray-500 whitespace-nowrap">{fmtNum(e.totalGallons, 1)} gal</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-gray-600">Ordenado por fecha de pickup; el diesel se intercala por su fecha. Las millas son las que entran al IFTA (ruta por estado ajustada a las millas de la orden).</p>
+    </section>
+  )
+}
+
+function OrderLegs({ e }) {
+  const o = e.order
+  const sm = e.calc ? o.state_miles : null
+  const pending = e.stale && <span className="block text-[11px] text-amber-400">{e.calc ? 'desactualizado: usa "Calcular millas"' : 'millas por estado sin calcular'}</span>
+  return (
+    <>
+      <tr className="border-t border-gray-800">
+        <td rowSpan={o.prevDoCity ? 2 : 1} className="py-1.5 pr-3 align-top text-gray-300 tabular-nums whitespace-nowrap">
+          {shortDate(o.pu_date)}{o.do_date && o.do_date !== o.pu_date && <span className="block text-[11px] text-gray-500">→ {shortDate(o.do_date)}</span>}
+          {e.overlap && <span className="block text-[11px] text-amber-400">se cruza con la anterior</span>}
+        </td>
+        {o.prevDoCity ? (
+          <>
+            <td className="pr-3"><span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">Vacío (DH)</span><span className="block text-[11px] text-gray-600">hacia #{o.order_number}</span></td>
+            <td className="pr-3 text-gray-400">{o.prevDoCity} → {e.places[0] || o.pu_city}</td>
+            <td className="pr-3 text-[12px] text-gray-500">{sm ? fmtStates(sm.empty) : ''}{pending}</td>
+            <td className="pr-3 text-right tabular-nums text-gray-400">{fmtNum(e.empty)}</td>
+            <td className="pr-3" /><td />
+          </>
+        ) : <LoadedCells e={e} pending={pending} />}
+      </tr>
+      {o.prevDoCity && <tr className="border-b border-gray-800/60"><LoadedCells e={e} pending={pending} /></tr>}
+    </>
+  )
+}
+
+function LoadedCells({ e, pending }) {
+  const o = e.order
+  const sm = e.calc ? o.state_miles : null
+  return (
+    <>
+      <td className="py-1.5 pr-3"><span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">Orden #{o.order_number}</span>{!o.prevDoCity && <span className="block text-[11px] text-gray-600">sin entrega anterior</span>}</td>
+      <td className="pr-3 text-gray-200">{e.places.join(' → ')}</td>
+      <td className="pr-3 text-[12px] text-gray-400">{sm ? fmtStates(sm.loaded) : ''}{pending}</td>
+      <td className="pr-3 text-right tabular-nums text-gray-200">{fmtNum(e.loaded)}</td>
+      <td className="pr-3" />
+      <td className="text-right tabular-nums text-[11px] text-gray-500 whitespace-nowrap">{fmtNum(e.totalMiles)} mi</td>
+    </>
   )
 }
