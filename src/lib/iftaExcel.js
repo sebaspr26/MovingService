@@ -8,7 +8,7 @@ import { quarterRange, stateOfCity } from './ifta'
 
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100
 
-export function downloadIftaExcel({ company, year, quarter, data, calc }) {
+export function downloadIftaExcel({ company, year, quarter, data, calc, truckLabel }) {
   const companyName = company?.company_info?.company_name || company?.display_name || 'Empresa'
   const { from, to } = quarterRange(year, quarter)
   const truckName = id => data.trucks.find(t => t.id === id)?.name || ''
@@ -109,6 +109,8 @@ export function downloadIftaExcel({ company, year, quarter, data, calc }) {
     { v: r2(calc.totalDue), style: 'moneyBold' },
   ])
 
+  // At the end so the formulas above (B4, B5...) keep their cells
+  if (truckLabel) resumen.push([], ['Camión', `${truckLabel} — estimado de este camión; la declaración oficial es la de toda la flota`])
   const blob = buildXlsx([
     { name: 'Resumen', columns: [{ width: 22 }, { width: 70 }], rows: resumen },
     { name: 'Por estado', columns: [{ width: 16 }, { width: 12 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 10 }, { width: 14 }, { width: 16 }], rows: porEstado, freezeHeader: true },
@@ -116,6 +118,7 @@ export function downloadIftaExcel({ company, year, quarter, data, calc }) {
     { name: 'Diesel', columns: [{ width: 12 }, { width: 14 }, { width: 14 }, { width: 24 }, { width: 8 }, { width: 10 }, { width: 12 }, { width: 24 }], rows: diesel, freezeHeader: true },
   ])
   const safe = companyName.replace(/[^\w-]+/g, '_')
-  downloadBlobFile(blob, `IFTA_${safe}_Q${quarter}_${year}.xlsx`)
+  const truck = truckLabel ? `_${String(truckLabel).replace(/[^\w-]+/g, '_')}` : ''
+  downloadBlobFile(blob, `IFTA_${safe}${truck}_Q${quarter}_${year}.xlsx`)
   return blob
 }

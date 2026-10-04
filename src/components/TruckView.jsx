@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedCycle } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
@@ -52,7 +52,9 @@ export default function TruckView() {
   useEffect(() => { refreshSession() }, [])
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [truck, setTruck] = useState(null)
-  const [tab, setTab] = useState('orders')
+  // IFTA alerts link here with { tab, cycleId } to show a diesel purchase
+  const location = useLocation()
+  const [tab, setTab] = useState(location.state?.tab || 'orders')
   const [cycles, setCycles] = useState([])
   const [cycleIndex, setCycleIndex] = useState(0)
   const [selectedWeek, setSelectedWeek] = useState(null)
@@ -105,7 +107,8 @@ export default function TruckView() {
     setLoading(true)
     const data = await getAllCycles(id)
     setCycles(data)
-    setCycleIndex(0)
+    const wanted = location.state?.cycleId ? data.findIndex(c => c.id === location.state.cycleId) : -1
+    setCycleIndex(wanted >= 0 ? wanted : 0)
     setSelectedWeek(null)
     setLoading(false)
   }

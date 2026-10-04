@@ -183,10 +183,34 @@ export async function loadQuarterData(companyId, year, quarter) {
 
   const [orders, dieselRes] = await Promise.all([
     loadIftaOrders(truckIds, from, to),
-    supabase.from('diesel').select('id, truck_id, date, city, gallons, value, invoice_number')
+    supabase.from('diesel').select('id, truck_id, cycle_id, date, city, gallons, value, invoice_number, receipt_path')
       .in('truck_id', truckIds).gte('date', from).lte('date', to),
   ])
   return { year, quarter, from, to, trucks, orders, diesel: dieselRes.data || [] }
+}
+
+/**
+ * The company's IFTA trucks with the active driver of each, for the
+ * General / per-driver tabs: [{ id, name, number, driver }].
+ */
+export async function loadIftaFleet(companyId) {
+  let tq = supabase.from('trucks').select('id, name, number').eq('ifta', true).order('name')
+  if (companyId) tq = tq.eq('company_id', companyId)
+  const { data: trucks } = await tq
+  if (!trucks?.length) return []
+  const { data: drivers } = await supabase.from('drivers').select('name, truck_id, status').in('truck_id', trucks.map(t => t.id))
+  return trucks.map(t => ({ ...t, driver: (drivers || []).find(d => d.truck_id === t.id && d.status !== 'inactive')?.name || null }))
+}
+
+/** Same quarter data limited to one truck (null = the whole fleet). */
+export function onlyTruck(data, truckId) {
+  if (!truckId || !data) return data
+  return {
+    ...data,
+    trucks: data.trucks.filter(t => t.id === truckId),
+    orders: data.orders.filter(o => o.truck_id === truckId),
+    diesel: data.diesel.filter(f => f.truck_id === truckId),
+  }
 }
 
 const add = (obj, key, n) => { obj[key] = (obj[key] || 0) + n }
