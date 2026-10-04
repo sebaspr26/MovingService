@@ -23,18 +23,34 @@ const fmtNum = (n, d = 0) => (Number(n) || 0).toLocaleString('en-US', { minimumF
 const shortDate = s => { const [y, m, d] = s.split('-'); return `${m}/${d}/${y.slice(2)}` }
 const SLICE_COLORS = ['#1e3a8a', '#2563eb', '#60a5fa', '#93c5fd', '#cbd5e1']
 
-const YEARS = [...new Set(Object.keys(IFTA_DIESEL_RATES).map(k => Number(k.slice(2))))].sort((a, b) => b - a)
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+const longDate = s => { const [y, m, d] = s.split('-').map(Number); return `${d} de ${MONTHS[m - 1]} ${y}` }
+const todayStr = () => new Date().toLocaleDateString('en-CA')
 
+// From the first year with rates up to the current one: a new year appears on
+// its own on January 1st (its rates still have to be added to iftaRates.js)
+const FIRST_YEAR = Math.min(...Object.keys(IFTA_DIESEL_RATES).map(k => Number(k.slice(2))))
+const YEARS = Array.from({ length: Math.max(new Date().getFullYear() - FIRST_YEAR + 1, 1) }, (_, i) => FIRST_YEAR + i).reverse()
+// In January the quarter left to declare is last year's Q4 (due Jan 31)
+const DEFAULT_YEAR = new Date().getMonth() === 0 ? Math.max(new Date().getFullYear() - 1, FIRST_YEAR) : new Date().getFullYear()
+
+/** Quarters of `year` that have already started (the ones with data). */
 function quartersOf(year) {
   const now = new Date()
   const currentQ = Math.floor(now.getMonth() / 3) + 1
   const last = year < now.getFullYear() ? 4 : year > now.getFullYear() ? 0 : currentQ
-  return Array.from({ length: last }, (_, i) => i + 1).reverse()
+  return Array.from({ length: last }, (_, i) => i + 1)
+}
+
+/** Return due date: last day of the month after the quarter ends. */
+function dueDate(year, quarter) {
+  const d = new Date(year, quarter * 3 + 1, 0)
+  return d.toLocaleDateString('en-CA')
 }
 
 export default function Ifta() {
   const { activeCompany, loading } = useCompany()
-  const [year, setYear] = useState(YEARS[0] || new Date().getFullYear())
+  const [year, setYear] = useState(DEFAULT_YEAR)
   const [detail, setDetail] = useState(null)
   // Bumped after "Calcular todo" so every card reloads its numbers
   const [version, setVersion] = useState(0)
@@ -79,7 +95,7 @@ export default function Ifta() {
   }
   if (!activeCompany) return null
 
-  const quarters = quartersOf(year)
+  const started = quartersOf(year)
 
   return (
     <div className="animate-tab-in">
@@ -108,15 +124,11 @@ export default function Ifta() {
         </div>
       </div>
 
-      {quarters.length === 0 ? (
-        <p className="text-sm text-gray-500">No hay trimestres para este año todavía.</p>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-          {quarters.map(q => (
-            <QuarterCard key={`${activeCompany.id}-${year}-${q}-${version}`} company={activeCompany} year={year} quarter={q} onOpen={setDetail} />
-          ))}
-        </div>
-      )}
+      <div className="space-y-3">
+        {[1, 2, 3, 4].map(q => started.includes(q)
+          ? <QuarterCard key={`${activeCompany.id}-${year}-${q}-${version}`} company={activeCompany} year={year} quarter={q} onOpen={setDetail} />
+          : <FutureQuarter key={q} year={year} quarter={q} />)}
+      </div>
 
       {detail && <QuarterDetail {...detail} onClose={() => setDetail(null)} />}
     </div>
@@ -179,34 +191,44 @@ function QuarterCard({ company, year, quarter, onOpen }) {
     }
   }
 
-  const status = filing ? 'filed' : !calc ? null : !data.trucks.length ? 'empty' : calc.ready ? 'ready' : 'incomplete'
+  const today = todayStr()
+  const due = dueDate(year, quarter)
+  const running = today <= to
+  const status = filing ? 'filed' : !calc ? null : !data.trucks.length ? 'empty' : running ? 'running' : calc.ready ? 'ready' : 'incomplete'
   const badge = {
     filed: { label: 'Declarado', cls: 'bg-blue-600/15 text-blue-400 border-blue-600/30' },
+    running: { label: 'En curso', cls: 'bg-violet-600/15 text-violet-400 border-violet-600/30' },
     ready: { label: 'Listo', cls: 'bg-emerald-600/15 text-emerald-400 border-emerald-600/30' },
     incomplete: { label: 'Incompleto', cls: 'bg-amber-600/15 text-amber-400 border-amber-600/30' },
     empty: { label: 'Sin camiones', cls: 'bg-gray-700/40 text-gray-400 border-gray-600/40' },
   }[status]
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 flex flex-col">
-      <div className="flex items-start justify-between gap-2 mb-4">
-        <p className="text-sm font-semibold text-white">
-          Q{quarter} {year} <span className="font-normal text-gray-500">({shortDate(from)} - {shortDate(to)})</span>
-        </p>
-        {badge && <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md border ${badge.cls}`}>{badge.label}</span>}
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
+      <div className="lg:w-52 shrink-0">
+        <div className="flex items-center justify-between lg:justify-start gap-2">
+          <p className="text-lg font-bold text-white">Q{quarter} <span className="text-sm font-normal text-gray-500">{year}</span></p>
+          {badge && <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md border ${badge.cls}`}>{badge.label}</span>}
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5 capitalize">{QUARTER_MONTHS[quarter]}</p>
+        <p className="text-[11px] text-gray-600">{shortDate(from)} - {shortDate(to)}</p>
+        {!filing && (
+          <p className={`text-[11px] mt-2 ${running ? 'text-gray-500' : today > due ? 'text-red-400 font-medium' : 'text-amber-400 font-medium'}`}>
+            {running ? `Cierra el ${longDate(to)} · se declara hasta el ${longDate(due)}` : today > due ? `Venció el ${longDate(due)}` : `Declarar antes del ${longDate(due)}`}
+          </p>
+        )}
+        {filing && <p className="text-[11px] text-blue-400/80 mt-2">Declarado el {new Date(filing.filed_at).toLocaleDateString('es-MX')}</p>}
       </div>
 
-      <div className="flex-1 min-h-[180px]">
+      <div className="flex-1 min-w-0 lg:min-h-[150px] flex flex-col justify-center">
         {loading ? (
           <div className="h-full flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : error ? (
           <p className="text-sm text-red-400">{error}</p>
         ) : !data.trucks.length ? (
-          <p className="text-sm text-gray-500 text-center pt-10">No hay camiones marcados como dry van (IFTA).<br /><span className="text-xs text-gray-600">Dashboard → editar camión → "Incluir en IFTA"</span></p>
-        ) : !rates ? (
-          <p className="text-sm text-gray-500 text-center pt-10">Faltan las tasas oficiales de este trimestre.</p>
+          <p className="text-sm text-gray-500 text-center">No hay camiones marcados como dry van (IFTA).<br /><span className="text-xs text-gray-600">Dashboard → editar camión → "Incluir en IFTA"</span></p>
         ) : calc.pendingOrders.length ? (
-          <div className="text-center pt-6">
+          <div className="text-center py-2">
             <p className="text-sm text-gray-300">Faltan las millas por estado de <b>{calc.pendingOrders.length}</b> de {data.orders.length} órdenes</p>
             <p className="text-xs text-gray-600 mt-1">Se calculan con la ruta de cada orden (HERE Maps)</p>
             {progress ? (
@@ -219,17 +241,22 @@ function QuarterCard({ company, year, quarter, onOpen }) {
             )}
           </div>
         ) : calc.mpg == null ? (
-          <p className="text-sm text-gray-500 text-center pt-10">No hay diesel con galones registrado en este trimestre.</p>
+          <p className="text-sm text-gray-500 text-center">No hay diesel con galones registrado en este trimestre.</p>
+        ) : !rates ? (
+          <div className="text-center">
+            <p className="text-sm text-gray-300">{fmtNum(calc.totalMiles)} mi · {fmtNum(calc.totalGallons, 1)} gal · {calc.mpg.toFixed(2)} MPG</p>
+            <p className="text-xs text-amber-400 mt-1">Faltan las tasas oficiales de Q{quarter} {year} para calcular el impuesto.</p>
+          </div>
         ) : (
           <QuarterSummary calc={calc} />
         )}
       </div>
 
       {!loading && !error && data?.trucks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-800 flex gap-2">
+        <div className="pt-4 border-t border-gray-800 lg:pt-0 lg:border-t-0 lg:pl-6 lg:border-l flex lg:flex-col gap-2 lg:w-36 shrink-0">
           <button
             onClick={handleDownload}
-            disabled={downloading || !calc?.mpg || !!calc?.pendingOrders.length}
+            disabled={downloading || !calc?.mpg || !!calc?.pendingOrders.length || !rates}
             className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-700 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-40"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -237,7 +264,7 @@ function QuarterCard({ company, year, quarter, onOpen }) {
           </button>
           <button
             onClick={handleExcel}
-            disabled={!calc?.mpg || !!calc?.pendingOrders.length}
+            disabled={!calc?.mpg || !!calc?.pendingOrders.length || !rates}
             title="Excel con las fórmulas, cada orden y cada carga de diesel, para verificar el cálculo"
             className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-emerald-700/50 text-sm text-emerald-300 hover:bg-emerald-600/10 disabled:opacity-40"
           >
@@ -247,13 +274,29 @@ function QuarterCard({ company, year, quarter, onOpen }) {
           <button
             onClick={() => onOpen({ company, year, quarter, data, calc, filing, rates, onChanged: reload })}
             disabled={!calc}
-            title="Ver detalle"
-            className="px-3 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40"
+            title="Ver detalle y recorrido"
+            className="px-3 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 inline-flex items-center justify-center gap-1.5 text-sm"
           >
+            <span className="hidden lg:inline">Detalle</span>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+const QUARTER_MONTHS = { 1: 'enero · febrero · marzo', 2: 'abril · mayo · junio', 3: 'julio · agosto · septiembre', 4: 'octubre · noviembre · diciembre' }
+
+function FutureQuarter({ year, quarter }) {
+  const { from, to } = quarterRange(year, quarter)
+  return (
+    <div className="border border-dashed border-gray-800 rounded-xl px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 opacity-70">
+      <div className="lg:w-52 shrink-0 flex items-baseline gap-2">
+        <p className="text-lg font-bold text-gray-500">Q{quarter} <span className="text-sm font-normal">{year}</span></p>
+        <p className="text-[11px] text-gray-600">{shortDate(from)} - {shortDate(to)}</p>
+      </div>
+      <p className="text-xs text-gray-500"><span className="capitalize">{QUARTER_MONTHS[quarter]}</span> · empieza el {longDate(from)}</p>
     </div>
   )
 }
