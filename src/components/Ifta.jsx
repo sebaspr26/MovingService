@@ -330,10 +330,7 @@ function QuarterCard({ company, year, quarter, truck, onOpen }) {
         ) : !data.orders.length && !data.diesel.length ? (
           <p className="text-sm text-gray-500 text-center">Sin órdenes ni diesel{truck ? ' de este camión' : ''} en este trimestre.</p>
         ) : calc.mpg == null ? (
-          <div className="text-center">
-            <p className="text-sm text-amber-400">{data.orders.length} órdenes ({fmtNum(calc.totalMiles)} mi) pero ningún diesel con galones registrado{truck ? ' para este camión' : ''}.</p>
-            <p className="text-xs text-gray-500 mt-1">Sin diesel no se puede calcular el MPG ni el impuesto. Registra sus cargas en Gastos del camión.</p>
-          </div>
+          <QuarterSummary calc={calc} data={data} />
         ) : !rates ? (
           <div className="text-center">
             <p className="text-sm text-gray-300">{fmtNum(calc.totalMiles)} mi · {fmtNum(calc.totalGallons, 1)} gal · {calc.mpg.toFixed(2)} MPG</p>
@@ -393,6 +390,16 @@ function FutureQuarter({ year, quarter }) {
   )
 }
 
+function topMiles(calc) {
+  const byState = {}
+  for (const r of calc.rows) if (!r.surcharge && r.miles) byState[r.state] = r.miles
+  const sorted = Object.entries(byState).sort((a, b) => b[1] - a[1])
+  const items = sorted.slice(0, 4).map(([state, miles]) => ({ state, miles }))
+  if (sorted.length > 4) items.push({ state: 'Otros', miles: sorted.slice(4).reduce((s, [, v]) => s + v, 0) })
+  const total = calc.totalMiles || 1
+  return items.map(i => ({ ...i, pct: Math.round((i.miles / total) * 100) }))
+}
+
 function topStates(calc) {
   // Net due per base state (surcharges merged), biggest first, rest as "Otros"
   const byState = {}
@@ -406,7 +413,7 @@ function topStates(calc) {
   return items.map(i => ({ ...i, pct: Math.round((Math.abs(i.due) / absTotal) * 100) }))
 }
 
-function Donut({ items, total }) {
+function Donut({ items, total, label = 'Impuesto total', value }) {
   const R = 52, C = 2 * Math.PI * R, GAP = 4
   // Start of each slice along the circle
   const starts = items.map((_, i) => items.slice(0, i).reduce((s, it) => s + (it.pct / 100) * C, 0))
@@ -420,19 +427,21 @@ function Donut({ items, total }) {
             strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-starts[i]} strokeLinecap="round" transform="rotate(-90 70 70)" />
         )
       })}
-      <text x="70" y="64" textAnchor="middle" className="fill-gray-500" style={{ fontSize: 9 }}>Impuesto total</text>
-      <text x="70" y="82" textAnchor="middle" className="fill-white" style={{ fontSize: 15, fontWeight: 700 }}>{fmtMoney(total)}</text>
+      <text x="70" y="64" textAnchor="middle" className="fill-gray-500" style={{ fontSize: 9 }}>{label}</text>
+      <text x="70" y="82" textAnchor="middle" className="fill-white" style={{ fontSize: 15, fontWeight: 700 }}>{value ?? fmtMoney(total)}</text>
     </svg>
   )
 }
 
 function QuarterSummary({ calc, data }) {
-  const items = topStates(calc)
+  // Without diesel there's no MPG, so no tax: show where the miles were instead
+  const noFuel = calc.mpg == null
+  const items = noFuel ? topMiles(calc) : topStates(calc)
   const alerts = calc.warnings.length + calc.fuelIssues.length
   const stats = [
     ['Millas', fmtNum(calc.totalMiles)],
-    ['Galones', fmtNum(calc.totalGallons, 1)],
-    ['MPG', calc.mpg.toFixed(2), calc.mpg < 4 || calc.mpg > 9],
+    ['Galones', fmtNum(calc.totalGallons, 1), noFuel],
+    ['MPG', noFuel ? 'sin diesel' : calc.mpg.toFixed(2), noFuel || calc.mpg < 4 || calc.mpg > 9],
     ['Órdenes', fmtNum(data.orders.length)],
     ['Cargas de diesel', fmtNum(data.diesel.length)],
     ['Alertas', alerts ? `⚠ ${alerts}` : '0', alerts > 0],
@@ -441,13 +450,13 @@ function QuarterSummary({ calc, data }) {
     // Stats sit beside the chart when there's room, below it otherwise
     <div className="flex flex-wrap items-center gap-4 xl:gap-8">
       <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-4">
-      <Donut items={items} total={calc.totalDue} />
+      {noFuel ? <Donut items={items} label="Millas" value={fmtNum(calc.totalMiles)} /> : <Donut items={items} total={calc.totalDue} />}
       <div className="w-full sm:w-64 shrink-0 space-y-1.5">
         {items.map((it, i) => (
           <div key={it.state} className="flex items-center gap-2 text-sm">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }} />
             <span className="w-14 text-gray-300">{it.state}</span>
-            <span className={`flex-1 text-right font-medium tabular-nums ${it.due < 0 ? 'text-emerald-400' : 'text-gray-100'}`}>{fmtMoney(it.due)}</span>
+            <span className={`flex-1 text-right font-medium tabular-nums ${it.due < 0 ? 'text-emerald-400' : 'text-gray-100'}`}>{noFuel ? `${fmtNum(it.miles)} mi` : fmtMoney(it.due)}</span>
             <span className="w-10 text-right text-xs text-gray-500 tabular-nums">{it.pct}%</span>
           </div>
         ))}
@@ -460,6 +469,11 @@ function QuarterSummary({ calc, data }) {
             <p className={`text-sm font-semibold tabular-nums ${warn ? 'text-amber-400' : 'text-gray-100'}`}>{value}</p>
           </div>
         ))}
+        {noFuel && (
+          <p className="col-span-3 text-[11px] text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
+            Ningún diesel con galones registrado: sin MPG no se puede calcular el impuesto. Registra sus cargas en Gastos del camión.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -554,6 +568,7 @@ function QuarterDetail({ company, year, quarter, data: fullData, rates, filing, 
 
           <section>
             <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Por estado</h3>
+            {!calc.mpg && <p className="text-xs text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2 mb-2">Sin diesel con galones no hay MPG: las millas por estado son reales, pero los galones y el impuesto quedan en 0 hasta que se registre el diesel.</p>}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-[11px] uppercase text-gray-500 border-b border-gray-800">
