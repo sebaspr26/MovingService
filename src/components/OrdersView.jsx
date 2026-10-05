@@ -12,7 +12,6 @@ import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '
 import { getActiveCompanyId } from '../lib/company'
 import { auditedBalanceWrite } from '../lib/balance'
 import { refreshFollowingDeadheads } from '../lib/deadhead'
-import DeadheadReview from './DeadheadReview'
 import { useTheme } from '../lib/theme'
 
 function useCountUp(target, duration = 700) {
@@ -173,7 +172,6 @@ export default function OrdersView() {
   const userRole = session?.user?.user_metadata?.role
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [orders, setOrders] = useState([])
-  const [showDhReview, setShowDhReview] = useState(false)
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
   const [paymentMap, setPaymentMap] = useState({})
@@ -492,11 +490,6 @@ export default function OrdersView() {
 
   const activeFilterCount = [filterTrucks.length, filterDispatchers.length, filterBrokers.length, filterDateFrom || filterDateTo].filter(Boolean).length
 
-  function handleDhApplied(updated) {
-    setOrders(prev => prev.map(o => updated[o.id] != null ? { ...o, dead_miles: updated[o.id] } : o))
-    delete ordersCacheMap[session?.user?.id]
-  }
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -508,15 +501,6 @@ export default function OrdersView() {
 
   return (
     <div className="space-y-3">
-      {showDhReview && (
-        <DeadheadReview
-          orders={orders}
-          truckLabel={id => { const t = trucks.find(x => x.id === id); return t ? `${t.number} - ${t.name}` : '' }}
-          session={session}
-          onApplied={handleDhApplied}
-          onClose={() => setShowDhReview(false)}
-        />
-      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -524,15 +508,6 @@ export default function OrdersView() {
           <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        {isSuperAdmin(session) && (
-          <button
-            onClick={() => setShowDhReview(true)}
-            title="Revisa el DH (millas vacias) de cada orden contra la entrega anterior de su camion y corrige los vacios o absurdos"
-            className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-orange-600/40 text-orange-300 text-sm hover:bg-orange-600/10 w-fit"
-          >
-            Revisar DH
-          </button>
-        )}
         {!isDriver && (
           <button
             onClick={() => openDrawer('new')}
