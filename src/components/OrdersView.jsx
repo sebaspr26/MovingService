@@ -461,31 +461,26 @@ export default function OrdersView() {
     }
     flipRef.current = null
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-    const ease = 'cubic-bezier(.2,.8,.2,1)'
-    rowRefs.current.forEach((el, id) => {
-      if (id === flip.highlightId) return
-      const before = flip.tops.get(id)
-      if (before == null) {
-        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-out' })
-        return
-      }
+    // Only the rows below the saved order move: down (or up) to their new
+    // place. Nothing else moves — no page scroll, rows above stay still.
+    const ease = 'cubic-bezier(.25,.8,.25,1)'
+    let below = false
+    for (const el of target.parentElement.children) {
+      if (el === target) { below = true; continue }
+      if (!below) continue
+      const id = [...rowRefs.current].find(([, r]) => r === el)?.[0]
+      const before = id && flip.tops.get(id)
+      if (before == null) continue
       const dy = before - el.getBoundingClientRect().top
-      if (Math.abs(dy) > 1) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 550, easing: ease })
-    })
-    const glow = 'rgba(234, 88, 12, 0.28)'
+      if (Math.abs(dy) > 1) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 450, easing: ease })
+    }
+    // The saved order fades in in its place (new) or just glows (edited)
+    const glow = 'rgba(234, 88, 12, 0.22)'
+    const clear = 'rgba(234, 88, 12, 0)'
     target.animate(flip.isNew
-      ? [
-          { opacity: 0, transform: 'translateX(-28px)', backgroundColor: glow, offset: 0 },
-          { opacity: 1, transform: 'translateX(0)', backgroundColor: glow, offset: 0.3 },
-          { backgroundColor: 'rgba(234, 88, 12, 0)', offset: 1 },
-        ]
-      : [
-          { backgroundColor: glow, offset: 0 },
-          { backgroundColor: 'rgba(234, 88, 12, 0)', offset: 1 },
-        ],
-      { duration: flip.isNew ? 1900 : 1400, easing: 'ease-out' })
-    const r = target.getBoundingClientRect()
-    if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      ? [{ opacity: 0, backgroundColor: glow }, { opacity: 1, backgroundColor: glow, offset: 0.25 }, { opacity: 1, backgroundColor: clear }]
+      : [{ backgroundColor: glow }, { backgroundColor: clear }],
+      { duration: 1600, easing: 'ease-out' })
   }, [orders, page, filtered])
 
   const activeFilterCount = [filterTrucks.length, filterDispatchers.length, filterBrokers.length, filterDateFrom || filterDateTo].filter(Boolean).length
