@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -389,22 +389,55 @@ function topStates(calc) {
   return items.map(i => ({ ...i, pct: Math.round((Math.abs(i.due) / absTotal) * 100) }))
 }
 
-function Donut({ items, total, label = 'Impuesto total', value }) {
+// ── Count-up numbers and a ring that draws itself, like Órdenes ──
+const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+/** Animates from 0 when it appears, then from the old value when it changes. */
+function useCountUp(target, duration = 900) {
+  const [value, setValue] = useState(() => reduceMotion() ? target : 0)
+  const prevRef = useRef(reduceMotion() ? target : 0)
+  useEffect(() => {
+    const from = prevRef.current
+    if (from === target) return
+    let raf
+    const start = performance.now()
+    const tick = now => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+      else { prevRef.current = target; setValue(target) }
+    }
+    raf = requestAnimationFrame(tick)
+    // Interrupted mid-way: the next run continues from where it stopped
+    return () => { cancelAnimationFrame(raf); prevRef.current = target }
+  }, [target, duration])
+  return value
+}
+
+function Num({ value, format = v => fmtNum(v) }) {
+  return <>{format(useCountUp(Number(value) || 0))}</>
+}
+
+function Donut({ items, total, label = 'Impuesto total', value, format = fmtMoney }) {
   const R = 52, C = 2 * Math.PI * R, GAP = 4
+  // 0 -> 1: the ring sweeps around clockwise as it appears
+  const p = useCountUp(1, 1000)
   // Start of each slice along the circle
   const starts = items.map((_, i) => items.slice(0, i).reduce((s, it) => s + (it.pct / 100) * C, 0))
   return (
     <svg viewBox="0 0 140 140" className="w-36 h-36 shrink-0">
       <circle cx="70" cy="70" r={R} fill="none" stroke="#1f2937" strokeWidth="10" />
       {items.map((it, i) => {
-        const len = Math.max((it.pct / 100) * C - GAP, 0)
+        const len = Math.max((it.pct / 100) * C * p - GAP, 0)
         return (
           <circle key={it.state} cx="70" cy="70" r={R} fill="none" stroke={SLICE_COLORS[i % SLICE_COLORS.length]} strokeWidth="10"
-            strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-starts[i]} strokeLinecap="round" transform="rotate(-90 70 70)" />
+            strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-starts[i] * p} strokeLinecap="round" transform="rotate(-90 70 70)"
+            style={{ opacity: len > 0 ? 1 : 0 }} />
         )
       })}
       <text x="70" y="64" textAnchor="middle" className="fill-gray-500" style={{ fontSize: 9 }}>{label}</text>
-      <text x="70" y="82" textAnchor="middle" className="fill-white" style={{ fontSize: 15, fontWeight: 700 }}>{value ?? fmtMoney(total)}</text>
+      <text x="70" y="82" textAnchor="middle" className="fill-white" style={{ fontSize: 15, fontWeight: 700 }}><Num value={value ?? total} format={format} /></text>
     </svg>
   )
 }
@@ -414,35 +447,38 @@ function QuarterSummary({ calc, data }) {
   const noFuel = calc.mpg == null
   const items = noFuel ? topMiles(calc) : topStates(calc)
   const alerts = calc.warnings.length + calc.fuelIssues.length
+  // [label, number, format, amber] — numbers count up like the chart
   const stats = [
-    ['Millas', fmtNum(calc.totalMiles)],
-    ['Galones', fmtNum(calc.totalGallons, 1), noFuel],
-    ['MPG', noFuel ? 'sin diesel' : calc.mpg.toFixed(2), noFuel || calc.mpg < 4 || calc.mpg > 9],
-    ['Órdenes', fmtNum(data.orders.length)],
-    ['Cargas de diesel', fmtNum(data.diesel.length)],
-    ['Alertas', alerts ? `⚠ ${alerts}` : '0', alerts > 0],
+    ['Millas', calc.totalMiles, v => fmtNum(v)],
+    ['Galones', calc.totalGallons, v => fmtNum(v, 1), noFuel],
+    ['MPG', noFuel ? null : calc.mpg, v => v.toFixed(2), noFuel || calc.mpg < 4 || calc.mpg > 9],
+    ['Órdenes', data.orders.length, v => fmtNum(v)],
+    ['Cargas de diesel', data.diesel.length, v => fmtNum(v)],
+    ['Alertas', alerts, v => alerts ? `⚠ ${fmtNum(v)}` : '0', alerts > 0],
   ]
   return (
     // Stats sit beside the chart when there's room, below it otherwise
     <div className="flex flex-wrap items-center gap-4 xl:gap-8">
       <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-4">
-      {noFuel ? <Donut items={items} label="Millas" value={fmtNum(calc.totalMiles)} /> : <Donut items={items} total={calc.totalDue} />}
+      {noFuel ? <Donut items={items} label="Millas" value={calc.totalMiles} format={v => fmtNum(v)} /> : <Donut items={items} total={calc.totalDue} />}
       <div className="w-full sm:w-64 shrink-0 space-y-1.5">
         {items.map((it, i) => (
           <div key={it.state} className="flex items-center gap-2 text-sm">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }} />
             <span className="w-14 text-gray-300">{it.state}</span>
-            <span className={`flex-1 text-right font-medium tabular-nums ${it.due < 0 ? 'text-emerald-400' : 'text-gray-100'}`}>{noFuel ? `${fmtNum(it.miles)} mi` : fmtMoney(it.due)}</span>
-            <span className="w-10 text-right text-xs text-gray-500 tabular-nums">{it.pct}%</span>
+            <span className={`flex-1 text-right font-medium tabular-nums ${it.due < 0 ? 'text-emerald-400' : 'text-gray-100'}`}>
+              {noFuel ? <Num value={it.miles} format={v => `${fmtNum(v)} mi`} /> : <Num value={it.due} format={fmtMoney} />}
+            </span>
+            <span className="w-10 text-right text-xs text-gray-500 tabular-nums"><Num value={it.pct} format={v => `${Math.round(v)}%`} /></span>
           </div>
         ))}
       </div>
       </div>
       <div className="grow basis-[300px] grid grid-cols-3 gap-2">
-        {stats.map(([label, value, warn]) => (
+        {stats.map(([label, value, format, warn]) => (
           <div key={label} className="rounded-lg bg-gray-800/40 px-3 py-2 min-w-0">
             <p className="text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</p>
-            <p className={`text-sm font-semibold tabular-nums ${warn ? 'text-amber-400' : 'text-gray-100'}`}>{value}</p>
+            <p className={`text-sm font-semibold tabular-nums ${warn ? 'text-amber-400' : 'text-gray-100'}`}>{value == null ? 'sin diesel' : <Num value={value} format={format} />}</p>
           </div>
         ))}
         {noFuel && (
