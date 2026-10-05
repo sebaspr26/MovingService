@@ -1076,7 +1076,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     }
     toast.success('Orden eliminada')
     isDrawer ? onClose?.() : navigate('/orders')
-    if (isDrawer) onSaved?.()
+    // The list fades this order out and closes the gap
+    if (isDrawer) onSaved?.(id, { deleted: true })
   }
 
   const hasPod = orderDocs.some(d => d.doc_type === 'POD')

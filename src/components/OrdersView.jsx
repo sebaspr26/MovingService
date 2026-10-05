@@ -46,6 +46,7 @@ function AnimatedNum({ value, decimals = 0, prefix = '', fmt: fmtFn = null }) {
 }
 
 const PAGE_SIZE = 30
+const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 const STATUS_ABBREV = {
   booked: 'R',
@@ -242,17 +243,26 @@ export default function OrdersView() {
   const flipRef = useRef(null) // { tops: Map(id -> top), highlightId, isNew }
   const rowRef = id => el => { if (el) rowRefs.current.set(id, el); else rowRefs.current.delete(id) }
 
-  async function handleSaved(savedId, { isNew } = {}) {
+  async function handleSaved(savedId, { isNew, deleted } = {}) {
     closeDrawer()
-    // Let the drawer slide out first, then bring the order in
+    // Let the drawer slide out first, then bring the order in (or take it out)
     const [, data] = await Promise.all([
       new Promise(r => setTimeout(r, 320)),
       refreshOrders(session, getActiveCompanyId()).catch(() => null),
     ])
     if (!data) { fetchData(); return }
+    const gone = deleted ? rowRefs.current.get(savedId) : null
+    if (gone?.isConnected && !reducedMotion() && !document.hidden) {
+      // Deleted: it fades out in its place first, then the gap closes. Never
+      // waits more than that: a hidden tab keeps animations paused
+      const fade = gone.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out', fill: 'forwards' })
+      await Promise.race([fade.finished.catch(() => {}), new Promise(r => setTimeout(r, 320))])
+    }
     const tops = new Map()
     rowRefs.current.forEach((el, id) => { if (el.isConnected) tops.set(id, el.getBoundingClientRect().top) })
-    flipRef.current = { tops, highlightId: savedId, isNew }
+    flipRef.current = deleted
+      ? { tops, deletedTop: gone?.isConnected ? tops.get(savedId) : null }
+      : { tops, highlightId: savedId, isNew }
     applyOrders(data)
   }
 
@@ -447,6 +457,20 @@ export default function OrdersView() {
   useLayoutEffect(() => {
     const flip = flipRef.current
     if (!flip) return
+    if ('deletedTop' in flip) {
+      // Deleted: the rows below slide up into its place; one that comes in
+      // from the next page fades in at the bottom. Rows above stay still.
+      flipRef.current = null
+      if (flip.deletedTop == null || reducedMotion()) return
+      rowRefs.current.forEach((el, id) => {
+        const before = flip.tops.get(id)
+        if (before == null) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }); return }
+        if (before <= flip.deletedTop) return
+        const dy = before - el.getBoundingClientRect().top
+        if (Math.abs(dy) > 1) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 450, easing: 'cubic-bezier(.25,.8,.25,1)' })
+      })
+      return
+    }
     const target = rowRefs.current.get(flip.highlightId)
     if (!target) {
       // Saved order on another page of this list: go there, animate it then
@@ -460,7 +484,7 @@ export default function OrdersView() {
       return
     }
     flipRef.current = null
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (reducedMotion()) return
     // Only the rows below the saved order move: down (or up) to their new
     // place. Nothing else moves — no page scroll, rows above stay still.
     const ease = 'cubic-bezier(.25,.8,.25,1)'
