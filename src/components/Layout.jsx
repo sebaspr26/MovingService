@@ -11,7 +11,8 @@ import { useTheme } from '../lib/theme'
 import CompanyWizard from './CompanyWizard'
 import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
 import { getOrdersCache, refreshOrders } from '../lib/ordersData'
-import { loadAuthUsers } from '../lib/pageCache'
+import { loadAuthUsers, readPageCache, writePageCache } from '../lib/pageCache'
+import { loadQuarterView, startedQuarters, IFTA_DEFAULT_YEAR } from '../lib/ifta'
 export default function Layout() {
   const { toast } = useToast()
   const { session } = useAuth()
@@ -37,7 +38,7 @@ export default function Layout() {
   // Load Dashboard and Orders in the background shortly after the app opens,
   // so the first visit to each is already instant
   useEffect(() => {
-    if (!session?.user) return
+    if (!session?.user || !activeCompany) return
     const timer = setTimeout(() => {
       const cId = getActiveCompanyId()
       if ((isSuperAdmin(session) || canAccess(session, 'dashboard')) && !getDashboardCache(session, cId)) {
@@ -46,13 +47,22 @@ export default function Layout() {
       if (canAccess(session, 'orders') && !getOrdersCache(session, cId)) {
         refreshOrders(session, cId).catch(() => {})
       }
+      // IFTA quarters of the year it opens on (super admin, module on)
+      if (isSuperAdmin(session) && hasFeature(activeCompany, 'ifta')) {
+        for (const q of startedQuarters(IFTA_DEFAULT_YEAR)) {
+          const key = `${IFTA_DEFAULT_YEAR}-Q${q}`
+          if (!readPageCache('ifta', session, key)) {
+            loadQuarterView(cId, IFTA_DEFAULT_YEAR, q).then(v => writePageCache('ifta', session, v, key)).catch(() => {})
+          }
+        }
+      }
       // Users list (names, roles, avatars) used by Profiles, Pagos, Auditoría...
       if (['super_admin', 'admin', 'dispatcher'].includes(session.user.user_metadata?.role)) {
         loadAuthUsers().catch(() => {})
       }
     }, 1200)
     return () => clearTimeout(timer)
-  }, [session?.user?.id])
+  }, [session?.user?.id, activeCompany?.id])
 
   // Fetch fresh allowed_companies from server (not stale JWT)
   const [freshAllowed, setFreshAllowed] = useState(null)

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { routeMilesByState } from './here'
+import { IFTA_DIESEL_RATES, ratesFor } from './iftaRates'
 
 // IFTA engine. Miles per state come from the HERE truck route of each order
 // (there is no ELD/GPS): loaded = through the order's stops, empty (deadhead)
@@ -84,33 +85,29 @@ export async function computeOrderStateMiles(order, stops, prevDoCity) {
 // Orders that put miles on the truck: TONU and canceled loads never ran
 const runs = o => o.truck_id && o.pu_date && !['canceled', 'tonu'].includes(o.status)
 
+const ORDER_COLUMNS = 'id, order_number, truck_id, status, pu_date, do_date, pu_city, do_city, miles, dead_miles, state_miles, state_miles_at'
+const STOP_COLUMNS = 'type, address, city, state, sequence'
+
+// Row without the embedded relations used only to load/filter it
+const omit = (row, ...keys) => {
+  const out = { ...row }
+  for (const k of keys) delete out[k]
+  return out
+}
+
+// Previous deliveries can be before the quarter — look back a bit
+const lookbackFrom = from => new Date(new Date(from).getTime() - 45 * 86400000).toISOString().slice(0, 10)
+
 /**
- * Orders of `truckIds` picked up between `from` and `to` (YYYY-MM-DD), with
- * their stops and the previous delivery city of the same truck (start of the
- * deadhead). Each comes with `needsMiles` when state_miles is missing or stale.
+ * IFTA orders from the raw rows (picked up since the lookback, with their
+ * stops): the ones picked up from `from` on, each with the previous delivery
+ * city of the same truck (start of the deadhead) and `needsMiles` when
+ * state_miles is missing or stale.
  */
-export async function loadIftaOrders(truckIds, from, to) {
-  if (!truckIds.length) return []
-  // Previous deliveries can be before the quarter — look back a bit
-  const lookback = new Date(new Date(from).getTime() - 45 * 86400000).toISOString().slice(0, 10)
-  const { data: orders, error } = await supabase.from('orders')
-    .select('id, order_number, truck_id, status, pu_date, do_date, pu_city, do_city, miles, dead_miles, state_miles, state_miles_at')
-    .in('truck_id', truckIds).gte('pu_date', lookback).lte('pu_date', to)
-    .order('pu_date').order('do_date')
-  if (error) throw error
-
-  const inRange = (orders || []).filter(o => runs(o) && o.pu_date >= from)
-  const ids = inRange.map(o => o.id)
-  const stopsByOrder = {}
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data: stops } = await supabase.from('order_stops')
-      .select('order_id, type, address, city, state, sequence').in('order_id', ids.slice(i, i + 200))
-    for (const s of stops || []) (stopsByOrder[s.order_id] ||= []).push(s)
-  }
-
+function buildIftaOrders(orders, stopsByOrder, from) {
   const prevByTruck = {}
   const result = []
-  for (const o of (orders || []).filter(runs)) {
+  for (const o of orders.filter(runs)) {
     const prevDoCity = prevByTruck[o.truck_id] || null
     if (o.pu_date >= from) {
       const stops = stopsByOrder[o.id] || []
@@ -120,6 +117,18 @@ export async function loadIftaOrders(truckIds, from, to) {
     if (o.do_city) prevByTruck[o.truck_id] = o.do_city
   }
   return result
+}
+
+/** Orders of `truckIds` picked up between `from` and `to` (YYYY-MM-DD), see buildIftaOrders. */
+export async function loadIftaOrders(truckIds, from, to) {
+  if (!truckIds.length) return []
+  const { data: orders, error } = await supabase.from('orders')
+    .select(`${ORDER_COLUMNS}, order_stops(${STOP_COLUMNS})`)
+    .in('truck_id', truckIds).gte('pu_date', lookbackFrom(from)).lte('pu_date', to)
+    .order('pu_date').order('do_date')
+  if (error) throw error
+  const stopsByOrder = Object.fromEntries((orders || []).map(o => [o.id, o.order_stops || []]))
+  return buildIftaOrders((orders || []).map(o => omit(o, 'order_stops')), stopsByOrder, from)
 }
 
 /**
@@ -174,19 +183,41 @@ export function quarterRange(year, quarter) {
  */
 export async function loadQuarterData(companyId, year, quarter) {
   const { from, to } = quarterRange(year, quarter)
+  const DIESEL_COLUMNS = 'id, truck_id, cycle_id, date, city, gallons, value, invoice_number, receipt_path'
   let tq = supabase.from('trucks').select('id, name, number').eq('ifta', true)
-  if (companyId) tq = tq.eq('company_id', companyId)
-  const { data: trucks, error } = await tq
-  if (error) throw error
-  const truckIds = (trucks || []).map(t => t.id)
-  if (!truckIds.length) return { year, quarter, from, to, trucks: [], orders: [], diesel: [] }
+  if (!companyId) {
+    // No company (legacy): trucks first, then their orders and diesel
+    const { data: trucks, error } = await tq
+    if (error) throw error
+    const truckIds = (trucks || []).map(t => t.id)
+    if (!truckIds.length) return { year, quarter, from, to, trucks: [], orders: [], diesel: [] }
+    const [orders, dieselRes] = await Promise.all([
+      loadIftaOrders(truckIds, from, to),
+      supabase.from('diesel').select(DIESEL_COLUMNS).in('truck_id', truckIds).gte('date', from).lte('date', to),
+    ])
+    return { year, quarter, from, to, trucks, orders, diesel: dieselRes.data || [] }
+  }
 
-  const [orders, dieselRes] = await Promise.all([
-    loadIftaOrders(truckIds, from, to),
-    supabase.from('diesel').select('id, truck_id, cycle_id, date, city, gallons, value, invoice_number, receipt_path')
-      .in('truck_id', truckIds).gte('date', from).lte('date', to),
+  // One wave: orders (with stops) and diesel are filtered by their truck
+  // (IFTA, this company) in the same request — was trucks, then orders,
+  // then stops, one after the other (~0.4 s each from Colombia)
+  const iftaTruck = 'trucks!inner(ifta, company_id)'
+  const [trucksRes, ordersRes, dieselRes] = await Promise.all([
+    tq.eq('company_id', companyId),
+    supabase.from('orders').select(`${ORDER_COLUMNS}, order_stops(${STOP_COLUMNS}), ${iftaTruck}`)
+      .eq('trucks.ifta', true).eq('trucks.company_id', companyId)
+      .gte('pu_date', lookbackFrom(from)).lte('pu_date', to)
+      .order('pu_date').order('do_date'),
+    supabase.from('diesel').select(`${DIESEL_COLUMNS}, ${iftaTruck}`)
+      .eq('trucks.ifta', true).eq('trucks.company_id', companyId)
+      .gte('date', from).lte('date', to),
   ])
-  return { year, quarter, from, to, trucks, orders, diesel: dieselRes.data || [] }
+  for (const r of [trucksRes, ordersRes, dieselRes]) if (r.error) throw r.error
+  const rawOrders = ordersRes.data || []
+  const stopsByOrder = Object.fromEntries(rawOrders.map(o => [o.id, o.order_stops || []]))
+  const orders = buildIftaOrders(rawOrders.map(o => omit(o, 'order_stops', 'trucks')), stopsByOrder, from)
+  const diesel = (dieselRes.data || []).map(f => omit(f, 'trucks'))
+  return { year, quarter, from, to, trucks: trucksRes.data || [], orders, diesel }
 }
 
 /**
@@ -277,4 +308,29 @@ export function computeQuarter(data, rates) {
     missingRates: rows.filter(r => r.rate == null).map(r => r.state),
     ready: !pendingOrders.length && mpg != null && !!rates,
   }
+}
+
+// ── What the IFTA page shows, shared with the preload at app start ──
+
+const FIRST_YEAR = Math.min(...Object.keys(IFTA_DIESEL_RATES).map(k => Number(k.slice(2))))
+/** From the first year with rates up to the current one (a new year appears by itself). */
+export const IFTA_YEARS = Array.from({ length: Math.max(new Date().getFullYear() - FIRST_YEAR + 1, 1) }, (_, i) => FIRST_YEAR + i).reverse()
+/** In January the quarter left to declare is last year's Q4 (due Jan 31). */
+export const IFTA_DEFAULT_YEAR = new Date().getMonth() === 0 ? Math.max(new Date().getFullYear() - 1, FIRST_YEAR) : new Date().getFullYear()
+
+/** Quarters of `year` that have already started (the ones with data). */
+export function startedQuarters(year) {
+  const now = new Date()
+  const currentQ = Math.floor(now.getMonth() / 3) + 1
+  const last = year < now.getFullYear() ? 4 : year > now.getFullYear() ? 0 : currentQ
+  return Array.from({ length: last }, (_, i) => i + 1)
+}
+
+/** One quarter row: { loading: false, data, rates, filing }. */
+export async function loadQuarterView(companyId, year, quarter) {
+  const [data, { data: filing }] = await Promise.all([
+    loadQuarterData(companyId, year, quarter),
+    supabase.from('ifta_filings').select('*').eq('company_id', companyId).eq('year', year).eq('quarter', quarter).maybeSingle(),
+  ])
+  return { loading: false, data, rates: ratesFor(year, quarter), filing }
 }

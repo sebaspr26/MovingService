@@ -5,9 +5,8 @@ import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 import { useAuth } from '../context/AuthContext'
 import { hasFeature } from '../lib/company'
-import { loadQuarterData, computeQuarter, fillStateMiles, quarterRange, loadedPlaces, stateOfCity, loadIftaFleet, onlyTruck } from '../lib/ifta'
+import { loadQuarterData, loadQuarterView, computeQuarter, fillStateMiles, quarterRange, loadedPlaces, stateOfCity, loadIftaFleet, onlyTruck, IFTA_YEARS as YEARS, IFTA_DEFAULT_YEAR as DEFAULT_YEAR, startedQuarters as quartersOf } from '../lib/ifta'
 import { receiptUrl, isPdfReceipt } from '../lib/receipts'
-import { ratesFor, IFTA_DIESEL_RATES } from '../lib/iftaRates'
 import { downloadIftaReport } from '../lib/iftaReport'
 import { downloadIftaExcel } from '../lib/iftaExcel'
 import { useToast } from './Toast'
@@ -33,19 +32,6 @@ const todayStr = () => new Date().toLocaleDateString('en-CA')
 
 // From the first year with rates up to the current one: a new year appears on
 // its own on January 1st (its rates still have to be added to iftaRates.js)
-const FIRST_YEAR = Math.min(...Object.keys(IFTA_DIESEL_RATES).map(k => Number(k.slice(2))))
-const YEARS = Array.from({ length: Math.max(new Date().getFullYear() - FIRST_YEAR + 1, 1) }, (_, i) => FIRST_YEAR + i).reverse()
-// In January the quarter left to declare is last year's Q4 (due Jan 31)
-const DEFAULT_YEAR = new Date().getMonth() === 0 ? Math.max(new Date().getFullYear() - 1, FIRST_YEAR) : new Date().getFullYear()
-
-/** Quarters of `year` that have already started (the ones with data). */
-function quartersOf(year) {
-  const now = new Date()
-  const currentQ = Math.floor(now.getMonth() / 3) + 1
-  const last = year < now.getFullYear() ? 4 : year > now.getFullYear() ? 0 : currentQ
-  return Array.from({ length: last }, (_, i) => i + 1)
-}
-
 /** Return due date: last day of the month after the quarter ends. */
 function dueDate(year, quarter) {
   const d = new Date(year, quarter * 3 + 1, 0)
@@ -217,11 +203,7 @@ function useQuarter(companyId, year, quarter) {
   const [state, setState] = useState(() => readPageCache('ifta', session, cacheKey) || { loading: true })
   const reload = useCallback(async () => {
     try {
-      const [data, { data: filing }] = await Promise.all([
-        loadQuarterData(companyId, year, quarter),
-        supabase.from('ifta_filings').select('*').eq('company_id', companyId).eq('year', year).eq('quarter', quarter).maybeSingle(),
-      ])
-      const next = { loading: false, data, rates: ratesFor(year, quarter), filing }
+      const next = await loadQuarterView(companyId, year, quarter)
       writePageCache('ifta', session, next, cacheKey)
       setState(next)
     } catch (err) {
