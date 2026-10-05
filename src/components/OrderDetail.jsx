@@ -1040,7 +1040,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setDirty(false)
       toast.success(isNew ? 'Orden creada' : 'Orden actualizada')
       if (isDrawer) {
-        onSaved?.()
+        // The list animates this order in (new) or flashes it (edited)
+        onSaved?.(orderId, { isNew })
       } else {
         navigate(`/orders/${orderId}`, { replace: true })
         if (isNew) window.location.reload()

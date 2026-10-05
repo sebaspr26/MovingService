@@ -234,6 +234,28 @@ export default function OrdersView() {
     requestAnimationFrame(() => setDrawerVisible(true))
   }, [])
 
+  // ── Saved order: slides into the list instead of the list jumping ──
+  // Before new data lands, every visible row's position is noted; after it
+  // renders, rows that moved glide from their old spot (FLIP) and the saved
+  // order slides in with an orange glow.
+  const rowRefs = useRef(new Map())
+  const flipRef = useRef(null) // { tops: Map(id -> top), highlightId, isNew }
+  const rowRef = id => el => { if (el) rowRefs.current.set(id, el); else rowRefs.current.delete(id) }
+
+  async function handleSaved(savedId, { isNew } = {}) {
+    closeDrawer()
+    // Let the drawer slide out first, then bring the order in
+    const [, data] = await Promise.all([
+      new Promise(r => setTimeout(r, 320)),
+      refreshOrders(session, getActiveCompanyId()).catch(() => null),
+    ])
+    if (!data) { fetchData(); return }
+    const tops = new Map()
+    rowRefs.current.forEach((el, id) => { if (el.isConnected) tops.set(id, el.getBoundingClientRect().top) })
+    flipRef.current = { tops, highlightId: savedId, isNew }
+    applyOrders(data)
+  }
+
   const closeDrawer = useCallback(() => {
     setDrawerVisible(false)
     setTimeout(() => setDrawerId(null), 300)
@@ -421,6 +443,51 @@ export default function OrdersView() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  // Runs the FLIP noted by handleSaved once the new list is on screen
+  useLayoutEffect(() => {
+    const flip = flipRef.current
+    if (!flip) return
+    const target = rowRefs.current.get(flip.highlightId)
+    if (!target) {
+      // Saved order on another page of this list: go there, animate it then
+      const idx = filtered.findIndex(o => o.id === flip.highlightId)
+      if (idx >= 0 && Math.floor(idx / PAGE_SIZE) !== page) {
+        flipRef.current = { ...flip, tops: new Map() }
+        setPage(Math.floor(idx / PAGE_SIZE))
+      } else {
+        flipRef.current = null // not in this tab/filter: the toast already said it
+      }
+      return
+    }
+    flipRef.current = null
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const ease = 'cubic-bezier(.2,.8,.2,1)'
+    rowRefs.current.forEach((el, id) => {
+      if (id === flip.highlightId) return
+      const before = flip.tops.get(id)
+      if (before == null) {
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-out' })
+        return
+      }
+      const dy = before - el.getBoundingClientRect().top
+      if (Math.abs(dy) > 1) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 550, easing: ease })
+    })
+    const glow = 'rgba(234, 88, 12, 0.28)'
+    target.animate(flip.isNew
+      ? [
+          { opacity: 0, transform: 'translateX(-28px)', backgroundColor: glow, offset: 0 },
+          { opacity: 1, transform: 'translateX(0)', backgroundColor: glow, offset: 0.3 },
+          { backgroundColor: 'rgba(234, 88, 12, 0)', offset: 1 },
+        ]
+      : [
+          { backgroundColor: glow, offset: 0 },
+          { backgroundColor: 'rgba(234, 88, 12, 0)', offset: 1 },
+        ],
+      { duration: flip.isNew ? 1900 : 1400, easing: 'ease-out' })
+    const r = target.getBoundingClientRect()
+    if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [orders, page, filtered])
+
   const activeFilterCount = [filterTrucks.length, filterDispatchers.length, filterBrokers.length, filterDateFrom || filterDateTo].filter(Boolean).length
 
   if (loading) {
@@ -582,7 +649,7 @@ export default function OrdersView() {
                   }[row.status] || ''
                   const canOpen = !isDriver
                   return (
-                    <tr key={row.id} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} ${canOpen ? 'hover:bg-gray-800/30 group' : ''} transition-colors`}>
+                    <tr key={row.id} ref={rowRef(row.id)} className={`border-b border-gray-800/60 border-l-2 ${rowBorder} ${rowBg} ${canOpen ? 'hover:bg-gray-800/30 group' : ''} transition-colors`}>
                       <td className="py-2 sm:py-3.5 pr-3 pl-2" onClick={(e) => e.stopPropagation()}>
                         <StatusSelect row={row} onChange={handleStatusChange} disabled={isDriver} />
                       </td>
@@ -865,7 +932,7 @@ export default function OrdersView() {
                 key={drawerId}
                 orderId={drawerId}
                 onClose={closeDrawer}
-                onSaved={() => { fetchData(); closeDrawer() }}
+                onSaved={handleSaved}
               />
             </div>
           </div>
