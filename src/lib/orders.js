@@ -40,6 +40,13 @@ export function fmt(n) {
  * Receives an array of orders, updates DB for changed ones, returns updated array.
  */
 export async function autoAdvanceStatuses(orders, supabase) {
+  const { orders: updated, updates } = advanceStatuses(orders)
+  await saveAdvancedStatuses(updates, supabase)
+  return updated
+}
+
+/** Same as autoAdvanceStatuses without saving: { orders, updates: [{id, status}] }. */
+export function advanceStatuses(orders) {
   const now = new Date()
   const updates = []
 
@@ -63,14 +70,14 @@ export async function autoAdvanceStatuses(orders, supabase) {
     return o
   })
 
-  // Batch update DB
-  if (updates.length > 0) {
-    await Promise.all(updates.map(u =>
-      supabase.from('orders').update({ status: u.status }).eq('id', u.id)
-    ))
-  }
+  return { orders: updated, updates }
+}
 
-  return updated
+export async function saveAdvancedStatuses(updates, supabase) {
+  if (!updates.length) return
+  await Promise.all(updates.map(u =>
+    supabase.from('orders').update({ status: u.status }).eq('id', u.id)
+  ))
 }
 
 // Net value of an order after its own discount (respects apply_discount/discount_percent per order)

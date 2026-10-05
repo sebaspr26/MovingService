@@ -9,16 +9,16 @@ import DayPicker from './DayPicker'
 import { getActiveCompanyId, hasFeature } from '../lib/company'
 import { useCompany } from '../context/CompanyContext'
 import { useAuth } from '../context/AuthContext'
-import { canAccess, isSuperAdmin, getAllowedTruckIds, canDelete } from '../lib/permissions'
+import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
 import { logAudit, diffFields } from '../lib/auditLog'
 import { computeTruckBalance, logBalanceChange, auditedBalanceWrite } from '../lib/balance'
-import { leaseDriverDebit } from '../lib/orders'
+import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
 import DatePicker from './DatePicker'
 
-// Cache dashboard data to avoid re-fetching on every navigation
-let dashboardCache = { trucks: null, cycles: null, summaries: null, drivers: null, ts: 0 }
-const CACHE_TTL = 30000 // 30 seconds
+// Shown again right away on the next visit, then refreshed in the background
+// (lib/dashboardData.js). Younger than this, the last load isn't repeated.
+const FRESH_MS = 5000
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [showTruckModal, setShowTruckModal] = useState(false)
   const [editingTruck, setEditingTruck] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -79,28 +80,21 @@ export default function Dashboard() {
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    // Use cache if fresh enough
-    if (dashboardCache.trucks && Date.now() - dashboardCache.ts < CACHE_TTL) {
-      setTrucks(dashboardCache.trucks)
-      setDrivers(dashboardCache.drivers || [])
-      setTruckCycles(dashboardCache.cycles || {})
-      setSummaries(dashboardCache.summaries || {})
+    // Last data first (instant), then a refresh in the background
+    const cached = getDashboardCache(session, getActiveCompanyId())
+    if (cached?.data) {
+      applyDashboard(cached.data)
       setLoading(false)
-      return
     }
-    fetchTrucks(); fetchDrivers(); fetchPendingRecurring()
+    if (!cached?.data || Date.now() - cached.ts > FRESH_MS) fetchTrucks()
+    fetchPendingRecurring()
   }, [])
 
-  async function fetchDrivers() {
-    const cId = getActiveCompanyId()
-    const dq = supabase.from('drivers').select('id, name, truck_id, status').order('name')
-    const { data } = cId ? await dq.eq('company_id', cId) : await dq
-    const allowedIds = getAllowedTruckIds(session)
-    const filtered = allowedIds
-      ? (data || []).filter(d => !d.truck_id || allowedIds.includes(d.truck_id))
-      : (data || [])
-    setDrivers(filtered)
-    dashboardCache.drivers = filtered
+  function applyDashboard(d) {
+    setTrucks(d.trucks)
+    setDrivers(d.drivers)
+    setTruckCycles(d.cycles)
+    setSummaries(d.summaries)
   }
 
   async function fetchPendingRecurring() {
@@ -116,12 +110,8 @@ export default function Dashboard() {
     // Filter out already applied this month
     const notApplied = data.filter(r => r.last_applied_month !== currentMonth)
     // Filter out trucks with closed cycles (no active cycle = don't charge)
-    const pending = []
-    for (const rec of notApplied) {
-      const cycle = await getActiveCycle(rec.truck_id)
-      if (cycle) pending.push(rec)
-    }
-    setPendingRecurring(pending)
+    const withCycle = await Promise.all(notApplied.map(rec => getActiveCycle(rec.truck_id)))
+    setPendingRecurring(notApplied.filter((_, i) => withCycle[i]))
   }
 
   async function handleApplyRecurring(rec) {
@@ -155,7 +145,6 @@ export default function Dashboard() {
       await supabase.from('recurring_expenses').update({ last_applied_month: currentMonth }).eq('id', rec.id)
 
       setPendingRecurring(prev => prev.filter(r => r.id !== rec.id))
-      dashboardCache.ts = 0 // invalidate cache
       toast.success(`Gasto recurrente aplicado: ${rec.description}`)
       fetchTrucks()
     } catch (err) {
@@ -174,114 +163,17 @@ export default function Dashboard() {
     setPendingRecurring(prev => prev.filter(r => r.id !== rec.id))
   }
 
+  // Trucks, drivers, cycles and balances (lib/dashboardData.js)
   async function fetchTrucks() {
-    const companyId = getActiveCompanyId()
-    const query = supabase.from('trucks').select('*').order('number')
-    const { data } = companyId ? await query.eq('company_id', companyId) : await query
-    const allData = data || []
-
-    const role = session?.user?.user_metadata?.role
-    const isDriver = role === 'driver' || role === 'driver_lease'
-
-    let filtered
-    if (isDriver) {
-      // Drivers only see their assigned truck from the drivers table
-      const { data: driverRecord } = await supabase
-        .from('drivers').select('truck_id').eq('email', session?.user?.email).maybeSingle()
-      filtered = driverRecord?.truck_id
-        ? allData.filter(t => t.id === driverRecord.truck_id)
-        : []
-    } else {
-      const allowedIds = getAllowedTruckIds(session)
-      filtered = allowedIds ? allData.filter(t => allowedIds.includes(t.id)) : allData
+    setRefreshing(true)
+    try {
+      applyDashboard(await refreshDashboard(session, getActiveCompanyId()))
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
-
-    setTrucks(filtered)
-    if (filtered.length > 0) {
-      await fetchCyclesAndSummaries(filtered)
-    }
-    dashboardCache.trucks = filtered
-    dashboardCache.ts = Date.now()
-    setLoading(false)
-  }
-
-  async function fetchCyclesAndSummaries(truckList) {
-    // Fetch all cycles and summaries in parallel instead of sequentially
-    const results = await Promise.all(truckList.map(async (truck) => {
-      const activeCycle = await getActiveCycle(truck.id)
-      const displayCycle = activeCycle || await getLatestClosedCycle(truck.id)
-
-      if (!displayCycle) {
-        return { truckId: truck.id, cycle: null, summary: { income: 0, expenses: 0, balance: 0, pendingCount: 0, pendingAmount: 0 } }
-      }
-
-      const [orders, diesel, def, expenses, accounting, leaseDriver, driverPayments] = await Promise.all([
-        supabase.from('orders').select('id, rate, paid, apply_discount, discount_percent, dispatcher_paid').eq('truck_id', truck.id)
-          .eq('cycle_id', displayCycle.id),
-        supabase.from('diesel').select('value').eq('truck_id', truck.id)
-          .eq('cycle_id', displayCycle.id),
-        supabase.from('def').select('value').eq('truck_id', truck.id)
-          .eq('cycle_id', displayCycle.id),
-        supabase.from('expenses').select('amount').eq('truck_id', truck.id)
-          .eq('cycle_id', displayCycle.id),
-        supabase.from('accounting').select('debit, credit').eq('truck_id', truck.id)
-          .eq('cycle_id', displayCycle.id),
-        supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', truck.id)
-          .eq('status', 'active').limit(1).maybeSingle(),
-        supabase.from('driver_payments').select('order_ids').eq('truck_id', truck.id),
-      ])
-
-      const allOrders = orders.data || []
-      const truckDiscountPct = Number(truck.discount_percent) || 13
-      const paidOrders = allOrders.filter(r => r.paid)
-      // Neto con descuento aplicado: mismo calculo para todos los trucks (lease o no)
-      const netIncome = paidOrders.reduce((s, r) => {
-        const rate = Number(r.rate) || 0
-        const applyDisc = r.apply_discount !== false
-        const pct = Number(r.discount_percent) || truckDiscountPct
-        return s + (applyDisc ? rate * (1 - pct / 100) : rate)
-      }, 0)
-
-      const pendingOrders = allOrders.filter(r => !r.paid)
-      const pendingCount = pendingOrders.length
-      const pendingAmount = pendingOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
-
-      const dieselTotal = (diesel.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
-      const defTotal = (def.data || []).reduce((s, r) => s + (Number(r.value) || 0), 0)
-      const expenseTotal = (expenses.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0)
-      const acctDebit = (accounting.data || []).reduce((s, r) => s + (Number(r.debit) || 0), 0)
-      const acctCredit = (accounting.data || []).reduce((s, r) => s + (Number(r.credit) || 0), 0)
-      // LEASE: cuando se marca "pago al conductor" en una orden, se debita del balance
-      // la parte que le corresponde al conductor (neto de la orden menos su % de comision).
-      // Excluye ordenes ya cubiertas por un pago registrado (driver_payments) — esas ya
-      // se debitan via el gasto "Pago Chofer" en Gastos, para no restar dos veces
-      const settledOrderIds = new Set((driverPayments.data || []).flatMap(p => p.order_ids || []))
-      const driverPayout = truck.is_lis
-        ? leaseDriverDebit(paidOrders, leaseDriver.data, settledOrderIds)
-        : 0
-
-      const previousBalance = Number(displayCycle.previous_balance) || 0
-      const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout
-      const totalCredito = previousBalance + netIncome + acctCredit
-      const balance = totalCredito - totalDebito
-
-      return {
-        truckId: truck.id,
-        cycle: displayCycle,
-        summary: { income: totalCredito, expenses: totalDebito, balance, pendingCount, pendingAmount },
-      }
-    }))
-
-    const cyclesMap = {}
-    const sums = {}
-    results.forEach(r => {
-      cyclesMap[r.truckId] = r.cycle
-      sums[r.truckId] = r.summary
-    })
-    setTruckCycles(cyclesMap)
-    setSummaries(sums)
-    dashboardCache.cycles = cyclesMap
-    dashboardCache.summaries = sums
   }
 
   function openTruckModal(truck = null) {
@@ -501,7 +393,6 @@ export default function Dashboard() {
     toast.success(editingTruck ? 'Camion actualizado' : 'Camion creado')
     setEditingTruck(null)
     await fetchTrucks()
-    await fetchDrivers()
     fetchPendingRecurring()
   }
 
@@ -651,7 +542,10 @@ export default function Dashboard() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white hidden lg:block">Dashboard</h2>
+          <h2 className="text-2xl font-bold text-white hidden lg:flex items-center gap-2">
+            Dashboard
+            {refreshing && !loading && <span title="Actualizando" className="w-3.5 h-3.5 border-2 border-gray-600 border-t-orange-500 rounded-full animate-spin" />}
+          </h2>
           <p className="text-sm text-gray-500 mt-1 hidden lg:block">Resumen de camiones — ciclo activo</p>
         </div>
         {/* Balance - mobile: centered card */}
@@ -1354,7 +1248,7 @@ export default function Dashboard() {
       <AddReceiptModal
         isOpen={showExpenseModal}
         onClose={() => setShowExpenseModal(false)}
-        onSaved={() => { setShowExpenseModal(false); fetchCyclesAndSummaries(trucks) }}
+        onSaved={() => { setShowExpenseModal(false); fetchTrucks() }}
         truckId={null}
         period={null}
         editRow={null}
@@ -1379,7 +1273,7 @@ export default function Dashboard() {
                 key="new-order"
                 orderId="new"
                 onClose={closeOrderDrawer}
-                onSaved={() => { fetchCyclesAndSummaries(trucks); closeOrderDrawer() }}
+                onSaved={() => { fetchTrucks(); closeOrderDrawer() }}
               />
             </div>
           </div>

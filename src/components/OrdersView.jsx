@@ -2,13 +2,14 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
-import { STATUS_CONFIG, ALL_STATUSES, fmt, autoAdvanceStatuses } from '../lib/orders'
+import { STATUS_CONFIG, ALL_STATUSES, fmt } from '../lib/orders'
+import { getOrdersCache, refreshOrders, patchOrdersCache, loadDispatcherDirectory, migrateDispatcherNames } from '../lib/ordersData'
 import OrderDetail from './OrderDetail'
 import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
-import { useToast } from './Toast'
+import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { getAllowedTruckIds, isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
+import { isSuperAdmin, canAccess } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import { auditedBalanceWrite } from '../lib/balance'
 import { refreshFollowingDeadheads } from '../lib/deadhead'
@@ -58,10 +59,9 @@ const STATUS_ABBREV = {
 }
 
 // Cache orders data per user to avoid cross-user contamination
-const ordersCacheMap = {}
-const CACHE_TTL = 30000
-function getCache(userId) { return ordersCacheMap[userId] || { orders: null, trucks: null, brokers: null, ts: 0 } }
-function setCache(userId, data) { ordersCacheMap[userId] = { ...data, ts: Date.now() } }
+// Shown again right away on the next visit, then refreshed in the background
+// (lib/ordersData.js). Younger than this, the last load isn't repeated.
+const FRESH_MS = 5000
 
 const TABS = [
   { key: 'all', label: 'Todas' },
@@ -176,6 +176,7 @@ export default function OrdersView() {
   const [brokers, setBrokers] = useState({})
   const [paymentMap, setPaymentMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -196,45 +197,29 @@ export default function OrdersView() {
   const toast = useToast()
 
   useEffect(() => {
-    const userId = session?.user?.id
-    const cached = getCache(userId)
-    if (cached.orders && Date.now() - cached.ts < CACHE_TTL) {
-      setOrders(cached.orders)
-      setTrucks(cached.trucks || [])
-      setBrokers(cached.brokers || {})
+    // Last data first (instant), then a refresh in the background
+    const cId = getActiveCompanyId()
+    const cached = getOrdersCache(session, cId)
+    if (cached?.data) {
+      applyOrders(cached.data)
       setLoading(false)
-    } else {
-      fetchData()
     }
-    // Always fetch auth users for dispatcher name display (runs even on cache hit)
-    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
-      .then(r => r.json())
-      .then(async data => {
-        const roles = ['super_admin', 'admin', 'dispatcher']
-        const dispatchers = (data.users || [])
-          .filter(u => roles.includes(u.user_metadata?.role))
-          .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
+    if (!cached?.data || Date.now() - cached.ts > FRESH_MS) fetchData()
+    // Auth users for dispatcher names (once per session), then the legacy
+    // name -> email migration (once per session and company)
+    loadDispatcherDirectory()
+      .then(async dispatchers => {
         setAuthDispatchers(dispatchers)
-
-        // Migrate orders with name-based dispatcher → email
-        const nameToEmail = {}
-        dispatchers.forEach(d => {
-          if (d.name && d.name !== d.email) nameToEmail[d.name.toLowerCase()] = d.email
-        })
-        const { data: legacyOrders } = await supabase
-          .from('orders').select('id, dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
-        const toMigrate = (legacyOrders || []).filter(o => !o.dispatcher.includes('@') && nameToEmail[o.dispatcher.trim().toLowerCase()])
-        for (const order of toMigrate) {
-          const email = nameToEmail[order.dispatcher.trim().toLowerCase()]
-          await supabase.from('orders').update({ dispatcher: email }).eq('id', order.id)
-        }
-        if (toMigrate.length > 0) {
-          delete ordersCacheMap[session?.user?.id] // invalidar cache para recargar
-          fetchData()
-        }
+        if (await migrateDispatcherNames(dispatchers, cId)) fetchData()
       })
       .catch(() => {})
   }, [])
+
+  // Local edits (paid, status, TONU...) go into the cache too, so coming back
+  // right away doesn't show the old values
+  useEffect(() => {
+    if (!loading) patchOrdersCache(session, getActiveCompanyId(), { orders })
+  }, [orders, loading, session])
   useEffect(() => { setPage(0) }, [tab, search, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
   // Smooth list animation on tab/filter changes (immediate) or search (debounced)
   useEffect(() => { setListKey(k => k + 1) }, [tab, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
@@ -254,75 +239,23 @@ export default function OrdersView() {
     setTimeout(() => setDrawerId(null), 300)
   }, [])
 
+  function applyOrders(d) {
+    setOrders(d.orders)
+    setTrucks(d.trucks)
+    setBrokers(d.brokers)
+    setPaymentMap(d.paymentMap)
+  }
+
   async function fetchData() {
-    setLoading(true)
-    const cId = getActiveCompanyId()
-    const [ordersRes, trucksRes, brokersRes, dispPayRes, drvPayRes] = await Promise.all([
-      (() => { const q = supabase.from('orders').select('*').order('pu_date', { ascending: false }); return cId ? q.eq('company_id', cId) : q })(),
-      (() => { const q = supabase.from('trucks').select('id, name, number'); return cId ? q.eq('company_id', cId) : q })(),
-      (() => { const q = supabase.from('brokers').select('id, name, type'); return cId ? q.eq('company_id', cId) : q })(),
-      (() => { let q = supabase.from('dispatcher_payments').select('id, order_ids, payment_number'); if (cId) q = q.eq('company_id', cId); return q })(),
-      (() => { let q = supabase.from('driver_payments').select('id, order_ids, payment_number'); if (cId) q = q.eq('company_id', cId); return q })(),
-    ])
-    const allowedIds = getAllowedTruckIds(session)
-    const userRole = session?.user?.user_metadata?.role
-    const userEmail = session?.user?.email
-    const userId = session?.user?.id
-    const allTrucks = trucksRes.data || []
-    const filteredTrucks = allowedIds ? allTrucks.filter(t => allowedIds.includes(t.id)) : allTrucks
-    const allOrders = ordersRes.data || []
-    let filteredOrders
-    if (isDriver && userEmail) {
-      // Drivers: solo las órdenes de su camión asignado (skip allowedIds filter)
-      const { data: driverRecord } = await supabase
-        .from('drivers').select('truck_id').eq('email', userEmail).maybeSingle()
-      filteredOrders = driverRecord?.truck_id
-        ? allOrders.filter(o => o.truck_id === driverRecord.truck_id)
-        : []
-    } else {
-      filteredOrders = allowedIds
-        ? allOrders.filter(o => !o.truck_id || allowedIds.includes(o.truck_id))
-        : allOrders
+    setRefreshing(true)
+    try {
+      applyOrders(await refreshOrders(session, getActiveCompanyId()))
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
-    // Dispatchers: solo sus órdenes a menos que tengan permiso "ver_todas_ordenes"
-    if (userRole === 'dispatcher' && userEmail) {
-      const canSeeAll = getPerCompanyMeta(session).permissions?.orders?.ver_todas_ordenes === true
-      if (!canSeeAll) {
-        const userName = (session?.user?.user_metadata?.name || '').trim().toLowerCase()
-        filteredOrders = filteredOrders.filter(o => {
-          if (!o.dispatcher) return false
-          if (o.dispatcher === userEmail) return true
-          // también coincide por nombre mientras no se haya migrado
-          if (userName && o.dispatcher.trim().toLowerCase() === userName) return true
-          return false
-        })
-      }
-    }
-    const advancedOrders = await autoAdvanceStatuses(filteredOrders, supabase)
-    setOrders(advancedOrders)
-    setTrucks(filteredTrucks)
-    const bMap = {}
-    ;(brokersRes.data || []).forEach(b => { bMap[b.id] = b })
-    setBrokers(bMap)
-    // Build payment map: orderId → { dispPaid, dispNum, drvPaid, drvNum }
-    const pMap = {}
-    for (const p of (dispPayRes.data || [])) {
-      for (const oid of (p.order_ids || [])) {
-        if (!pMap[oid]) pMap[oid] = {}
-        pMap[oid].dispPaid = true
-        pMap[oid].dispNum = p.payment_number
-      }
-    }
-    for (const p of (drvPayRes.data || [])) {
-      for (const oid of (p.order_ids || [])) {
-        if (!pMap[oid]) pMap[oid] = {}
-        pMap[oid].drvPaid = true
-        pMap[oid].drvNum = p.payment_number
-      }
-    }
-    setPaymentMap(pMap)
-    setCache(userId, { orders: advancedOrders, trucks: filteredTrucks, brokers: bMap })
-    setLoading(false)
   }
 
   // Every write here that flips `paid` (or rewrites the rate, for TONU) moves the
@@ -504,7 +437,10 @@ export default function OrdersView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Ordenes / Cargas</h1>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            Ordenes / Cargas
+            {refreshing && !loading && <span title="Actualizando" className="w-3.5 h-3.5 border-2 border-gray-600 border-t-orange-500 rounded-full animate-spin" />}
+          </h1>
           <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

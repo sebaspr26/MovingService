@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
 import CompanyWizard from './CompanyWizard'
+import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
+import { getOrdersCache, refreshOrders } from '../lib/ordersData'
 export default function Layout() {
   const { toast } = useToast()
   const { session } = useAuth()
@@ -30,6 +32,22 @@ export default function Layout() {
   const userAvatarUrl = userMeta.avatar_path
     ? supabase.storage.from('company-docs').getPublicUrl(userMeta.avatar_path).data?.publicUrl
     : null
+
+  // Load Dashboard and Orders in the background shortly after the app opens,
+  // so the first visit to each is already instant
+  useEffect(() => {
+    if (!session?.user) return
+    const timer = setTimeout(() => {
+      const cId = getActiveCompanyId()
+      if ((isSuperAdmin(session) || canAccess(session, 'dashboard')) && !getDashboardCache(session, cId)) {
+        refreshDashboard(session, cId).catch(() => {})
+      }
+      if (canAccess(session, 'orders') && !getOrdersCache(session, cId)) {
+        refreshOrders(session, cId).catch(() => {})
+      }
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [session?.user?.id])
 
   // Fetch fresh allowed_companies from server (not stale JWT)
   const [freshAllowed, setFreshAllowed] = useState(null)
