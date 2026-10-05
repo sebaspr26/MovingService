@@ -4,6 +4,7 @@ import { computeTruckBalance } from './balance'
 import { getCompanySettings, getLogoUrl } from './company'
 import { htmlToPdfBase64 } from './pdf'
 import { downloadBase64Pdf } from './download'
+import { loadAuthUsers } from './pageCache'
 
 // Cycle statement ("extracto") — a bank-statement style PDF of everything that
 // happened in a truck's cycle: every movement that touched the balance in date
@@ -24,8 +25,7 @@ const round2 = n => Math.round((Number(n) || 0) * 100) / 100
 
 async function loadDispatcherNames() {
   try {
-    const res = await fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
-    const data = await res.json()
+    const data = await loadAuthUsers()
     return Object.fromEntries((data.users || []).map(u => [u.email, u.user_metadata?.name || u.email]))
   } catch {
     return {}

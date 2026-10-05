@@ -14,6 +14,7 @@ function getUserAvatarUrl(user) {
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { auditedDriverWrite } from '../lib/balance'
+import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
 
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --' }) {
   const [open, setOpen] = useState(false)
@@ -183,11 +184,14 @@ function ModuleCard({ mod, perms, toggleModule, toggleSub }) {
 }
 
 export default function Profiles() {
-  const [users, setUsers] = useState([])
-  const [dbDrivers, setDbDrivers] = useState([])
-  const [dbDispatchers, setDbDispatchers] = useState([])
-  const [dbTrucks, setDbTrucks] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { refreshSession, session } = useAuth()
+  // Last list right away; fetchUsers refreshes it in the background
+  const cached = readPageCache('profiles', session)
+  const [users, setUsers] = useState(cached?.users || [])
+  const [dbDrivers, setDbDrivers] = useState(cached?.dbDrivers || [])
+  const [dbDispatchers, setDbDispatchers] = useState(cached?.dbDispatchers || [])
+  const [dbTrucks, setDbTrucks] = useState(cached?.dbTrucks || [])
+  const [loading, setLoading] = useState(!cached)
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('create') // 'create' | 'invite'
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' })
@@ -211,26 +215,22 @@ export default function Profiles() {
   const [impersonateLoading, setImpersonateLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const toast = useToast()
-  const { refreshSession, session } = useAuth()
   const { companies } = useCompany()
 
   useEffect(() => { fetchUsers() }, [])
+  usePageCacheSave('profiles', session, { users, dbDrivers, dbDispatchers, dbTrucks }, !loading)
 
   async function fetchUsers() {
-    setLoading(true)
+    // With a list on screen, refresh silently (also after every change here)
+    if (!users.length) setLoading(true)
     try {
-      const [usersRes, driversRes, trucksRes, dispatchersRes] = await Promise.all([
-        fetch('/api/invite-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'list' }),
-        }),
+      const [usersData, driversRes, trucksRes, dispatchersRes] = await Promise.all([
+        // Always fresh here (this is where users change); shared with the other sections
+        loadAuthUsers({ fresh: true }),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('drivers').select('*').order('name'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('id, name, number, is_lis').order('number'); return cId ? q.eq('company_id', cId) : q })(),
         (() => { const cId = getActiveCompanyId(); const q = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''); return cId ? q.eq('company_id', cId) : q })(),
       ])
-      const usersData = await usersRes.json().catch(() => ({}))
-      if (!usersRes.ok) throw new Error(usersData?.error || `Error ${usersRes.status}`)
       const activeCompanyId = getActiveCompanyId()
       const allSorted = (usersData.users || []).sort((a, b) =>
         rolePriority(a.user_metadata?.role) - rolePriority(b.user_metadata?.role)
@@ -256,6 +256,7 @@ export default function Profiles() {
         const r = u.user_metadata?.role
         return (r === 'driver' || r === 'driver_lease') && u.email
       })
+      let driversChanged = false
       for (const u of driverUsers) {
         const uEmail = u.email.toLowerCase()
         const uName = (u.user_metadata?.name || '').trim().toUpperCase()
@@ -272,8 +273,10 @@ export default function Profiles() {
           if (!existing.company_id && companyId) updates.company_id = companyId
           if (Object.keys(updates).length > 0) {
             await supabase.from('drivers').update(updates).eq('id', existing.id)
+            driversChanged = true
           }
         } else {
+          driversChanged = true
           await supabase.from('drivers').insert({
             name: (u.user_metadata?.name || u.email.split('@')[0]).trim(),
             email: u.email,
@@ -299,12 +302,17 @@ export default function Profiles() {
           const keep = dupes[0]
           for (let i = 1; i < dupes.length; i++) {
             await supabase.from('drivers').delete().eq('id', dupes[i].id)
+            driversChanged = true
           }
         }
       }
-      // Re-fetch drivers after sync
-      const { data: freshDrivers } = await (() => { const q = supabase.from('drivers').select('*').order('name'); return companyId ? q.eq('company_id', companyId) : q })()
-      setDbDrivers(freshDrivers || [])
+      // Re-fetch drivers only if the sync changed them (one less round trip)
+      if (driversChanged) {
+        const { data: freshDrivers } = await (() => { const q = supabase.from('drivers').select('*').order('name'); return companyId ? q.eq('company_id', companyId) : q })()
+        setDbDrivers(freshDrivers || [])
+      } else {
+        setDbDrivers(dbDriversList)
+      }
 
       // Build name → email map from Auth users
       const nameToEmail = {}
@@ -1473,8 +1481,7 @@ function LinkUserModal({ activeCompanyId, onLink, linkingId, onClose }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
-      .then(r => r.json())
+    loadAuthUsers()
       .then(data => {
         const outside = (data.users || []).filter(u => {
           if (u.user_metadata?.role === 'super_admin') return false

@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { getAllowedTruckIds, getPerCompanyMeta } from './permissions'
 import { advanceStatuses, saveAdvancedStatuses } from './orders'
+import { loadAuthUsers } from './pageCache'
 
 // Data for the Orders list, loaded once and kept: the next visit shows it
 // right away and refreshes it in the background. Only the columns the list
@@ -99,19 +100,15 @@ export function refreshOrders(session, companyId) {
   return pending
 }
 
-// ── Dispatcher directory (Auth users), once per session ──
-let directory = null
+// ── Dispatcher directory (Auth users, shared and once per session) ──
 const migrated = new Set()
 
 /** [{ email, name }] of super_admin/admin/dispatcher users. */
-export function loadDispatcherDirectory() {
-  directory ||= fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
-    .then(r => r.json())
-    .then(data => (data.users || [])
-      .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
-      .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email })))
-    .catch(err => { directory = null; throw err })
-  return directory
+export async function loadDispatcherDirectory() {
+  const data = await loadAuthUsers()
+  return (data.users || [])
+    .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
+    .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
 }
 
 /**

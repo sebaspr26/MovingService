@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
+import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
 import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { STATUS_CONFIG } from '../lib/orders'
@@ -302,21 +304,24 @@ const HAS_DETAILS_ACTIONS = new Set([
 ])
 
 export default function Auditoria() {
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { session } = useAuth()
+  // Last first page right away (no filters); the query below refreshes it
+  const cached = readPageCache('auditoria', session)
+  const firstLoad = useRef(true)
+  const [rows, setRows] = useState(cached?.rows || [])
+  const [loading, setLoading] = useState(!cached)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
 
   // Filter option pools (derived from all rows, independent of current filters/pagination)
-  const [truckOptions, setTruckOptions] = useState([])
-  const [userOptions, setUserOptions] = useState([])
+  const [truckOptions, setTruckOptions] = useState(cached?.truckOptions || [])
+  const [userOptions, setUserOptions] = useState(cached?.userOptions || [])
 
   // Email -> name map (Auth users), to resolve dispatcher emails stored in extra_info
-  const [dispatcherNames, setDispatcherNames] = useState({})
+  const [dispatcherNames, setDispatcherNames] = useState(cached?.dispatcherNames || {})
   useEffect(() => {
-    fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) })
-      .then(r => r.json())
+    loadAuthUsers()
       .then(data => {
         const map = {}
         ;(data.users || []).forEach(u => { map[u.email] = u.user_metadata?.name || u.email })
@@ -342,6 +347,8 @@ export default function Auditoria() {
 
   const activeFilterCount = [dateFrom || dateTo, actionFilter.length, truckFilter.length, userFilter.length].filter(Boolean).length
   const hasActiveFilters = dateFrom || dateTo || actionFilter.length > 0 || truckFilter.length > 0 || userFilter.length > 0 || searchTerm
+  // Saved only unfiltered: it's what the section opens with
+  usePageCacheSave('auditoria', session, { rows: rows.slice(0, PAGE_SIZE), truckOptions, userOptions, dispatcherNames }, !loading && !hasActiveFilters)
 
   useEffect(() => {
     const cId = getActiveCompanyId()
@@ -394,7 +401,9 @@ export default function Auditoria() {
   }, [dateFrom, dateTo, actionFilter, truckFilter, userFilter, searchTerm])
 
   useEffect(() => {
-    setLoading(true)
+    // First visit with saved rows: refresh them silently
+    if (!(firstLoad.current && cached)) setLoading(true)
+    firstLoad.current = false
     setPage(0)
     buildQuery(0).then(({ data }) => {
       setRows(data || [])

@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete } from '../lib/permissions'
 import { downloadFromUrl } from '../lib/download'
 import { auditedDriverWrite } from '../lib/balance'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 
 const SECTIONS = [
   { key: 'company_docs', label: 'Company Documents', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /> },
@@ -859,20 +860,23 @@ const DRIVER_DOC_TYPES = [
 function SectionChoferes() {
   const { session } = useAuth()
   const toast = useToast()
-  const [drivers, setDrivers] = useState([])
-  const [trucks, setTrucks] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Last lists right away; the fetches below refresh them in the background
+  const cached = readPageCache('company-drivers', session)
+  const [drivers, setDrivers] = useState(cached?.drivers || [])
+  const [trucks, setTrucks] = useState(cached?.trucks || [])
+  const [loading, setLoading] = useState(!cached)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [docs, setDocs] = useState({})
+  usePageCacheSave('company-drivers', session, { drivers, trucks }, !loading)
 
   const [form, setForm] = useState({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active', is_lease: false })
 
   useEffect(() => { fetchDrivers(); fetchTrucks() }, [])
 
   async function fetchDrivers() {
-    setLoading(true)
+    if (!cached) setLoading(true)
     const cId = getActiveCompanyId()
     const q = supabase.from('drivers').select('*').order('name')
     const { data } = cId ? await q.eq('company_id', cId) : await q
@@ -1156,15 +1160,17 @@ const TRUCK_DOC_TYPES = [
 function SectionCamiones() {
   const { session } = useAuth()
   const toast = useToast()
-  const [trucks, setTrucks] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cached = readPageCache('company-trucks', session)
+  const [trucks, setTrucks] = useState(cached?.trucks || [])
+  const [loading, setLoading] = useState(!cached)
   const [expanded, setExpanded] = useState(null)
   const [docs, setDocs] = useState({})
 
   useEffect(() => { fetchTrucks() }, [])
+  usePageCacheSave('company-trucks', session, { trucks }, !loading)
 
   async function fetchTrucks() {
-    setLoading(true)
+    if (!cached) setLoading(true)
     const cId = getActiveCompanyId(); const q = supabase.from('trucks').select('*').order('number'); const { data } = cId ? await q.eq('company_id', cId) : await q
     setTrucks(data || [])
     setLoading(false)
@@ -1269,9 +1275,10 @@ const TRAILER_TYPES = ['Dry Van', 'Flatbed', 'Reefer', 'Step Deck', 'Lowboy', 'T
 function SectionTrailers() {
   const { session } = useAuth()
   const toast = useToast()
-  const [trailers, setTrailers] = useState([])
-  const [trucks, setTrucks] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cached = readPageCache('company-trailers', session)
+  const [trailers, setTrailers] = useState(cached?.trailers || [])
+  const [trucks, setTrucks] = useState(cached?.trucks || [])
+  const [loading, setLoading] = useState(!cached)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [expanded, setExpanded] = useState(null)
@@ -1280,9 +1287,10 @@ function SectionTrailers() {
   const [form, setForm] = useState({ name: '', number: '', type: '', truck_id: '', status: 'active' })
 
   useEffect(() => { fetchTrailers(); fetchTrucks() }, [])
+  usePageCacheSave('company-trailers', session, { trailers, trucks }, !loading)
 
   async function fetchTrailers() {
-    setLoading(true)
+    if (!cached) setLoading(true)
     const cId = getActiveCompanyId(); const tq = supabase.from('trailers').select('*').order('name'); const { data } = cId ? await tq.eq('company_id', cId) : await tq
     setTrailers(data || [])
     setLoading(false)

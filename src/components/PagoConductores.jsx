@@ -3,22 +3,28 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
 import DriverPaymentModal from './DriverPaymentModal'
+import { useAuth } from '../context/AuthContext'
+import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
 
 
 export default function PagoConductores() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [drivers, setDrivers] = useState([])
-  const [trucks, setTrucks] = useState({})
-  const [avatarMap, setAvatarMap] = useState({})
-  const [roleMap, setRoleMap] = useState({})
-  const [loading, setLoading] = useState(true)
+  const { session } = useAuth()
+  // Last data right away; fetchData refreshes it in the background
+  const cached = readPageCache('pago-conductores', session)
+  const [drivers, setDrivers] = useState(cached?.drivers || [])
+  const [trucks, setTrucks] = useState(cached?.trucks || {})
+  const [avatarMap, setAvatarMap] = useState(cached?.avatarMap || {})
+  const [roleMap, setRoleMap] = useState(cached?.roleMap || {})
+  const [loading, setLoading] = useState(!cached)
   const [search, setSearch] = useState('')
   const [selectedDriver, setSelectedDriver] = useState(null)
   const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
   const [highlightOrderId, setHighlightOrderId] = useState(null)
 
   useEffect(() => { fetchData() }, [])
+  usePageCacheSave('pago-conductores', session, { drivers, trucks, avatarMap, roleMap }, !loading)
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese conductor
   // y resaltar el pago + la orden especifica
@@ -35,12 +41,12 @@ export default function PagoConductores() {
   }, [drivers])
 
   async function fetchData() {
-    setLoading(true)
+    if (!cached) setLoading(true)
     const cId = getActiveCompanyId()
     const [{ data: driversData }, { data: trucksData }, authRes] = await Promise.all([
       (() => { const q = supabase.from('drivers').select('*').order('name'); return cId ? q.eq('company_id', cId) : q })(),
       (() => { const q = supabase.from('trucks').select('id, name, number, vin_number, is_lis').order('name'); return cId ? q.eq('company_id', cId) : q })(),
-      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
+      loadAuthUsers().catch(() => ({ users: [] })),
     ])
     const trucksMap = {}
     ;(trucksData || []).forEach(t => { trucksMap[t.id] = t })

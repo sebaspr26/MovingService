@@ -11,6 +11,7 @@ import { ratesFor, IFTA_DIESEL_RATES } from '../lib/iftaRates'
 import { downloadIftaReport } from '../lib/iftaReport'
 import { downloadIftaExcel } from '../lib/iftaExcel'
 import { useToast } from './Toast'
+import { readPageCache, writePageCache } from '../lib/pageCache'
 import OrderDetail from './OrderDetail'
 import PdfViewer from './PdfViewer'
 
@@ -210,18 +211,23 @@ export default function Ifta() {
 }
 
 function useQuarter(companyId, year, quarter) {
-  const [state, setState] = useState({ loading: true })
+  const { session } = useAuth()
+  const cacheKey = `${year}-Q${quarter}`
+  // Last numbers of this quarter right away; the reload below refreshes them
+  const [state, setState] = useState(() => readPageCache('ifta', session, cacheKey) || { loading: true })
   const reload = useCallback(async () => {
     try {
       const [data, { data: filing }] = await Promise.all([
         loadQuarterData(companyId, year, quarter),
         supabase.from('ifta_filings').select('*').eq('company_id', companyId).eq('year', year).eq('quarter', quarter).maybeSingle(),
       ])
-      setState({ loading: false, data, rates: ratesFor(year, quarter), filing })
+      const next = { loading: false, data, rates: ratesFor(year, quarter), filing }
+      writePageCache('ifta', session, next, cacheKey)
+      setState(next)
     } catch (err) {
-      setState({ loading: false, error: err.message })
+      setState(prev => prev.data ? prev : { loading: false, error: err.message })
     }
-  }, [companyId, year, quarter])
+  }, [companyId, year, quarter, session, cacheKey])
   useEffect(() => { reload() }, [reload])
   return [state, reload]
 }

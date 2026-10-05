@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import AddReceiptModal from './AddReceiptModal'
 import ReceiptViewer from './ReceiptViewer'
@@ -22,9 +23,13 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const { session } = useAuth()
   const [viewingReceipt, setViewingReceipt] = useState(null)
   const [filter, setFilter] = useState('all')
-  const [dieselRows, setDieselRows] = useState([])
-  const [defRows, setDefRows] = useState([])
-  const [expenseRows, setExpenseRows] = useState([])
+  const viewKey = `${truckId}|${cycle?.id}|${period.start}|${period.end}`
+  const savedRows = readPageCache('truck-expenses', session, viewKey)
+  const [dieselRows, setDieselRows] = useState(savedRows?.dieselRows || [])
+  const [defRows, setDefRows] = useState(savedRows?.defRows || [])
+  const [expenseRows, setExpenseRows] = useState(savedRows?.expenseRows || [])
+  // Which view the rows belong to, so a half-loaded switch is never saved
+  const [rowsKey, setRowsKey] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
@@ -32,9 +37,11 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const [expandedRow, setExpandedRow] = useState(null) // `${_type}-${id}` key
   const [rowOrders, setRowOrders] = useState({}) // { [rowKey]: orders[] | 'loading' }
   useEffect(() => { fetchAll() }, [truckId, cycle?.id, period.start, period.end])
+  usePageCacheSave('truck-expenses', session, { dieselRows, defRows, expenseRows }, rowsKey === viewKey, viewKey)
 
   async function fetchAll() {
     if (!cycle?.id) return
+    const key = viewKey
     const [diesel, def, expenses] = await Promise.all([
       supabase.from('diesel').select('*').eq('truck_id', truckId)
         .eq('cycle_id', cycle.id).order('created_at'),
@@ -51,6 +58,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
     setDieselRows(weekFilter(diesel.data || []))
     setDefRows(weekFilter(def.data || []))
     setExpenseRows(weekFilter(expenses.data || []))
+    setRowsKey(key)
   }
 
   // Normalize all rows into common format

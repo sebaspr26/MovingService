@@ -5,6 +5,7 @@ import { useToast } from './Toast'
 import DatePicker from './DatePicker'
 import { logAudit } from '../lib/auditLog'
 import { registerBiometrics, listBiometrics, removeBiometrics, biometricsEnabled, biometricLabel } from '../lib/auth'
+import { invalidateAuthUsers } from '../lib/pageCache'
 
 const US_STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
@@ -190,6 +191,7 @@ export default function UserProfile() {
       if (updateErr) throw updateErr
 
       await refreshSession()
+      invalidateAuthUsers() // other sections show the new name/photo
       setAvatarUrl(getAvatarUrl(path))
       toast.success('Foto actualizada')
     } catch (err) {
@@ -211,6 +213,7 @@ export default function UserProfile() {
       const { error } = await supabase.auth.updateUser({ data: { ...meta, avatar_path: null } })
       if (error) throw error
       await refreshSession()
+      invalidateAuthUsers() // other sections show the new name/photo
       setAvatarUrl(null)
       toast.success('Foto eliminada')
     } catch (err) {
@@ -231,6 +234,7 @@ export default function UserProfile() {
       const { error } = await supabase.auth.updateUser({ data: { ...meta, name, phone: phone || null } })
       if (error) throw error
       await refreshSession()
+      invalidateAuthUsers() // other sections show the new name/photo
       toast.success('Perfil actualizado')
     } catch (err) {
       toast.error('Error: ' + err.message)

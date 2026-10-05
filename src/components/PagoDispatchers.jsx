@@ -5,6 +5,7 @@ import { getActiveCompanyId } from '../lib/company'
 import DispatcherPaymentModal from './DispatcherPaymentModal'
 import { useAuth } from '../context/AuthContext'
 import { isSuperAdmin } from '../lib/permissions'
+import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -22,8 +23,10 @@ export default function PagoDispatchers() {
   const { session } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const [dispatchers, setDispatchers] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Last list right away; fetchData refreshes it in the background
+  const cached = readPageCache('pago-dispatchers', session)
+  const [dispatchers, setDispatchers] = useState(cached?.dispatchers || [])
+  const [loading, setLoading] = useState(!cached)
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
   const [highlightPaymentNumber, setHighlightPaymentNumber] = useState(null)
@@ -31,6 +34,7 @@ export default function PagoDispatchers() {
   const activeCompanyId = getActiveCompanyId()
 
   useEffect(() => { fetchData() }, [])
+  usePageCacheSave('pago-dispatchers', session, { dispatchers }, !loading)
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese dispatcher
   // y resaltar el pago + la orden especifica
@@ -48,21 +52,18 @@ export default function PagoDispatchers() {
   }, [dispatchers])
 
   async function fetchData() {
-    setLoading(true)
+    if (!cached) setLoading(true)
     try {
-      // Auth users con rol dispatcher/admin/super_admin
-      const res = await fetch('/api/invite-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list' }),
-      })
-      const data = await res.json()
+      // Auth users (dispatcher/admin/super_admin) and the dispatchers of the
+      // company's orders — the source of truth — at the same time
+      const ordersQ = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
+      const [data, { data: orders }] = await Promise.all([
+        loadAuthUsers(),
+        activeCompanyId ? ordersQ.eq('company_id', activeCompanyId) : ordersQ,
+      ])
       const allUsers = (data.users || []).filter(u =>
         ['dispatcher', 'admin', 'super_admin'].includes(u.user_metadata?.role)
       )
-      // Dispatchers únicos de órdenes filtrados por empresa — fuente de verdad
-      const ordersQ = supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', '')
-      const { data: orders } = activeCompanyId ? await ordersQ.eq('company_id', activeCompanyId) : await ordersQ
 
       const uniqueFromOrders = [...new Set((orders || []).map(o => o.dispatcher?.trim()).filter(Boolean))]
 

@@ -11,6 +11,7 @@ import { useTheme } from '../lib/theme'
 import CompanyWizard from './CompanyWizard'
 import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
 import { getOrdersCache, refreshOrders } from '../lib/ordersData'
+import { loadAuthUsers } from '../lib/pageCache'
 export default function Layout() {
   const { toast } = useToast()
   const { session } = useAuth()
@@ -44,6 +45,10 @@ export default function Layout() {
       }
       if (canAccess(session, 'orders') && !getOrdersCache(session, cId)) {
         refreshOrders(session, cId).catch(() => {})
+      }
+      // Users list (names, roles, avatars) used by Profiles, Pagos, Auditoría...
+      if (['super_admin', 'admin', 'dispatcher'].includes(session.user.user_metadata?.role)) {
+        loadAuthUsers().catch(() => {})
       }
     }, 1200)
     return () => clearTimeout(timer)

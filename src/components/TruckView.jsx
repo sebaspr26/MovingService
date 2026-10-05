@@ -5,6 +5,7 @@ import { computeWeeks, getActiveCycle, getAllCycles, openCycle, getLatestClosedC
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { logAudit } from '../lib/auditLog'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { leaseDriverDebit } from '../lib/orders'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
@@ -51,15 +52,22 @@ export default function TruckView() {
   // Refresh session on mount to pick up any permission changes since last login
   useEffect(() => { refreshSession() }, [])
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
-  const [truck, setTruck] = useState(null)
+  // Last view of this truck right away (current cycle); refreshed below
+  const cachedView = readPageCache('truck', session, id)
+  const [truck, setTruck] = useState(cachedView?.truck || null)
   // IFTA alerts link here with { tab, cycleId } to show a diesel purchase
   const location = useLocation()
   const [tab, setTab] = useState(location.state?.tab || 'orders')
-  const [cycles, setCycles] = useState([])
-  const [cycleIndex, setCycleIndex] = useState(0)
+  const [cycles, setCycles] = useState(cachedView?.cycles || [])
+  const [cycleIndex, setCycleIndex] = useState(() => {
+    const i = location.state?.cycleId ? (cachedView?.cycles || []).findIndex(c => c.id === location.state.cycleId) : -1
+    return i >= 0 ? i : 0
+  })
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState({ grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, chofer: 0, expenses: 0, debito: 0, credito: 0 })
-  const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState(cachedView?.summary || { grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, chofer: 0, expenses: 0, debito: 0, credito: 0 })
+  const [loading, setLoading] = useState(!cachedView)
+  // Cycle whose whole-cycle summary is on screen (null = a week, or not loaded)
+  const [summaryCycleId, setSummaryCycleId] = useState(cachedView?.cycles?.[0]?.id || null)
   const [openingCycle, setOpeningCycle] = useState(false)
   const [newCycleDate, setNewCycleDate] = useState(fmt_d(new Date()))
   const [carryOverCandidates, setCarryOverCandidates] = useState([])
@@ -104,14 +112,19 @@ export default function TruckView() {
   useEffect(() => { fetchCycles() }, [id])
 
   async function fetchCycles() {
-    setLoading(true)
+    const saved = readPageCache('truck', session, id)
+    if (!saved) setLoading(true)
     const data = await getAllCycles(id)
     setCycles(data)
     const wanted = location.state?.cycleId ? data.findIndex(c => c.id === location.state.cycleId) : -1
-    setCycleIndex(wanted >= 0 ? wanted : 0)
-    setSelectedWeek(null)
+    // With the saved view on screen, keep the cycle the user may have picked meanwhile
+    setCycleIndex(i => wanted >= 0 ? wanted : saved ? Math.min(i, Math.max(data.length - 1, 0)) : 0)
+    if (!saved) setSelectedWeek(null)
     setLoading(false)
   }
+
+  // Saved only for the default view (current cycle, whole cycle) — what opens next time
+  usePageCacheSave('truck', session, { truck, cycles, summary }, !loading && !!truck && !!cycles[0] && summaryCycleId === cycles[0].id, id)
 
   useEffect(() => {
     if (cycle && truck) fetchSummary()
@@ -177,6 +190,7 @@ export default function TruckView() {
 
     // Discard stale response if a newer fetchSummary was triggered
     if (seq !== summarySeqRef.current) return
+    setSummaryCycleId(useWeekFilter ? null : cycle.id)
 
     setSummary({
       grossOrders,

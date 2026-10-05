@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { analyzeReceipt, isScannerBusy } from '../lib/gemini'
 import { useToast, friendlyError } from './Toast'
-import { STATUS_CONFIG, autoAdvanceStatuses } from '../lib/orders'
+import { STATUS_CONFIG, advanceStatuses, saveAdvancedStatuses } from '../lib/orders'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { auditedBalanceWrite } from '../lib/balance'
@@ -15,7 +16,10 @@ import DatePicker from './DatePicker'
 export default function OrdersTable({ truckId, truckName, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
   const toast = useToast()
   const { session } = useAuth()
-  const [rows, setRows] = useState([])
+  const viewKey = `${truckId}|${cycle?.id}|${period.start}|${period.end}`
+  const [rows, setRows] = useState(() => readPageCache('truck-orders', session, viewKey)?.rows || [])
+  // Which view the rows belong to, so a half-loaded switch is never saved
+  const [rowsKey, setRowsKey] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
@@ -39,9 +43,11 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
   const fetchSeqRef = useRef(0)
 
   useEffect(() => { fetchRows() }, [truckId, cycle?.id, period.start, period.end])
+  usePageCacheSave('truck-orders', session, { rows }, rowsKey === viewKey, viewKey)
 
   async function fetchRows() {
     if (!cycle?.id) return
+    const key = viewKey
     const seq = ++fetchSeqRef.current
     const { data } = await supabase.from('orders').select('*')
       .eq('truck_id', truckId)
@@ -53,9 +59,11 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
     if (period.start !== cycle.start_date) {
       filtered = filtered.filter(r => r.pu_date >= period.start && r.pu_date <= period.end)
     }
-    const advanced = await autoAdvanceStatuses(filtered, supabase)
-    if (seq !== fetchSeqRef.current) return // discard stale response
-    setRows(advanced)
+    // Moved statuses show right away; saving them doesn't hold the table
+    const advanced = advanceStatuses(filtered)
+    saveAdvancedStatuses(advanced.updates, supabase).catch(err => console.warn('[orders] auto status', err))
+    setRows(advanced.orders)
+    setRowsKey(key)
   }
 
   function openOrderDrawer() {

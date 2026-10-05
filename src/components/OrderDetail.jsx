@@ -19,6 +19,7 @@ import DatePicker from './DatePicker'
 import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
 import { computeDeadhead, firstPickupPlace, refreshFollowingDeadheads } from '../lib/deadhead'
+import { loadAuthUsers } from '../lib/pageCache'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -309,7 +310,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     Promise.all([
       (() => { const q = supabase.from('trucks').select('id, name, number, discount_percent').order('number'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
       (() => { const q = supabase.from('brokers').select('*').order('name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
-      fetch('/api/invite-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then(r => r.json()).catch(() => ({ users: [] })),
+      loadAuthUsers().catch(() => ({ users: [] })),
       supabase.from('drivers').select('id, name, truck_id'),
     ]).then(([tRes, bRes, usersRes, dRes]) => {
       const allTrucks = tRes.data || []

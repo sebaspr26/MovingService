@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getActiveCompanyId } from '../lib/company'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—'
@@ -18,8 +19,10 @@ export default function PaymentHistory() {
   const role = meta.role
   const isDriver = role === 'driver' || role === 'driver_lease'
 
-  const [payments, setPayments] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Last list right away; the effect below refreshes it in the background
+  const cached = readPageCache('payment-history', session)
+  const [payments, setPayments] = useState(cached?.payments || [])
+  const [loading, setLoading] = useState(!cached)
   const [previewHtml, setPreviewHtml] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(null)
   const [downloadingId, setDownloadingId] = useState(null)
@@ -29,10 +32,12 @@ export default function PaymentHistory() {
 
   const companyId = getActiveCompanyId()
 
+  usePageCacheSave('payment-history', session, { payments }, !loading)
+
   useEffect(() => {
     if (!email) return
     ;(async () => {
-      setLoading(true)
+      if (!cached) setLoading(true)
       if (isDriver) {
         let q = supabase.from('driver_payments')
           .select('*').eq('driver_email', email)

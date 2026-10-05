@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import PdfViewer from './PdfViewer'
@@ -73,11 +74,13 @@ function fmt_date(d) {
 
 export default function DispatcherDrivers() {
   const { session } = useAuth()
-  const [drivers, setDrivers] = useState([])
-  const [trucks, setTrucks] = useState({})
-  const [driverDocs, setDriverDocs] = useState({})
-  const [truckDocs, setTruckDocs] = useState({})
-  const [loading, setLoading] = useState(true)
+  // Last data right away; fetchData refreshes it in the background
+  const cached = readPageCache('conductores', session)
+  const [drivers, setDrivers] = useState(cached?.drivers || [])
+  const [trucks, setTrucks] = useState(cached?.trucks || {})
+  const [driverDocs, setDriverDocs] = useState(cached?.driverDocs || {})
+  const [truckDocs, setTruckDocs] = useState(cached?.truckDocs || {})
+  const [loading, setLoading] = useState(!cached)
   const [copiedKey, setCopiedKey] = useState(null)
   const [previewDoc, setPreviewDoc] = useState(null)
 
@@ -97,8 +100,10 @@ export default function DispatcherDrivers() {
     fetchData()
   }, [session?.user?.id])
 
+  usePageCacheSave('conductores', session, { drivers, trucks, driverDocs, truckDocs }, !loading)
+
   async function fetchData() {
-    setLoading(true)
+    if (!cached) setLoading(true)
 
     let allowedTruckIds = null // null = todos
 
@@ -119,33 +124,32 @@ export default function DispatcherDrivers() {
     }
 
     const cId = getActiveCompanyId()
-    // Fetch trucks
-    let trucksData = []
-    if (allowedTruckIds === null) {
-      const q = supabase.from('trucks').select('id, name, number, vin_number').order('name')
-      const { data } = cId ? await q.eq('company_id', cId) : await q
-      trucksData = data || []
-    } else if (allowedTruckIds.length > 0) {
-      const { data } = await supabase.from('trucks').select('id, name, number, vin_number').in('id', allowedTruckIds).order('name')
-      trucksData = data || []
+    // Trucks and drivers together (they only depend on the allowed trucks)
+    const trucksQuery = () => {
+      if (allowedTruckIds === null) {
+        const q = supabase.from('trucks').select('id, name, number, vin_number').order('name')
+        return cId ? q.eq('company_id', cId) : q
+      }
+      if (!allowedTruckIds.length) return Promise.resolve({ data: [] })
+      return supabase.from('trucks').select('id, name, number, vin_number').in('id', allowedTruckIds).order('name')
     }
+    const driversQuery = () => {
+      if (allowedTruckIds === null) {
+        const q = supabase.from('drivers').select('*').eq('status', 'active').order('name')
+        return cId ? q.eq('company_id', cId) : q
+      }
+      if (!allowedTruckIds.length) return Promise.resolve({ data: [] })
+      let dq = supabase.from('drivers').select('*').in('truck_id', allowedTruckIds).eq('status', 'active').order('name')
+      if (cId) dq = dq.eq('company_id', cId)
+      return dq
+    }
+    const [{ data: trucksRows }, { data: driversRows }] = await Promise.all([trucksQuery(), driversQuery()])
+    const trucksData = trucksRows || []
+    const driversData = driversRows || []
 
     const trucksMap = {}
     trucksData.forEach(t => { trucksMap[t.id] = t })
     setTrucks(trucksMap)
-
-    // Fetch drivers
-    let driversData = []
-    if (allowedTruckIds === null) {
-      const q = supabase.from('drivers').select('*').eq('status', 'active').order('name')
-      const { data } = cId ? await q.eq('company_id', cId) : await q
-      driversData = data || []
-    } else if (allowedTruckIds.length > 0) {
-      let dq = supabase.from('drivers').select('*').in('truck_id', allowedTruckIds).eq('status', 'active').order('name')
-      if (cId) dq = dq.eq('company_id', cId)
-      const { data } = await dq
-      driversData = data || []
-    }
 
     setDrivers(driversData)
 
