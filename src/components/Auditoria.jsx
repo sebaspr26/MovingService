@@ -46,6 +46,9 @@ const ACTIONS = {
   update_accounting: { label: 'Contabilidad: registro editado', color: 'blue', icon: ICON.update },
   delete_accounting: { label: 'Contabilidad: registro eliminado', color: 'red', icon: ICON.delete },
   transfer_to_owner: { label: 'Transferido a propietario', color: 'yellow', icon: ICON.update },
+  create_union: { label: 'Unión de dispatchers creada', color: 'emerald', icon: ICON.create },
+  update_union: { label: 'Unión de dispatchers editada', color: 'blue', icon: ICON.update },
+  delete_union: { label: 'Unión de dispatchers deshecha', color: 'red', icon: ICON.delete },
   update_driver: { label: 'Chofer editado', color: 'blue', icon: ICON.update },
   delete_driver: { label: 'Chofer eliminado', color: 'red', icon: ICON.delete },
 }
@@ -213,6 +216,18 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Cuadre caja:</span> <span className="text-gray-300">{info.cuadre_caja != null ? fmtMoney(info.cuadre_caja) : '—'}</span></div>
       </div>
     )
+  } else if (['create_union', 'update_union', 'delete_union'].includes(row.action)) {
+    const list = a => (a || []).join(', ') || '—'
+    content = row.action === 'update_union' ? (
+      <div className="space-y-1.5 text-xs">
+        {info.before?.name !== info.after?.name && (
+          <div><span className="text-gray-500">Nombre:</span> <span className="text-gray-400">{fmtVal(info.before?.name)}</span> <span className="text-gray-600">→</span> <span className="text-white font-medium">{fmtVal(info.after?.name)}</span></div>
+        )}
+        <div><span className="text-gray-500">Miembros:</span> <span className="text-gray-400">{list(info.before?.members)}</span> <span className="text-gray-600">→</span> <span className="text-white font-medium">{list(info.after?.members)}</span></div>
+      </div>
+    ) : (
+      <div className="text-xs"><span className="text-gray-500">Miembros:</span> <span className="text-gray-300">{list(info.members)}</span></div>
+    )
   } else if (['create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper'].includes(row.action)) {
     content = (
       <>
@@ -327,6 +342,7 @@ const HAS_DETAILS_ACTIONS = new Set([
   'update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle',
   'create_expense', 'update_expense', 'delete_expense',
   'create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper',
+  'create_union', 'update_union', 'delete_union',
   'create_diesel', 'update_diesel', 'delete_diesel',
   'create_def', 'update_def', 'delete_def',
   'create_order', 'update_order', 'delete_order',

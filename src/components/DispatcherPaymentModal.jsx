@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
-import { computeTruckBalance, logBalanceChange } from '../lib/balance'
+import { createDispatcherPayment, deleteDispatcherPayment, dispatcherProfileRate } from '../lib/dispatcherPayments'
 
 function useCountUp(target, duration = 600) {
   const [value, setValue] = useState(target)
@@ -77,14 +77,9 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
   const dispatcherName = meta.name || user.email || ''
   const dispatcherEmail = user.email || ''
 
-  // Base commission from profile — per-company, fallback to legacy top-level
+  // Base commission from the profile (per company, month by month)
   const cId = getActiveCompanyId()
-  const companyMeta = (cId && meta.company_settings?.[cId]) || {}
-  const rates = (companyMeta.dispatcher_rates?.length ? companyMeta.dispatcher_rates : null)
-    || (meta.dispatcher_rates?.length ? meta.dispatcher_rates : null)
-    || []
-  const currentMonth = new Date().toISOString().slice(0, 7)
-  const profileRate = (rates.find(r => r.month === currentMonth) || rates[rates.length - 1])?.pct || 0
+  const profileRate = dispatcherProfileRate(user, cId)
 
   // Editable commission % — pre-filled from profile, overrideable per payment
   const [editPct, setEditPct] = useState(String(profileRate))
@@ -186,82 +181,15 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
   async function savePayment() {
     if (!selectedIds.size) return toast.warning('Selecciona al menos una orden')
     setSaving(true)
-    const today = new Date().toISOString().split('T')[0]
-    const sorted = [...selectedOrders].sort((a, b) => (a.pu_date || '') < (b.pu_date || '') ? -1 : 1)
-    const periodStart = sorted[0]?.pu_date || today
-    const periodEnd = sorted[sorted.length - 1]?.do_date || sorted[sorted.length - 1]?.pu_date || today
-
-    const { data: newPayment, error } = await supabase.from('dispatcher_payments').insert({
-      dispatcher_email: dispatcherEmail,
-      dispatcher_name: dispatcherName,
-      gross_revenue: gross,
-      commission_pct: commissionPct,
-      payout,
-      pay_date: today,
-      period_start: periodStart,
-      period_end: periodEnd,
-      order_ids: [...selectedIds],
-      payment_number: payments.length + 1,
-      company_id: cId,
-    }).select().single()
-
-    if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
-
-    // Reflejar el pago como gasto en cada truck/ciclo correspondiente — un dispatcher
-    // puede despachar cargas de varios choferes/trucks, no se mezcla en uno solo
-    const byTruckCycle = {}
-    selectedOrders.forEach(o => {
-      if (!o.truck_id || !o.cycle_id) return
-      const key = `${o.truck_id}|${o.cycle_id}`
-      const commission = (Number(o.rate) || 0) * commissionPct / 100
-      if (!byTruckCycle[key]) byTruckCycle[key] = { truck_id: o.truck_id, cycle_id: o.cycle_id, amount: 0 }
-      byTruckCycle[key].amount += commission
+    const created = await createDispatcherPayment({
+      session, toast, user, orders: selectedOrders, commissionPct, paymentNumber: payments.length + 1,
     })
-    const groups = Object.values(byTruckCycle)
-    // Balance de cada camion involucrado ANTES de insertar los gastos, para poder
-    // mostrar el antes/despues en Auditoria (ver lib/balance.js)
-    const balancesBefore = await Promise.all(groups.map(g => computeTruckBalance(g.truck_id, g.cycle_id)))
-    const expenseRows = groups.map(g => ({
-      truck_id: g.truck_id,
-      cycle_id: g.cycle_id,
-      category: 'Pago Dispatcher',
-      invoice_number: `#${newPayment.payment_number}`,
-      description: `Settlement ${dispatcherName} #${newPayment.payment_number}`,
-      amount: g.amount,
-      date: today,
-      period_start: periodStart,
-      period_end: periodEnd,
-      source_payment_type: 'dispatcher',
-      source_payment_id: newPayment.id,
-      created_by_email: session?.user?.email || null,
-      created_by_name: session?.user?.user_metadata?.name || null,
-    }))
-    if (expenseRows.length > 0) {
-      const { data: insertedExpenses, error: expError } = await supabase.from('expenses').insert(expenseRows).select()
-      if (expError) {
-        toast.error('El pago se guardo pero NO se registro en Gastos: ' + expError.message)
-      } else {
-        const { data: trucksData } = await supabase.from('trucks').select('id, name, number').in('id', groups.map(g => g.truck_id))
-        const truckNameById = Object.fromEntries((trucksData || []).map(t => [t.id, `${t.name} #${t.number}`]))
-        ;(insertedExpenses || []).forEach((exp, i) => {
-          logBalanceChange(session, {
-            action: 'create_expense',
-            entityType: 'expense',
-            entityId: exp.id,
-            entityName: truckNameById[exp.truck_id] || '',
-            truckId: exp.truck_id,
-            cycleId: exp.cycle_id,
-            balanceBefore: balancesBefore[i],
-            extraInfo: { amount: exp.amount, description: exp.description, category: 'Pago Dispatcher' },
-          })
-        })
-      }
+    if (created) {
+      toast.success('Pago registrado correctamente')
+      setShowNew(false)
+      setSelectedIds(new Set())
+      await fetchData()
     }
-
-    toast.success('Pago registrado correctamente')
-    setShowNew(false)
-    setSelectedIds(new Set())
-    await fetchData()
     setSaving(false)
   }
 
@@ -644,25 +572,8 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                           onClick={async () => {
                             const ok = await toast.confirm('¿Eliminar este pago? Tambien se eliminara el gasto registrado en el/los camion(es) correspondiente(s).')
                             if (!ok) return
-                            const { data: deletedExpenses } = await supabase.from('expenses').select('id, truck_id, cycle_id, description, amount').eq('source_payment_id', p.id)
-                            const balancesBefore = await Promise.all((deletedExpenses || []).map(e => computeTruckBalance(e.truck_id, e.cycle_id)))
-                            const { data: trucksData } = await supabase.from('trucks').select('id, name, number').in('id', (deletedExpenses || []).map(e => e.truck_id))
-                            const truckNameById = Object.fromEntries((trucksData || []).map(t => [t.id, `${t.name} #${t.number}`]))
-                            await supabase.from('expenses').delete().eq('source_payment_id', p.id)
-                            await supabase.from('dispatcher_payments').delete().eq('id', p.id)
+                            await deleteDispatcherPayment({ session, payment: p })
                             delete htmlCache.current[p.id]
-                            ;(deletedExpenses || []).forEach((exp, i) => {
-                              logBalanceChange(session, {
-                                action: 'delete_expense',
-                                entityType: 'expense',
-                                entityId: exp.id,
-                                entityName: truckNameById[exp.truck_id] || '',
-                                truckId: exp.truck_id,
-                                cycleId: exp.cycle_id,
-                                balanceBefore: balancesBefore[i],
-                                extraInfo: { amount: exp.amount, description: exp.description, category: 'Pago Dispatcher' },
-                              })
-                            })
                             await fetchData()
                           }}
                           className="ml-auto w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"

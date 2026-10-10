@@ -29,6 +29,7 @@ src/
     OrderLumpers.jsx    - Seccion "Lumper" (7) de OrderDetail, solo ordenes ya guardadas: agregar uno o varios lumpers con recibo (foto/PDF, drag & drop). El scanner (api/scan.js, kind 'lumper') lee monto, lugar, recibo #, fecha, ciudad y notas; el recibo se guarda en Storage (lib/receipts.js). Editar/eliminar/checkbox pagado. Nunca cambia el rate de la orden
     ExpensesTab.jsx     - Tab "Gastos" real usado dentro de TruckView (combina diesel/DEF/expenses en una sola tabla con badge de tipo). Columna "Agregado por" (created_by_name/created_by_email, solo filas de tipo expense/chofer). NOTA: `ExpensesTable.jsx` existe en el repo pero no esta importado en ningun lado — codigo muerto, no confundir con este archivo
     DispatcherPaymentModal.jsx - Modal para pagos a dispatchers. Tabla dispatcher_payments. Historial de pagos (tarjetas expandibles: click muestra resumen de ordenes del pago sin abrir el settlement completo), nuevo pago con seleccion de ordenes, calculo comision, preview HTML del settlement, regenerar, enviar email con PDF. Ordenes elegibles = `paid === true`; ordenes sin pagar se muestran bloqueadas ("Pendientes de pago") — super_admin puede hacer click para override con banner de confirmacion (toast.confirm), otros roles no pueden. SIEMPRE pasa companyId: getActiveCompanyId() a /api/send-settlement en los 3 fetch calls (fetchPreview, sendSettlement preview, sendSettlement send)
+    UnionPaymentModal.jsx - Pagos de una UNION de dispatchers (lo que ven los administradores): historial combinado (un registro por pago de la union, sin decir quien hizo que carga), nuevo pago con las cargas de todos los miembros, enviar los settlements. Al guardar crea un pago NORMAL por dispatcher (sus cargas, su comision del perfil) con union_id/union_group compartidos, asi cada uno tiene su propio settlement con sus cargas
     DriverPaymentModal.jsx - Modal para pagos a conductores (driver/driver_lease). Misma logica que DispatcherPaymentModal: historial expandible, ordenes elegibles = `paid === true` con bloqueo + override de super_admin para las no pagadas. SIEMPRE pasa companyId: getActiveCompanyId() a /api/send-driver-settlement
     PaymentHistory.jsx  - Pagina "Historial de Pagos" que ve cada dispatcher/driver de sus propios pagos (self-service, separado de los modales de admin). Tarjetas expandibles con resumen de ordenes, boton "Ver Settlement" (preview completo) y "Descargar" (PDF real via downloadBase64Pdf)
     Auditoria.jsx       - Log de acciones (audit_log): create/update/delete de trucks, ciclos, ordenes, gastos/diesel/DEF. Detalles de cada fila SIEMPRE visibles (sin click para expandir). Campo "Dispatcher" en detalles de ordenes resuelve email→nombre via directorio de Auth (fetch a /api/invite-user action=list), igual que dispatcherName() en OrdersView
@@ -54,6 +55,8 @@ src/
     lumpers.js          - Datos de lumpers: fetchCycleLumpers/fetchOrderLumpers (NUNCA lanzan: sin la tabla devuelven []), sumUnpaidLumpers. Un lumper toma camion y ciclo de su ORDEN via join (orders!inner), no los copia
     lumperActions.js    - Escrituras de lumpers con Auditoria y balance antes/despues (createLumpers, updateLumper, deleteLumper, setLumpersPaid) + askLumpersOnOrderPaid (pregunta "¿ya se pago el lumper?" al marcar una orden pagada)
     invoiceCache.js     - Cache en memoria de invoices generados; clearInvoiceCache(orderId) lo invalida (OrderDetail al cambiar lumpers)
+    dispatcherUnions.js - loadUnions (nunca lanza), createUnion/updateUnion/deleteUnion (una union con <2 miembros se deshace), unionOf. Miembros = emails en minuscula; un dispatcher en una sola union
+    dispatcherPayments.js - createDispatcherPayment (pago + gastos por camion + auditoria, con union opcional), deleteDispatcherPayment, emailSettlement, dispatcherProfileRate — compartido por DispatcherPaymentModal y UnionPaymentModal
     download.js         - downloadBase64Pdf(base64, filename) para PDFs generados en cliente (settlements). downloadFromUrl(url, filename) hace fetch+blob para forzar descarga real de URLs de Supabase Storage (cross-origin) — el atributo `download` de un `<a>` normal no funciona en esos casos, el navegador abre pestaña nueva en su lugar
     auditLog.js         - logAudit(session, {action, entityType, entityId, entityName, extraInfo}) inserta en tabla audit_log con company_id + user_id/user_email/user_name del actor. diffFields() calcula el diff de campos para logs de update. Cobertura NO es 100%: ordenes creadas via OrdersTable.jsx (quick-add en TruckView) no llaman logAudit, solo las creadas via OrderDetail.jsx
     here.js             - HERE Maps API: geocoding, truck routing (loaded miles + DH), polyline decode. Console warnings en errores
@@ -109,6 +112,7 @@ supabase/
   031_created_by.sql         - created_by_email/created_by_name en orders y expenses (columna "Agregado por" en TruckView, solo aplica hacia adelante, no hay forma de backfillear filas viejas)
   033_receipt_images.sql     - receipt_path en expenses/diesel/def/owner_expenses: foto/PDF del recibo en Storage (order-docs, prefijo receipts/). Varias filas pueden compartir la misma foto (varios recibos en una imagen). Ver lib/receipts.js y ReceiptViewer.jsx
   035_order_lumpers.sql      - Tabla order_lumpers (order_id FK CASCADE, amount, vendor, receipt_number, date, city, notes, receipt_path, paid, paid_at, created_by_*). HAY QUE CORRERLA A MANO en el SQL editor de Supabase; antes de eso la app funciona igual pero sin lumpers
+  037_dispatcher_unions.sql  - Tabla dispatcher_unions (company_id, name, members text[]) + union_id/union_group en dispatcher_payments. Correr a mano; antes de eso la app funciona sin uniones
   034_ifta.sql               - IFTA: company_settings.features (jsonb, { ifta: true } por empresa, Configuracion > Modulos), trucks.ifta (solo dry van), orders.state_miles (millas por estado de la ruta HERE, loaded/empty), tabla ifta_filings (trimestres declarados)
 ```
 
@@ -280,6 +284,12 @@ All tables have RLS enabled with open policies (no auth yet).
 - Preview del settlement: fetch a /api/send-settlement (o send-driver-settlement) con `action: 'preview'` + `companyId`
 - PDF generado en cliente con html2canvas + jsPDF, luego enviado como adjunto
 - PagoDispatchers muestra badge "Sin activar" para usuarios con `needs_password !== false` y sin historial de login — greyed out, no clickable
+
+### Uniones de dispatchers (Pago Dispatchers)
+- Solo el **super admin** crea/edita uniones: Alt+Shift+U = modo union (arrastrar un dispatcher sobre otro pide el nombre; sobre una union lo agrega), tabla "Uniones" (renombrar, sacar miembros, agregar, deshacer, + Nueva union para tactil). Alt+Shift+V alterna ver los dispatchers **separados** (solo super admin)
+- Los **administradores** (y el super admin en vista unida) ven solo la union: sus miembros desaparecen de la lista, historial combinado, sin saber quien hizo cual carga. Pueden pagar (UnionPaymentModal) pero no unir/editar
+- Pagar una union = un pago normal por dispatcher (dispatcher_payments + gastos por camion como siempre) con `union_id` y `union_group` compartidos; cada dispatcher recibe SU settlement (un documento por pago, con sus cargas y su %). El historial self-service de cada dispatcher (PaymentHistory) no cambia
+- Ojo: la lista de Ordenes y el detalle de la orden siguen mostrando el dispatcher; el ocultamiento aplica a la seccion de Pagos
 
 ### Email de Invoice (api/send-invoice.js)
 - **Envio directo**: click "Enviar Email" → modal de confirmacion con switches
