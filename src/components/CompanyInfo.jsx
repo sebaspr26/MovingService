@@ -10,11 +10,11 @@ import { downloadFromUrl } from '../lib/download'
 import { auditedDriverWrite } from '../lib/balance'
 import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 
+// The Trailers tab is hidden (no trailers registered, no function yet); SectionTrailers below is kept to bring it back
 const SECTIONS = [
   { key: 'company_docs', label: 'Company Documents', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /> },
   { key: 'choferes', label: 'Choferes', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /> },
   { key: 'camiones', label: 'Camiones', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /> },
-  { key: 'trailers', label: 'Trailers', icon: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5h10.5m-10.5 3h10.5M3.75 18h16.5M3.75 12h16.5m-16.5 3h16.5" /> },
 ]
 
 export default function CompanyInfo() {
@@ -24,7 +24,7 @@ export default function CompanyInfo() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Informaci&oacute;n de la Compa&ntilde;&iacute;a</h1>
-        <p className="text-sm text-gray-500 mt-1">Documentos, choferes, camiones y trailers</p>
+        <p className="text-sm text-gray-500 mt-1">Documentos, choferes y camiones</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -51,7 +51,6 @@ export default function CompanyInfo() {
           {activeSection === 'company_docs' && <SectionCompanyDocs />}
           {activeSection === 'choferes' && <SectionChoferes />}
           {activeSection === 'camiones' && <SectionCamiones />}
-          {activeSection === 'trailers' && <SectionTrailers />}
         </div>
       </div>
     </div>

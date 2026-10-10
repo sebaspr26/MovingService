@@ -63,7 +63,6 @@ export const MODULES = [
     subs: [
       { key: 'choferes', label: 'Choferes' },
       { key: 'camiones_docs', label: 'Documentos de camiones' },
-      { key: 'trailers', label: 'Trailers' },
       { key: 'documentos_empresa', label: 'Documentos de empresa' },
     ],
   },
