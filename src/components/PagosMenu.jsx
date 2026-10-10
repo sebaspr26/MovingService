@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { canAccess } from '../lib/permissions'
 
 export default function PagosMenu() {
+  const { session } = useAuth()
   return (
     <div className="flex flex-col items-center pt-4 pb-2">
       <div className="flex flex-col items-center text-center mb-8">
@@ -17,6 +20,7 @@ export default function PagosMenu() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
+        {canAccess(session, 'pagos', 'pago_dispatchers') && (
         <Link
           to="/pagos/dispatchers"
           className="group relative flex items-center gap-4 p-5 rounded-2xl transition-all active:scale-95"
@@ -38,7 +42,9 @@ export default function PagosMenu() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>
         </Link>
+        )}
 
+        {canAccess(session, 'pagos', 'pago_conductores') && (
         <Link
           to="/pagos/conductores"
           className="group relative flex items-center gap-4 p-5 rounded-2xl transition-all active:scale-95"
@@ -60,6 +66,7 @@ export default function PagosMenu() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>
         </Link>
+        )}
       </div>
     </div>
   )

@@ -50,6 +50,8 @@ const ACTIONS = {
   create_union: { label: 'Unión de dispatchers creada', color: 'emerald', icon: ICON.create },
   update_union: { label: 'Unión de dispatchers editada', color: 'blue', icon: ICON.update },
   delete_union: { label: 'Unión de dispatchers deshecha', color: 'red', icon: ICON.delete },
+  update_maintenance: { label: 'Mantenimiento configurado', color: 'blue', icon: ICON.update },
+  service_maintenance: { label: 'Mantenimiento realizado', color: 'emerald', icon: ICON.cycle },
   update_driver: { label: 'Chofer editado', color: 'blue', icon: ICON.update },
   delete_driver: { label: 'Chofer eliminado', color: 'red', icon: ICON.delete },
 }
@@ -220,6 +222,23 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Cuadre caja:</span> <span className="text-gray-300">{info.cuadre_caja != null ? fmtMoney(info.cuadre_caja) : '—'}</span></div>
       </div>
     )
+  } else if (row.action === 'update_maintenance') {
+    content = (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Cada:</span> <span className="text-gray-300">{fmtVal(info.interval_miles)} mi</span></div>
+        <div><span className="text-gray-500">Aviso a las:</span> <span className="text-gray-300">{info.warn_miles ? `${info.warn_miles} mi` : '—'}</span></div>
+        <div><span className="text-gray-500">Contar desde:</span> <span className="text-gray-300">{fmtVal(info.counting_from)}</span></div>
+        <div><span className="text-gray-500">Millas iniciales:</span> <span className="text-gray-300">{fmtVal(info.start_miles)}</span></div>
+      </div>
+    )
+  } else if (row.action === 'service_maintenance') {
+    content = (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Fecha:</span> <span className="text-gray-300">{fmtVal(info.serviced_at)}</span></div>
+        <div><span className="text-gray-500">Millas del contador:</span> <span className="text-gray-300">{info.miles_at != null ? Math.round(info.miles_at) : '—'}</span></div>
+        {info.notes && <div className="col-span-2"><span className="text-gray-500">Notas:</span> <span className="text-gray-300">{info.notes}</span></div>}
+      </div>
+    )
   } else if (['create_union', 'update_union', 'delete_union'].includes(row.action)) {
     const list = a => (a || []).join(', ') || '—'
     content = row.action === 'update_union' ? (
@@ -346,7 +365,7 @@ const HAS_DETAILS_ACTIONS = new Set([
   'update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle',
   'create_expense', 'update_expense', 'delete_expense',
   'create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper',
-  'create_union', 'update_union', 'delete_union',
+  'create_union', 'update_union', 'delete_union', 'update_maintenance', 'service_maintenance',
   'create_diesel', 'update_diesel', 'delete_diesel',
   'create_def', 'update_def', 'delete_def',
   'create_order', 'update_order', 'delete_order',

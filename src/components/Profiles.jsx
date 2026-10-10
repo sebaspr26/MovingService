@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useToast } from './Toast'
-import { MODULES, defaultPermissions } from '../lib/permissions'
+import { MODULES, defaultPermissions, legacyModuleDefaults } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import { supabase } from '../lib/supabase'
 
@@ -511,9 +511,13 @@ export default function Profiles() {
     const defaults = defaultPermissions()
     const existing = companyMeta.permissions || user.user_metadata?.permissions || {}
     const merged = {}
+    const role = user.user_metadata?.role
     for (const mod of MODULES) {
+      // Modulos nuevos que este usuario nunca tuvo guardados: se muestran como los daba
+      // su rol hasta ahora, para que guardar los permisos no le quite el acceso que ya tenia
+      const base = existing[mod.key] ? defaults[mod.key] : (legacyModuleDefaults(role, mod.key) || defaults[mod.key])
       merged[mod.key] = {
-        ...defaults[mod.key],
+        ...base,
         ...(existing[mod.key] || {}),
       }
     }

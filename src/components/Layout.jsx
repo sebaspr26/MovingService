@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { useTheme } from '../lib/theme'
 import CompanyWizard from './CompanyWizard'
+import MaintenanceBell from './MaintenanceBell'
 import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
 import { getOrdersCache, refreshOrders } from '../lib/ordersData'
 import { loadAuthUsers, readPageCache, writePageCache } from '../lib/pageCache'
@@ -91,6 +92,9 @@ export default function Layout() {
   // Drivers no pueden cambiar de empresa
   const isDriver = ['driver', 'driver_lease'].includes(userMeta.role)
   const canSwitchCompany = !isDriver
+  // Mantenimiento (pagina) y su campanita: se activan por usuario en Perfiles
+  const canSeeMaintenance = canAccess(session, 'mantenimiento')
+  const canGetMaintenanceAlerts = canAccess(session, 'mantenimiento', 'alertas')
 
   async function handleSwitchCompany(id) {
     setShowSwitcher(false)
@@ -108,7 +112,7 @@ export default function Layout() {
   }
   const location = useLocation()
   const navigate = useNavigate()
-  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers', '/historial-pagos', '/auditoria', '/reportes', '/reportes/ifta', '/reportes/auditoria']
+  const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers', '/historial-pagos', '/auditoria', '/mantenimiento', '/reportes', '/reportes/ifta', '/reportes/auditoria']
   const isSubPage = !topLevelPaths.includes(location.pathname)
   const [showMobileUserMenu, setShowMobileUserMenu] = useState(false)
   const [showMobileSwitcher, setShowMobileSwitcher] = useState(false)
@@ -153,6 +157,12 @@ export default function Layout() {
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />,
     },
     {
+      to: '/mantenimiento',
+      maintenanceOnly: true,
+      label: 'Mantenimiento',
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z" />,
+    },
+    {
       to: '/profiles',
       superAdminOnly: true,
       label: 'Perfiles',
@@ -181,13 +191,19 @@ export default function Layout() {
 
   const allFiltered = allNavItems.filter(item => {
     if (item.superAdminOnly) return isSuperAdmin(session)
+    if (item.maintenanceOnly) return canSeeMaintenance
     if (item.notSuperAdmin) return !isSuperAdmin(session)
     if (item.moduleKey) return canAccess(session, item.moduleKey)
     return true
   })
   const navItems = allFiltered.filter(i => !i.secondary)
   const secondaryNavItems = allFiltered.filter(i => i.secondary)
-  const showPagosSection = isSuperAdmin(session) || userMeta.role === 'admin'
+  const canPayDispatchers = canAccess(session, 'pagos', 'pago_dispatchers')
+  const canPayDrivers = canAccess(session, 'pagos', 'pago_conductores')
+  const showPagosSection = canPayDispatchers || canPayDrivers
+  const canSeeIfta = canAccess(session, 'reportes', 'ifta') && hasFeature(activeCompany, 'ifta')
+  const canSeeAuditoria = canAccess(session, 'reportes', 'auditoria')
+  const showReportesSection = canSeeIfta || canSeeAuditoria
 
   return (
     <div className="h-screen overflow-hidden bg-gray-950 text-gray-100 flex">
@@ -349,7 +365,7 @@ export default function Layout() {
               </NavLink>
             ))}
 
-            {/* Pagos — solo admin/super_admin */}
+            {/* Pagos — segun los permisos del usuario (Perfiles) */}
             {showPagosSection && (
               <NavSection
                 label="Pagos"
@@ -357,22 +373,22 @@ export default function Layout() {
                 collapsed={collapsed}
                 icon="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
                 items={[
-                  { to: '/pagos/conductores', label: 'Pago Conductores', icon: 'M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' },
-                  { to: '/pagos/dispatchers', label: 'Pago Dispatchers', icon: 'M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155' },
+                  canPayDrivers && { to: '/pagos/conductores', label: 'Pago Conductores', icon: 'M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' },
+                  canPayDispatchers && { to: '/pagos/dispatchers', label: 'Pago Dispatchers', icon: 'M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155' },
                 ]}
               />
             )}
 
-            {/* Reportes — solo super_admin */}
-            {isSuperAdmin(session) && (
+            {/* Reportes — IFTA y Auditoria, segun los permisos del usuario (Perfiles) */}
+            {showReportesSection && (
               <NavSection
                 label="Reportes"
                 color="blue"
                 collapsed={collapsed}
                 icon="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
                 items={[
-                  hasFeature(activeCompany, 'ifta') && { to: '/reportes/ifta', label: 'IFTA', icon: 'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z' },
-                  { to: '/reportes/auditoria', label: 'Auditoría', icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25' },
+                  canSeeIfta && { to: '/reportes/ifta', label: 'IFTA', icon: 'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z' },
+                  canSeeAuditoria && { to: '/reportes/auditoria', label: 'Auditoría', icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25' },
                 ]}
               />
             )}
@@ -539,6 +555,8 @@ export default function Layout() {
 
           <div className="flex-1" />
 
+          {canGetMaintenanceAlerts && <div className="mr-1.5"><MaintenanceBell /></div>}
+
           {/* User avatar */}
           <button
             onClick={() => setShowMobileUserMenu(v => !v)}
@@ -651,6 +669,13 @@ export default function Layout() {
             </>
           )}
         </header>
+
+        {/* Desktop top bar: maintenance bell */}
+        {canGetMaintenanceAlerts && (
+          <div className="hidden lg:flex items-center justify-end h-11 px-6 border-b border-gray-800/60 shrink-0">
+            <MaintenanceBell />
+          </div>
+        )}
 
         <main className="main-scroll flex-1 min-h-0 p-3 sm:p-6 overflow-auto pb-nav">
           <div key={location.pathname} className="animate-tab-in">

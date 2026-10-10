@@ -23,6 +23,7 @@ import PaymentHistory from './components/PaymentHistory'
 import Auditoria from './components/Auditoria'
 import ReportesMenu from './components/ReportesMenu'
 import Ifta from './components/Ifta'
+import Maintenance from './components/Maintenance'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess, canDelete } from './lib/permissions'
@@ -103,18 +104,19 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="profiles" element={isSuperAdmin(session) ? <Profiles /> : <Navigate to="/" replace />} />
           {/* Reportes (super_admin): IFTA + Auditoría. /auditoria kept as a redirect for old links */}
-          <Route path="reportes" element={isSuperAdmin(session) ? <ReportesMenu /> : <Navigate to="/" replace />} />
-          <Route path="reportes/ifta" element={isSuperAdmin(session) ? <Ifta /> : <Navigate to="/" replace />} />
-          <Route path="reportes/auditoria" element={isSuperAdmin(session) ? <Auditoria /> : <Navigate to="/" replace />} />
+          <Route path="reportes" element={canAccess(session, 'reportes') ? <ReportesMenu /> : <Navigate to="/" replace />} />
+          <Route path="reportes/ifta" element={canAccess(session, 'reportes', 'ifta') ? <Ifta /> : <Navigate to="/" replace />} />
+          <Route path="reportes/auditoria" element={canAccess(session, 'reportes', 'auditoria') ? <Auditoria /> : <Navigate to="/" replace />} />
           <Route path="auditoria" element={<Navigate to="/reportes/auditoria" replace />} />
           <Route path="informacion" element={<Informacion />} />
           <Route path="conductores" element={<DispatcherDrivers />} />
-          <Route path="pagos" element={<PagosMenu />} />
-          <Route path="pagos/conductores" element={<PagoConductores />} />
-          <Route path="pagos/dispatchers" element={<PagoDispatchers />} />
+          <Route path="pagos" element={canAccess(session, 'pagos') ? <PagosMenu /> : <Navigate to="/" replace />} />
+          <Route path="pagos/conductores" element={canAccess(session, 'pagos', 'pago_conductores') ? <PagoConductores /> : <Navigate to="/" replace />} />
+          <Route path="pagos/dispatchers" element={canAccess(session, 'pagos', 'pago_dispatchers') ? <PagoDispatchers /> : <Navigate to="/" replace />} />
           <Route path="inicio" element={<Inicio />} />
           <Route path="profile" element={<UserProfile />} />
           <Route path="historial-pagos" element={<PaymentHistory />} />
+          <Route path="mantenimiento" element={canAccess(session, 'mantenimiento') ? <Maintenance /> : <Navigate to="/" replace />} />
         </Route>
 
         {/* Welcome — pantalla sin sidebar para usuarios con acceso limitado */}

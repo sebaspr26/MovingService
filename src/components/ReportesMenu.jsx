@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useCompany } from '../context/CompanyContext'
 import { hasFeature } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
+import { canAccess } from '../lib/permissions'
 
 export default function ReportesMenu() {
   const { activeCompany } = useCompany()
-  const iftaOn = hasFeature(activeCompany, 'ifta')
+  const { session } = useAuth()
+  const iftaOn = hasFeature(activeCompany, 'ifta') && canAccess(session, 'reportes', 'ifta')
+  const auditoriaOn = canAccess(session, 'reportes', 'auditoria')
   return (
     <div className="flex flex-col items-center pt-4 pb-2">
       <div className="flex flex-col items-center text-center mb-8">
@@ -45,6 +49,7 @@ export default function ReportesMenu() {
         </Link>
         )}
 
+        {auditoriaOn && (
         <Link
           to="/reportes/auditoria"
           className="group relative flex items-center gap-4 p-5 rounded-2xl transition-all active:scale-95"
@@ -66,6 +71,7 @@ export default function ReportesMenu() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>
         </Link>
+        )}
       </div>
     </div>
   )
