@@ -4,7 +4,7 @@ export const STATUS_CONFIG = {
   in_transit: { label: 'En Transito', color: 'orange',  bg: 'bg-orange-600/30',  text: 'text-orange-300',  border: 'border-orange-500/60' },
   delivered:  { label: 'Entregada',   color: 'cyan',    bg: 'bg-cyan-600/30',    text: 'text-cyan-300',    border: 'border-cyan-500/60' },
   invoiced:   { label: 'Facturada',   color: 'green',   bg: 'bg-emerald-600/30', text: 'text-emerald-300', border: 'border-emerald-500/60' },
-  paid:       { label: 'Pagado',      color: 'violet',  bg: 'bg-violet-600/30',  text: 'text-violet-300',  border: 'border-violet-500/60' },
+  paid:       { label: 'Pago',        color: 'violet',  bg: 'bg-violet-600/30',  text: 'text-violet-300',  border: 'border-violet-500/60' },
   tonu:       { label: 'TONU',        color: 'red',     bg: 'bg-red-600/30',     text: 'text-red-300',     border: 'border-red-500/60' },
   canceled:   { label: 'Cancelada',   color: 'gray',    bg: 'bg-gray-700/40',    text: 'text-gray-400',    border: 'border-gray-600/50' },
 }
