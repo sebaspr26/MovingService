@@ -555,11 +555,22 @@ export default function Profiles() {
     return date.toLocaleDateString('es-US', { month: 'short', year: 'numeric' })
   }
 
+  // Turning a module ON turns all its permissions on too: it's quicker to switch off the
+  // few you don't want than to switch on each one. Turning it OFF leaves them as they are.
+  // (Only the editor changes; permissions already saved for users are not touched.)
   function toggleModule(modKey) {
-    setPerms(prev => ({
-      ...prev,
-      [modKey]: { ...prev[modKey], enabled: !prev[modKey]?.enabled },
-    }))
+    const subs = MODULES.find(m => m.key === modKey)?.subs || []
+    setPerms(prev => {
+      const enabling = !prev[modKey]?.enabled
+      return {
+        ...prev,
+        [modKey]: {
+          ...prev[modKey],
+          enabled: enabling,
+          ...(enabling && Object.fromEntries(subs.map(sub => [sub.key, true]))),
+        },
+      }
+    })
   }
 
   function toggleSub(modKey, subKey) {
