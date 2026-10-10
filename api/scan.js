@@ -128,6 +128,35 @@ Rules:
 - Receipts are from the current operational year; use the current year for every date.
 - Return ONLY valid JSON, no markdown, no explanation.`
 
+// Lumper receipts (unloading fee paid at a shipper/receiver). Only the data that
+// matters for billing and reimbursement is extracted; the photo itself is kept.
+const LUMPER_PROMPT = `You are reading LUMPER receipts for a trucking company. A lumper receipt is the ticket or invoice for the unloading/loading labor fee a driver paid at a warehouse, shipper or receiver (names like "Lumper Service", "Lumper Receipt", "Unloading Fee", "Capstone Logistics", "Comdata lumper", "Lumper Express", "Unloading Services").
+
+The image may contain ONE OR SEVERAL separate lumper receipts photographed together. Extract EACH receipt separately; never merge two receipts and never drop one.
+
+Return ONLY valid JSON in this format:
+{
+  "receipts": [
+    {
+      "vendor": "string (lumper company or warehouse that charged the fee)",
+      "receipt_number": "string (receipt / ticket / invoice / transaction number)",
+      "date": "YYYY-MM-DD",
+      "city": "CITY, ST",
+      "amount": number (TOTAL actually charged/paid for the lumper, including any fees or tips shown in the total),
+      "notes": "string (short extra detail useful for billing: load/PO/BOL/pickup number, door, pallets or hours; empty if none)"
+    }
+  ]
+}
+
+Rules:
+- "amount" is the final total paid for that receipt. If you see a subtotal and a total, use the total. Use 0 if unreadable.
+- One object in "receipts" per physical receipt, in the order they appear (left to right, top to bottom).
+- Use "" for text you can't read.
+- City MUST be "CITY, ST" with the US state abbreviation.
+- Source dates are US format mm/dd/yyyy (MONTH first). "6/1/2026" means June 1st -> "2026-06-01".
+- Receipts are from the current operational year; use the current year for every date.
+- Return ONLY valid JSON, no markdown, no explanation.`
+
 async function postOpenRouter(body) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -170,7 +199,7 @@ export default async function handler(req, res) {
 
   const body = {
     model: MODEL,
-    messages: [{ role: 'user', content: [{ type: 'text', text: kind === 'receipt' ? RECEIPT_PROMPT : PROMPT }, attachment] }],
+    messages: [{ role: 'user', content: [{ type: 'text', text: kind === 'lumper' ? LUMPER_PROMPT : kind === 'receipt' ? RECEIPT_PROMPT : PROMPT }, attachment] }],
     response_format: { type: 'json_object' },
     temperature: 0.1,
     max_tokens: MAX_OUTPUT_TOKENS,

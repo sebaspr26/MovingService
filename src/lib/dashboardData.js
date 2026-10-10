@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { getAllowedTruckIds } from './permissions'
 import { leaseDriverDebit } from './orders'
+import { fetchCycleLumpers, sumUnpaidLumpers } from './lumpers'
 
 // Dashboard data in two waves of requests. It used to ask truck by truck
 // (cycle, then 7 queries each, 3 waves in a row). From Colombia every round
@@ -48,12 +49,14 @@ function summarize(truck, cycle, rows, leaseDriver, settledOrderIds) {
   const expenseTotal = sum(rows.expenses, 'amount')
   const acctDebit = sum(rows.accounting, 'debit')
   const acctCredit = sum(rows.accounting, 'credit')
+  // Lumpers still unpaid count as an expense; reimbursed ones stop counting
+  const lumperTotal = sumUnpaidLumpers(rows.lumpers)
   // LEASE: "pago al conductor" debita la parte del conductor, salvo ordenes ya
   // cubiertas por un pago registrado (esas van como gasto "Pago Chofer")
   const driverPayout = truck.is_lis ? leaseDriverDebit(paidOrders, leaseDriver, settledOrderIds) : 0
 
   const previousBalance = Number(cycle.previous_balance) || 0
-  const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout
+  const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout + lumperTotal
   const totalCredito = previousBalance + netIncome + acctCredit
   return { income: totalCredito, expenses: totalDebito, balance: totalCredito - totalDebito, pendingCount, pendingAmount }
 }
@@ -112,17 +115,20 @@ export async function loadDashboard(session, companyId) {
 
   const rowsOf = {}
   if (cycleIds.length) {
-    const [orders, diesel, def, expenses, accounting] = await Promise.all([
+    const [orders, diesel, def, expenses, accounting, lumpers] = await Promise.all([
       supabase.from('orders').select('cycle_id, id, rate, paid, apply_discount, discount_percent, dispatcher_paid').in('cycle_id', cycleIds),
       supabase.from('diesel').select('cycle_id, value').in('cycle_id', cycleIds),
       supabase.from('def').select('cycle_id, value').in('cycle_id', cycleIds),
       supabase.from('expenses').select('cycle_id, amount').in('cycle_id', cycleIds),
       supabase.from('accounting').select('cycle_id, debit, credit').in('cycle_id', cycleIds),
+      fetchCycleLumpers(cycleIds),
     ])
     for (const [key, res] of Object.entries({ orders, diesel, def, expenses, accounting })) {
       if (res.error) throw res.error
       rowsOf[key] = byKey(res.data, 'cycle_id')
     }
+    // A lumper's cycle is its order's
+    rowsOf.lumpers = byKey(lumpers.map(l => ({ ...l, cycle_id: l.orders.cycle_id })), 'cycle_id')
   }
 
   const paymentsByTruck = byKey(payments, 'truck_id')
@@ -130,7 +136,7 @@ export async function loadDashboard(session, companyId) {
   for (const t of trucks) {
     const cycle = cycles[t.id]
     if (!cycle) { summaries[t.id] = EMPTY; continue }
-    const rows = Object.fromEntries(['orders', 'diesel', 'def', 'expenses', 'accounting'].map(k => [k, rowsOf[k]?.[cycle.id] || []]))
+    const rows = Object.fromEntries(['orders', 'diesel', 'def', 'expenses', 'accounting', 'lumpers'].map(k => [k, rowsOf[k]?.[cycle.id] || []]))
     const leaseDriver = (allDrivers || []).find(d => d.truck_id === t.id && d.status === 'active') || null
     const settled = new Set((paymentsByTruck[t.id] || []).flatMap(p => p.order_ids || []))
     summaries[t.id] = summarize(t, cycle, rows, leaseDriver && { pay_mode: leaseDriver.pay_mode, pay_rate: leaseDriver.pay_rate }, settled)

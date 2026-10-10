@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { askLumpersOnOrderPaid } from '../lib/lumperActions'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { STATUS_CONFIG, ALL_STATUSES, fmt } from '../lib/orders'
@@ -300,6 +301,14 @@ export default function OrdersView() {
     }
   }
 
+  // Order just became paid: if it has unpaid lumpers, ask whether they were paid too
+  function askLumpers(order) {
+    askLumpersOnOrderPaid(session, toast, {
+      orderId: order.id, orderNumber: order.order_number, truckId: order.truck_id, cycleId: order.cycle_id,
+      truckName: truckMap[order.truck_id]?.name,
+    })
+  }
+
   async function handleTogglePaid(row) {
     const wasPaid = row.paid
     const newPaid = !wasPaid
@@ -311,7 +320,9 @@ export default function OrdersView() {
       () => supabase.from('orders').update(updates).eq('id', row.id))
     if (error) {
       setOrders(prev => prev.map(o => o.id === row.id ? { ...o, paid: wasPaid, status: row.status } : o))
+      return
     }
+    if (newPaid) askLumpers(row)
   }
 
   async function handleStatusChange(orderId, newStatus) {
@@ -335,6 +346,7 @@ export default function OrdersView() {
     } else {
       await write()
     }
+    if (order && updates.paid === true && !order.paid) askLumpers(order)
     // After the status is saved, so the recalculation sees it
     if (runsChanged && order.truck_id && order.pu_date) {
       refreshFollowingDeadheads({ truckId: order.truck_id, fromDate: order.pu_date, excludeOrderId: order.id, session })

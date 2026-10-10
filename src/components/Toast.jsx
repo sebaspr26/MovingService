@@ -84,7 +84,7 @@ export function ToastProvider({ children }) {
                 onClick={() => handleConfirm(false)}
                 className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
               >
-                Cancelar
+                {confirmState.cancelText || 'Cancelar'}
               </button>
               <button
                 onClick={() => handleConfirm(true)}

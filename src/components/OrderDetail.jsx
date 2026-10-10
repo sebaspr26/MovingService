@@ -15,6 +15,9 @@ import { logAudit } from '../lib/auditLog'
 import { computeTruckBalance, logBalanceChange, auditedBalanceWrite } from '../lib/balance'
 import OrderDocuments from './OrderDocuments'
 import OrderInvoice from './OrderInvoice'
+import OrderLumpers from './OrderLumpers'
+import { clearInvoiceCache } from '../lib/invoiceCache'
+import { askLumpersOnOrderPaid } from '../lib/lumperActions'
 import DatePicker from './DatePicker'
 import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
@@ -1144,6 +1147,13 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         await write()
       }
       savedRef.current = { ...saved, status: newStatus, ...('paid' in updates && { paid: updates.paid }) }
+      // Order just became paid: if it has unpaid lumpers, ask whether they were paid too
+      if (updates.paid === true && !saved.paid) {
+        askLumpersOnOrderPaid(session, toast, {
+          orderId: id, orderNumber: orderNumber.trim(), truckId: saved.truck_id, cycleId: saved.cycle_id,
+          truckName: trucks.find(t => t.id === saved.truck_id)?.name,
+        })
+      }
     }
   }
 
@@ -1811,6 +1821,24 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               </div>
             )}
           </div>
+
+          {/* Lumper — receipts we paid on this load; never changes the load's value */}
+          {isNew ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-amber-600/20 text-amber-400 text-[11px] font-bold flex items-center justify-center shrink-0">7</span>
+              <h2 className="text-sm font-semibold text-white">Lumper</h2>
+              <span className="text-[11px] text-gray-600">Guarda la orden para poder agregar lumpers con su recibo</span>
+            </div>
+          ) : (
+            <OrderLumpers
+              orderId={id}
+              orderNumber={orderNumber}
+              truckId={savedRef.current?.truck_id ?? (truckId || null)}
+              cycleId={savedRef.current?.cycle_id ?? cycleId}
+              truckName={trucks.find(t => t.id === (savedRef.current?.truck_id ?? truckId))?.name}
+              onChange={() => clearInvoiceCache(id)}
+            />
+          )}
         </div>
 
         {/* Right column — sidebar (1/3) */}

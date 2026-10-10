@@ -13,7 +13,7 @@ const fields = [
   { name: 'credit', label: 'Credito ($)', type: 'number', step: '0.01' },
 ]
 
-export default function AccountingTable({ truckId, truckName, period, cycle, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, discountPct, readOnly, previousBalance }) {
+export default function AccountingTable({ truckId, truckName, period, cycle, onDataChange, netIncome, totalDiesel, totalDef, totalChofer, totalExpenses, totalLumper, discountPct, readOnly, previousBalance }) {
   const toast = useToast()
   const { session } = useAuth()
   const [rows, setRows] = useState([])
@@ -106,6 +106,7 @@ export default function AccountingTable({ truckId, truckName, period, cycle, onD
     { description: 'Total DEF', reference: 'Auto', debit: totalDef || 0, credit: 0 },
     { description: 'Pago Chofer', reference: 'Auto', debit: totalChofer || 0, credit: 0 },
     { description: 'Total Gastos', reference: 'Auto', debit: totalExpenses || 0, credit: 0 },
+    ...(totalLumper > 0 ? [{ description: 'Lumper sin pagar', reference: 'Auto', debit: totalLumper, credit: 0 }] : []),
   ]
 
   const q = search.toLowerCase()
@@ -123,7 +124,7 @@ export default function AccountingTable({ truckId, truckName, period, cycle, onD
 
   const manualDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0)
   const manualCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0)
-  const autoDebit = (totalDiesel || 0) + (totalDef || 0) + (totalChofer || 0) + (totalExpenses || 0)
+  const autoDebit = (totalDiesel || 0) + (totalDef || 0) + (totalChofer || 0) + (totalExpenses || 0) + (totalLumper || 0)
   const autoCredit = prevBal + (netIncome || 0)
   const totalDebit = autoDebit + manualDebit
   const totalCredit = autoCredit + manualCredit

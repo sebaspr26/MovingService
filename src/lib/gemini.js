@@ -15,8 +15,9 @@ const MAX_IMAGE_SIDE = 2400
 // Global lock — prevents duplicate calls from StrictMode or double clicks
 let isProcessing = false
 
-// kind: 'receipt' for the expenses screen (returns { receipts: [...] }, one per
-// receipt in the image); anything else uses the general receipt/RC prompt
+// kind: 'receipt' for the expenses screen and 'lumper' for lumper receipts (both
+// return { receipts: [...] }, one per receipt in the image); anything else uses
+// the general receipt/RC prompt
 export async function analyzeReceipt(imageFile, { kind } = {}) {
   if (isProcessing) throw new Error('Ya se esta procesando una imagen. Espera un momento.')
 

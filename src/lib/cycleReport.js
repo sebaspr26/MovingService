@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { orderNet, leaseDriverDebit, STATUS_CONFIG } from './orders'
+import { fetchCycleLumpers } from './lumpers'
 import { computeTruckBalance } from './balance'
 import { getCompanySettings, getLogoUrl } from './company'
 import { htmlToPdfBase64 } from './pdf'
@@ -37,7 +38,7 @@ async function loadCycleData(cycleId) {
   if (error || !cycle) throw new Error('No se encontro el ciclo')
   const truckId = cycle.truck_id
 
-  const [truckRes, orders, diesel, def, expenses, accounting, ownerExpenses, partners, driverRes, driverPayments, dispatcherNames] = await Promise.all([
+  const [truckRes, orders, diesel, def, expenses, accounting, ownerExpenses, partners, driverRes, driverPayments, lumpers, dispatcherNames] = await Promise.all([
     supabase.from('trucks').select('*').eq('id', truckId).single(),
     supabase.from('orders').select('*').eq('truck_id', truckId).eq('cycle_id', cycleId).order('pu_date'),
     supabase.from('diesel').select('*').eq('truck_id', truckId).eq('cycle_id', cycleId),
@@ -48,6 +49,7 @@ async function loadCycleData(cycleId) {
     supabase.from('partners').select('*').eq('truck_id', truckId).order('created_at'),
     supabase.from('drivers').select('name, pay_mode, pay_rate').eq('truck_id', truckId).eq('status', 'active').limit(1).maybeSingle(),
     supabase.from('driver_payments').select('order_ids').eq('truck_id', truckId),
+    fetchCycleLumpers([cycleId]),
     loadDispatcherNames(),
   ])
   const truck = truckRes.data
@@ -67,6 +69,7 @@ async function loadCycleData(cycleId) {
     def: def.data || [],
     expenses: expenses.data || [],
     accounting: accounting.data || [],
+    lumpers,
     ownerExpenses: ownerExpenses.data || [],
     partners: partners.data || [],
     leaseDriver: driverRes.data,
@@ -79,7 +82,7 @@ async function loadCycleData(cycleId) {
 
 // Every movement that changes the balance, one row each — the same pieces that
 // computeTruckBalance adds up (credits: previous balance, net of paid orders,
-// accounting credits; debits: diesel, DEF, expenses, accounting debits, lease
+// accounting credits; debits: diesel, DEF, expenses, unpaid lumpers, accounting debits, lease
 // driver payout)
 function buildLedger(d) {
   const discountPct = Number(d.truck.discount_percent) || 13
@@ -116,6 +119,15 @@ function buildLedger(d) {
   for (const r of d.expenses) {
     const isDriverPay = r.source_payment_type || r.category === 'Pago Chofer'
     rows.push({ date: r.date, kind: isDriverPay ? 'Pago chofer' : `Gasto · ${r.category || 'Otros'}`, desc: r.description || '—', sub: r.invoice_number && r.invoice_number !== 'REC' ? `Factura ${r.invoice_number}` : '', by: by(r), credit: 0, debit: Number(r.amount) || 0, sort: 4 })
+  }
+  // An unpaid lumper is an expense; a reimbursed one is listed but moves nothing
+  for (const r of d.lumpers) {
+    rows.push({
+      date: r.date || r.orders?.pu_date, kind: 'Lumper',
+      desc: [r.vendor || 'Lumper', r.orders?.order_number && `Orden #${r.orders.order_number}`].filter(Boolean).join(' · '),
+      sub: [r.receipt_number && `Recibo ${r.receipt_number}`, r.paid && 'Pagado — ya no cuenta como gasto'].filter(Boolean).join(' · '),
+      by: r.created_by_name || r.created_by_email || '', credit: 0, debit: r.paid ? 0 : Number(r.amount) || 0, sort: 4,
+    })
   }
   for (const r of d.accounting) {
     rows.push({ date: r.date, kind: 'Contabilidad', desc: r.description || '—', sub: r.reference ? `Ref. ${r.reference}` : '', by: '', credit: Number(r.credit) || 0, debit: Number(r.debit) || 0, sort: 5 })

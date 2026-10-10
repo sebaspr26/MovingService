@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { getActiveCycle, getLatestClosedCycle } from './cycles'
 import { leaseDriverDebit } from './orders'
+import { fetchCycleLumpers, sumUnpaidLumpers } from './lumpers'
 import { logAudit } from './auditLog'
 import { getActiveCompanyId } from './company'
 
@@ -8,7 +9,7 @@ import { getActiveCompanyId } from './company'
 // function usable outside a React component. Costs ~6 parallel queries.
 export async function computeTruckBalance(truckId, cycleId) {
   if (!truckId || !cycleId) return 0
-  const [truckRes, cycleRes, paidOrders, diesel, def, expenses, accounting, leaseDriver, driverPayments] = await Promise.all([
+  const [truckRes, cycleRes, paidOrders, diesel, def, expenses, accounting, leaseDriver, driverPayments, lumpers] = await Promise.all([
     supabase.from('trucks').select('is_lis, discount_percent').eq('id', truckId).single(),
     supabase.from('cycles').select('previous_balance').eq('id', cycleId).single(),
     supabase.from('orders').select('id, rate, apply_discount, discount_percent, dispatcher_paid')
@@ -19,6 +20,7 @@ export async function computeTruckBalance(truckId, cycleId) {
     supabase.from('accounting').select('debit, credit').eq('truck_id', truckId).eq('cycle_id', cycleId),
     supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', truckId).eq('status', 'active').limit(1).maybeSingle(),
     supabase.from('driver_payments').select('order_ids').eq('truck_id', truckId),
+    fetchCycleLumpers([cycleId]),
   ])
 
   const discountPct = Number(truckRes.data?.discount_percent) || 13
@@ -40,7 +42,10 @@ export async function computeTruckBalance(truckId, cycleId) {
   const settledOrderIds = new Set((driverPayments.data || []).flatMap(p => p.order_ids || []))
   const driverPayout = truckRes.data?.is_lis ? leaseDriverDebit(paidRows, leaseDriver.data, settledOrderIds) : 0
 
-  const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout
+  // Lumpers still unpaid count as an expense; reimbursed ones stop counting
+  const lumperTotal = sumUnpaidLumpers(lumpers)
+
+  const totalDebito = dieselTotal + defTotal + expenseTotal + acctDebit + driverPayout + lumperTotal
   const totalCredito = previousBalance + netIncome + acctCredit
   return totalCredito - totalDebito
 }

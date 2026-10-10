@@ -31,6 +31,11 @@ const ACTIONS = {
   create_expense: { label: 'Gasto agregado', color: 'emerald', icon: ICON.create },
   update_expense: { label: 'Gasto editado', color: 'blue', icon: ICON.update },
   delete_expense: { label: 'Gasto eliminado', color: 'red', icon: ICON.delete },
+  create_lumper: { label: 'Lumper agregado', color: 'emerald', icon: ICON.create },
+  update_lumper: { label: 'Lumper editado', color: 'blue', icon: ICON.update },
+  delete_lumper: { label: 'Lumper eliminado', color: 'red', icon: ICON.delete },
+  pay_lumper: { label: 'Lumper pagado', color: 'violet', icon: ICON.update },
+  unpay_lumper: { label: 'Lumper marcado sin pagar', color: 'yellow', icon: ICON.update },
   create_diesel: { label: 'Diesel agregado', color: 'emerald', icon: ICON.create },
   update_diesel: { label: 'Diesel editado', color: 'blue', icon: ICON.update },
   delete_diesel: { label: 'Diesel eliminado', color: 'red', icon: ICON.delete },
@@ -64,6 +69,8 @@ const FIELD_LABELS = {
   ifta: 'IFTA (dry van)',
   dead_miles: 'Millas vacías (DH)',
 }
+
+const LUMPER_FIELDS = { amount: 'Monto', vendor: 'Lumper', receipt_number: 'Recibo #', date: 'Fecha', city: 'Ciudad', notes: 'Notas' }
 
 const MONEY_FIELDS = new Set(['rate'])
 const PAY_MODES = { percentage: 'Porcentaje', flat_rate: 'Tarifa fija', per_mile: 'Por milla' }
@@ -206,6 +213,29 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Cuadre caja:</span> <span className="text-gray-300">{info.cuadre_caja != null ? fmtMoney(info.cuadre_caja) : '—'}</span></div>
       </div>
     )
+  } else if (['create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper'].includes(row.action)) {
+    content = (
+      <>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.amount != null ? fmtMoney(info.amount) : '—'}</span></div>
+          <div><span className="text-gray-500">Orden:</span> <span className="text-gray-300">{fmtVal(info.order_number)}</span></div>
+          <div><span className="text-gray-500">Lumper:</span> <span className="text-gray-300">{fmtVal(info.vendor)}</span></div>
+          <div><span className="text-gray-500">Recibo #:</span> <span className="text-gray-300">{fmtVal(info.receipt_number)}</span></div>
+        </div>
+        {info.changes && Object.keys(info.changes).length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {Object.entries(info.changes).map(([k, c]) => (
+              <div key={k} className="flex items-center gap-2 text-xs">
+                <span className="text-gray-500 w-28 shrink-0">{LUMPER_FIELDS[k] || k}</span>
+                <span className="text-gray-400">{k === 'amount' ? fmtMoney(Number(c.from) || 0) : fmtVal(c.from)}</span>
+                <span className="text-gray-600">→</span>
+                <span className="text-white font-medium">{k === 'amount' ? fmtMoney(Number(c.to) || 0) : fmtVal(c.to)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    )
   } else if (['create_expense', 'update_expense', 'delete_expense'].includes(row.action)) {
     content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
@@ -296,6 +326,7 @@ function EntryDetails({ row, dispatcherNames }) {
 const HAS_DETAILS_ACTIONS = new Set([
   'update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle',
   'create_expense', 'update_expense', 'delete_expense',
+  'create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper',
   'create_diesel', 'update_diesel', 'delete_diesel',
   'create_def', 'update_def', 'delete_def',
   'create_order', 'update_order', 'delete_order',

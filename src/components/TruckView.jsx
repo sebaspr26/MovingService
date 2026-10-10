@@ -7,6 +7,7 @@ import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { logAudit } from '../lib/auditLog'
 import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { leaseDriverDebit } from '../lib/orders'
+import { fetchCycleLumpers, sumUnpaidLumpers, lumperDate } from '../lib/lumpers'
 import OrdersTable from './OrdersTable'
 import ExpensesTab from './ExpensesTab'
 import AccountingTable from './AccountingTable'
@@ -64,7 +65,7 @@ export default function TruckView() {
     return i >= 0 ? i : 0
   })
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [summary, setSummary] = useState(cachedView?.summary || { grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, chofer: 0, expenses: 0, debito: 0, credito: 0 })
+  const [summary, setSummary] = useState(cachedView?.summary || { grossOrders: 0, income: 0, pending: 0, diesel: 0, def: 0, chofer: 0, expenses: 0, lumper: 0, debito: 0, credito: 0 })
   const [loading, setLoading] = useState(!cachedView)
   // Cycle whose whole-cycle summary is on screen (null = a week, or not loaded)
   const [summaryCycleId, setSummaryCycleId] = useState(cachedView?.cycles?.[0]?.id || null)
@@ -136,7 +137,7 @@ export default function TruckView() {
     const seq = ++summarySeqRef.current
     // If viewing a specific week, filter by cycle_id then sub-filter in JS
     const useWeekFilter = !!activeWeek
-    const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver, driverPayments] = await Promise.all([
+    const [paidOrders, allOrders, diesel, def, expenses, accounting, leaseDriver, driverPayments, lumpers] = await Promise.all([
       supabase.from('orders').select('id, rate, apply_discount, discount_percent, dispatcher_paid, pu_date').eq('truck_id', id)
         .eq('paid', true)
         .eq('cycle_id', cycle.id),
@@ -153,6 +154,7 @@ export default function TruckView() {
       supabase.from('drivers').select('pay_mode, pay_rate').eq('truck_id', id)
         .eq('status', 'active').limit(1).maybeSingle(),
       supabase.from('driver_payments').select('order_ids').eq('truck_id', id),
+      fetchCycleLumpers([cycle.id]),
     ])
 
     // Sub-filter by week dates if a week is selected
@@ -167,6 +169,7 @@ export default function TruckView() {
     const filteredDef = weekFilter(def.data, 'date')
     const filteredExpenses = weekFilter(expenses.data, 'date')
     const filteredAccounting = weekFilter(accounting.data, 'date')
+    const filteredLumpers = weekFilter(lumpers.map(l => ({ ...l, _date: lumperDate(l) })), '_date')
     // Calcular ingreso bruto y neto respetando apply_discount y discount_percent por orden
     const grossOrders = filteredPaidOrders.reduce((s, r) => s + (Number(r.rate) || 0), 0)
     // Neto con descuento aplicado: mismo calculo para todos los truck (lease o no).
@@ -201,6 +204,8 @@ export default function TruckView() {
       def: filteredDef.reduce((s, r) => s + (Number(r.value) || 0), 0),
       chofer: filteredExpenses.filter(r => r.category === 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
       expenses: filteredExpenses.filter(r => r.category !== 'Pago Chofer').reduce((s, r) => s + (Number(r.amount) || 0), 0),
+      // Lumpers still unpaid count as an expense; reimbursed ones stop counting
+      lumper: sumUnpaidLumpers(filteredLumpers),
       debito: filteredAccounting.reduce((s, r) => s + (Number(r.debit) || 0), 0),
       credito: filteredAccounting.reduce((s, r) => s + (Number(r.credit) || 0), 0),
       driverPayout,
@@ -278,7 +283,7 @@ export default function TruckView() {
   const discountAmount = summary.discountAmount || 0
   const discount13 = 0
   const previousBalance = Number(cycle?.previous_balance) || 0
-  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + summary.debito + (summary.driverPayout || 0)
+  const totalDebito = summary.diesel + summary.def + summary.chofer + summary.expenses + (summary.lumper || 0) + summary.debito + (summary.driverPayout || 0)
   const totalCredito = previousBalance + netIncome + summary.credito
   const balance = totalCredito - totalDebito
 
@@ -543,7 +548,7 @@ export default function TruckView() {
           <div key={tab} className="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-5 animate-tab-in">
             {tab === 'orders' && <OrdersTable truckId={id} truckName={truck?.name} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} discountPct={discountPct} isLease={truck?.is_lis} carriedOverOnly={viewingCarriedOver} />}
             {tab === 'expenses' && <ExpensesTab truckId={id} truckName={truck?.name} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} isLis={truck?.is_lis} />}
-            {tab === 'accounting' && <AccountingTable truckId={id} truckName={truck?.name} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
+            {tab === 'accounting' && <AccountingTable truckId={id} truckName={truck?.name} period={period} cycle={cycle} onDataChange={fetchSummary} netIncome={netIncome} totalDiesel={summary.diesel} totalDef={summary.def} totalChofer={summary.chofer} totalExpenses={summary.expenses} totalLumper={summary.lumper || 0} discountPct={discountPct} readOnly={readOnly} previousBalance={previousBalance} />}
             {tab === 'owner_expenses' && <OwnerExpensesTable truckId={id} period={period} cycle={cycle} onDataChange={fetchSummary} readOnly={readOnly} ownerName={truck?.owner_name} />}
           </div>
 

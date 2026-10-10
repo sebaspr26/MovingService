@@ -8,6 +8,7 @@ import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { getActiveCycleId } from '../lib/cycles'
 import { useAuth } from '../context/AuthContext'
 import { auditedBalanceWrite } from '../lib/balance'
+import { askLumpersOnOrderPaid } from '../lib/lumperActions'
 import { computeDeadhead, refreshFollowingDeadheads } from '../lib/deadhead'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
@@ -136,6 +137,12 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
       return
     }
     if (onDataChange) onDataChange()
+    // Order just became paid: if it has unpaid lumpers, ask whether they were paid too
+    if (newPaid) {
+      askLumpersOnOrderPaid(session, toast, {
+        orderId: row.id, orderNumber: row.order_number, truckId, cycleId: row.cycle_id || cycle?.id, truckName,
+      })
+    }
   }
 
   async function handleToggleDispatcherPaid(row) {

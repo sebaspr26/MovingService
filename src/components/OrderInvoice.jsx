@@ -6,6 +6,9 @@ import { jsPDF } from 'jspdf'
 import { getCompanySettings, getLogoUrl, invalidateCache, getActiveCompanyId } from '../lib/company'
 import { searchByName, lookupByMc, lookupByDot } from '../lib/fmcsa'
 import { downloadBase64Pdf } from '../lib/download'
+import { invoiceCache } from '../lib/invoiceCache'
+import { fetchOrderLumpers, lumperAmount } from '../lib/lumpers'
+import { receiptUrl, isPdfReceipt } from '../lib/receipts'
 
 // Bill From / Bill To / Remit To box: shrinks and wraps long emails, min 180px
 // so three fit in a row on the page and they stack on a phone
@@ -79,8 +82,8 @@ async function imageToDataUrl(url) {
   }
 }
 
-// Cache to avoid regenerating every time
-const invoiceCache = {}
+// Generated invoices are cached in lib/invoiceCache.js (OrderDetail clears an order's
+// entry when its lumpers change)
 
 export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const [order, setOrder] = useState(null)
@@ -89,7 +92,10 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
   const [stops, setStops] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [docImages, setDocImages] = useState({ rc: [], pod: [] })
+  const [docImages, setDocImages] = useState({ rc: [], pod: [], lumper: [] })
+  // Lumpers paid on this load: billed to the broker on top of the rate (the order's
+  // own rate is not changed), each with its receipt attached at the end
+  const [lumpers, setLumpers] = useState([])
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showEmailConfirm, setShowEmailConfirm] = useState(false)
   const [emailToggles, setEmailToggles] = useState({ remit: true, billFrom: true, billTo: true })
@@ -112,6 +118,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       setBroker(c.broker)
       setStops(c.stops)
       setDocImages(c.docImages)
+      setLumpers(c.lumpers || [])
       setLoading(false)
       // El MC#/DOT# del broker puede cambiar despues de que el invoice quedo
       // cacheado (ej: se agrega el MC# en OrderDetail) — refresca ese dato en
@@ -127,11 +134,13 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
     }
 
     setLoading(true)
-    const [orderRes, stopsRes, docsRes] = await Promise.all([
+    const [orderRes, stopsRes, docsRes, lumperRows] = await Promise.all([
       supabase.from('orders').select('*').eq('id', orderId).single(),
       supabase.from('order_stops').select('*').eq('order_id', orderId).order('sequence'),
       supabase.from('order_documents').select('*').eq('order_id', orderId),
+      fetchOrderLumpers(orderId),
     ])
+    setLumpers(lumperRows)
     const o = orderRes.data
     setOrder(o)
     setStops(stopsRes.data || [])
@@ -192,11 +201,20 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       podImages.push(...(await processDoc(doc)))
     }
 
-    const imgs = { rc: rcImages, pod: podImages }
+    // One receipt photo can hold several lumpers: its pages are attached once
+    const lumperImages = []
+    for (const path of [...new Set(lumperRows.map(l => l.receipt_path).filter(Boolean))]) {
+      const url = receiptUrl(path)
+      if (!url) continue
+      if (isPdfReceipt(path)) lumperImages.push(...(await pdfToImages(url)))
+      else lumperImages.push(await imageToDataUrl(url))
+    }
+
+    const imgs = { rc: rcImages, pod: podImages, lumper: lumperImages }
     setDocImages(imgs)
 
     // Cache result
-    invoiceCache[orderId] = { order: o, truck: truckData, broker: brokerData, stops: stopsRes.data || [], docImages: imgs }
+    invoiceCache[orderId] = { order: o, truck: truckData, broker: brokerData, stops: stopsRes.data || [], docImages: imgs, lumpers: lumperRows }
     setLoading(false)
   }
 
@@ -318,7 +336,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               <p>Please find the attached invoice for your records.</p>
               <table style="margin: 16px 0; font-size: 13px;">
                 <tr><td style="padding: 4px 12px 4px 0; color: #888;">Invoice #</td><td style="font-weight: 600;">${order.order_number || '-'}</td></tr>
-                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Amount Due</td><td style="font-weight: 600;">${fmtCurrency(Number(order.rate) || 0)}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #888;">Amount Due</td><td style="font-weight: 600;">${fmtCurrency((Number(order.rate) || 0) + lumpers.reduce((s, l) => s + lumperAmount(l), 0))}</td></tr>
                 <tr><td style="padding: 4px 12px 4px 0; color: #888;">Terms</td><td>Due on receipt</td></tr>
               </table>
               <p style="font-size: 12px; color: #888; margin-top: 24px;">${companyName} — ${companyDba}</p>
@@ -504,13 +522,20 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
   const today = new Date().toISOString().split('T')[0]
   const invoiceDate = today
-  const total = Number(order.rate) || 0
+  const rateAmount = Number(order.rate) || 0
+  const lumperTotal = lumpers.reduce((s, l) => s + lumperAmount(l), 0)
+  const total = rateAmount + lumperTotal
   const companyInfo = companySettings?.company_info || {}
   const companyName = companyInfo.company_name || ''
   const companyDba = companyInfo.dba || ''
   const billingInfo = companySettings?.billing_info || {}
   const remitInfo = companySettings?.remit_info || {}
-  const rateItems = invoiceItems.length > 0 ? invoiceItems : [{ pay_item: 'Flat Rate', units: 1, rate: total, total }]
+  // "Lumper" line: how many and their total. Same amount each -> one line (qty x unit);
+  // different amounts -> one line per lumper, so the unit price is never made up
+  const lumperLines = lumpers.length === 0 ? [] : lumpers.every(l => lumperAmount(l) === lumperAmount(lumpers[0]))
+    ? [{ pay_item: 'Lumper', units: lumpers.length, rate: lumperAmount(lumpers[0]), total: lumperTotal }]
+    : lumpers.map(l => ({ pay_item: `Lumper${l.vendor ? ` — ${l.vendor}` : ''}`, units: 1, rate: lumperAmount(l), total: lumperAmount(l) }))
+  const rateItems = [...(invoiceItems.length > 0 ? invoiceItems : [{ pay_item: 'Flat Rate', units: 1, rate: rateAmount, total: rateAmount }]), ...lumperLines]
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4 overflow-auto">
@@ -793,6 +818,19 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
                 </div>
               )}
               <img src={src} alt={`POD page ${i + 1}`} style={{ width: '100%' }} />
+            </div>
+          ))}
+
+          {/* Lumper receipts */}
+          {(docImages.lumper || []).map((src, i) => (
+            <div key={`lumper-${i}`} className="doc-page" data-doc-type="lumper" style={{ pageBreakBefore: 'always', padding: '30px' }}>
+              {i === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                  <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>LUMPER</span>
+                  <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e' }}>Lumper Receipt{docImages.lumper.length > 1 ? 's' : ''}</h2>
+                </div>
+              )}
+              <img src={src} alt={`Lumper receipt page ${i + 1}`} style={{ width: '100%' }} />
             </div>
           ))}
         </div>

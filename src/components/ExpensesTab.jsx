@@ -7,6 +7,8 @@ import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import AddReceiptModal from './AddReceiptModal'
 import ReceiptViewer from './ReceiptViewer'
+import { fetchCycleLumpers, lumperDate, lumperAmount, sumUnpaidLumpers } from '../lib/lumpers'
+import { setLumpersPaid } from '../lib/lumperActions'
 
 
 const FILTERS = [
@@ -15,6 +17,7 @@ const FILTERS = [
   { key: 'def', label: 'DEF' },
   { key: 'chofer', label: 'Pago Chofer' },
   { key: 'expense', label: 'Otros Gastos' },
+  { key: 'lumper', label: 'Lumper' },
 ]
 
 export default function ExpensesTab({ truckId, truckName, period, cycle, onDataChange, readOnly, isLis }) {
@@ -28,6 +31,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const [dieselRows, setDieselRows] = useState(savedRows?.dieselRows || [])
   const [defRows, setDefRows] = useState(savedRows?.defRows || [])
   const [expenseRows, setExpenseRows] = useState(savedRows?.expenseRows || [])
+  const [lumperRows, setLumperRows] = useState(savedRows?.lumperRows || [])
   // Which view the rows belong to, so a half-loaded switch is never saved
   const [rowsKey, setRowsKey] = useState(null)
   const [showModal, setShowModal] = useState(false)
@@ -37,18 +41,19 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const [expandedRow, setExpandedRow] = useState(null) // `${_type}-${id}` key
   const [rowOrders, setRowOrders] = useState({}) // { [rowKey]: orders[] | 'loading' }
   useEffect(() => { fetchAll() }, [truckId, cycle?.id, period.start, period.end])
-  usePageCacheSave('truck-expenses', session, { dieselRows, defRows, expenseRows }, rowsKey === viewKey, viewKey)
+  usePageCacheSave('truck-expenses', session, { dieselRows, defRows, expenseRows, lumperRows }, rowsKey === viewKey, viewKey)
 
   async function fetchAll() {
     if (!cycle?.id) return
     const key = viewKey
-    const [diesel, def, expenses] = await Promise.all([
+    const [diesel, def, expenses, lumpers] = await Promise.all([
       supabase.from('diesel').select('*').eq('truck_id', truckId)
         .eq('cycle_id', cycle.id).order('created_at'),
       supabase.from('def').select('*').eq('truck_id', truckId)
         .eq('cycle_id', cycle.id).order('created_at'),
       supabase.from('expenses').select('*').eq('truck_id', truckId)
         .eq('cycle_id', cycle.id).order('created_at'),
+      fetchCycleLumpers([cycle.id]),
     ])
     // Sub-filter by week if a week is selected
     const weekFilter = (arr) => {
@@ -58,6 +63,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
     setDieselRows(weekFilter(diesel.data || []))
     setDefRows(weekFilter(def.data || []))
     setExpenseRows(weekFilter(expenses.data || []))
+    setLumperRows(weekFilter(lumpers.map(l => ({ ...l, date: lumperDate(l) }))))
     setRowsKey(key)
   }
 
@@ -67,6 +73,8 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
     ...defRows.map(r => ({ ...r, _type: 'def', _amount: Number(r.value) || 0, _desc: `${Number(r.gallons).toFixed(1)} gal` })),
     ...expenseRows.filter(r => r.category === 'Pago Chofer').map(r => ({ ...r, _type: 'chofer', _amount: Number(r.amount) || 0, _desc: r.description })),
     ...expenseRows.filter(r => r.category !== 'Pago Chofer').map(r => ({ ...r, _type: 'expense', _amount: Number(r.amount) || 0, _desc: r.description })),
+    // Lumpers come from the order (order_lumpers): invoice_number is the receipt's
+    ...lumperRows.map(r => ({ ...r, _type: 'lumper', _amount: lumperAmount(r), _desc: r.vendor || 'Lumper', invoice_number: r.receipt_number })),
   ].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
 
   const filteredByType = filter === 'all' ? allRows : allRows.filter(r => r._type === filter)
@@ -93,10 +101,12 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
   const otherExpenseRows = expenseRows.filter(r => r.category !== 'Pago Chofer')
   const choferTotal = choferRows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
   const expenseTotal = otherExpenseRows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
-  const grandTotal = dieselTotal + defTotal + choferTotal + expenseTotal
+  // Only unpaid lumpers are an expense; reimbursed ones stay listed but don't count
+  const lumperTotal = sumUnpaidLumpers(lumperRows)
+  const grandTotal = dieselTotal + defTotal + choferTotal + expenseTotal + lumperTotal
 
   // Counts per type for filter badges
-  const counts = { all: allRows.length, diesel: dieselRows.length, def: defRows.length, chofer: choferRows.length, expense: otherExpenseRows.length }
+  const counts = { all: allRows.length, diesel: dieselRows.length, def: defRows.length, chofer: choferRows.length, expense: otherExpenseRows.length, lumper: lumperRows.length }
 
   async function toggleRowOrders(row) {
     const key = `${row._type}-${row.id}`
@@ -118,6 +128,18 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
       if (row.source_payment_type === 'dispatcher') q = q.eq('truck_id', truckId)
       const { data: orders } = await q
       setRowOrders(prev => ({ ...prev, [key]: orders || [] }))
+    }
+  }
+
+  async function toggleLumperPaid(row) {
+    const paid = !row.paid
+    setLumperRows(prev => prev.map(l => (l.id === row.id ? { ...l, paid } : l)))
+    try {
+      await setLumpersPaid(session, { orderId: row.order_id, orderNumber: row.orders?.order_number, truckId, cycleId: cycle?.id, truckName }, [row], paid)
+      if (onDataChange) onDataChange()
+    } catch (err) {
+      setLumperRows(prev => prev.map(l => (l.id === row.id ? { ...l, paid: row.paid } : l)))
+      toast.error(friendlyError(err.message))
     }
   }
 
@@ -201,8 +223,9 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
       def: 'bg-cyan-900/40 text-cyan-400',
       chofer: 'bg-violet-900/40 text-violet-400',
       expense: 'bg-red-900/40 text-red-400',
+      lumper: 'bg-amber-900/40 text-amber-400',
     }
-    const labels = { diesel: 'Diesel', def: 'DEF', chofer: 'Chofer', expense: 'Gasto' }
+    const labels = { diesel: 'Diesel', def: 'DEF', chofer: 'Chofer', expense: 'Gasto', lumper: 'Lumper' }
     return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[type]}`}>{labels[type]}</span>
   }
 
@@ -227,6 +250,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                   : f.key === 'def' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-600/40'
                   : f.key === 'chofer' ? 'bg-violet-600/20 text-violet-400 border border-violet-600/40'
                   : f.key === 'expense' ? 'bg-red-600/20 text-red-400 border border-red-600/40'
+                  : f.key === 'lumper' ? 'bg-amber-600/20 text-amber-400 border border-amber-600/40'
                   : 'bg-gray-700 text-white border border-gray-600'
                 : 'bg-gray-800/50 text-gray-500 border border-transparent hover:text-gray-300'
             }`}
@@ -249,6 +273,8 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
           <span className="text-violet-400">Chofer: {fmt(choferTotal)}</span>
           <span className="text-gray-600">|</span>
           <span className="text-red-400">Gastos: {fmt(expenseTotal)}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-amber-400">Lumper: {fmt(lumperTotal)}</span>
           <span className="text-gray-600">|</span>
           <span className="text-white font-semibold">Total: {fmt(grandTotal)}</span>
         </div>
@@ -326,6 +352,17 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                           <span className="text-[10px] bg-gray-800 rounded px-1.5 py-0.5 mr-1.5 text-gray-400">{row.category}</span>
                           {row._desc}
                         </span>
+                      ) : row._type === 'lumper' ? (
+                        <span>
+                          {row._desc}
+                          {row.orders?.order_number && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/orders/${row.order_id}`) }}
+                              className="ml-1.5 text-[11px] text-orange-400/80 hover:text-orange-300"
+                              title="Abrir la orden"
+                            >Orden #{row.orders.order_number}</button>
+                          )}
+                        </span>
                       ) : row._desc}
                       {row.receipt_path && (
                         <button
@@ -339,12 +376,18 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                         </button>
                       )}
                     </div>
-                    <div className="py-2.5 pr-3 text-right text-red-400 font-medium">{fmt(row._amount)}</div>
+                    <div className={`py-2.5 pr-3 text-right font-medium ${row._type === 'lumper' && row.paid ? 'text-gray-500 line-through' : 'text-red-400'}`}>{fmt(row._amount)}</div>
                     <div className="py-2.5 pr-3 text-gray-500 text-xs">
                       {row.created_by_name || row.created_by_email || '—'}
                     </div>
                     {!readOnly && (
                       <div className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                        {row._type === 'lumper' ? (
+                          <label className="flex items-center justify-end gap-1.5 cursor-pointer pr-1" title={row.paid ? 'Pagado: ya no cuenta como gasto' : 'Sin pagar: cuenta como gasto'}>
+                            <input type="checkbox" checked={!!row.paid} onChange={() => toggleLumperPaid(row)} className="accent-emerald-500 w-3.5 h-3.5" />
+                            <span className={`text-[10px] font-medium w-14 ${row.paid ? 'text-emerald-400' : 'text-gray-500'}`}>{row.paid ? 'Pagado' : 'Sin pagar'}</span>
+                          </label>
+                        ) : (
                         <div className="flex gap-1 justify-end">
                           {isLis && (
                             <button onClick={() => handleTransferToOwner(row)} className="p-1 text-gray-500 hover:text-amber-400" title="Transferir a propietario">
@@ -364,6 +407,7 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
                             </svg>
                           </button>
                         </div>
+                        )}
                       </div>
                     )}
                   </div>
