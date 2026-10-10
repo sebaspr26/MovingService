@@ -42,7 +42,7 @@ export const MODULES = [
       { key: 'ver_todas_ordenes', label: 'Ver todas las órdenes (no solo las propias)' },
       { key: 'crear_ordenes', label: 'Crear ordenes' },
       { key: 'editar_ordenes', label: 'Editar ordenes' },
-      { key: 'documentos', label: 'Documentos (RC / BOL / POD)' },
+      { key: 'documentos', label: 'Documentos (RC / POD)' },
       { key: 'invoice', label: 'Generar invoice' },
       { key: 'enviar_email', label: 'Enviar email de invoice' },
       { key: 'marcar_pagado', label: 'Marcar como pagado' },

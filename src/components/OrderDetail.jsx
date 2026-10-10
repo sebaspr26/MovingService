@@ -1631,11 +1631,27 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             </div>
           </Section>
 
+          {/* Lumper — receipts we paid on this load; never changes the load's value */}
+          {isNew ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-white">Lumper</h2>
+              <span className="text-[11px] text-gray-600">Guarda la orden para poder agregar lumpers con su recibo</span>
+            </div>
+          ) : (
+            <OrderLumpers
+              orderId={id}
+              orderNumber={orderNumber}
+              truckId={savedRef.current?.truck_id ?? (truckId || null)}
+              cycleId={savedRef.current?.cycle_id ?? cycleId}
+              truckName={trucks.find(t => t.id === (savedRef.current?.truck_id ?? truckId))?.name}
+              onChange={() => clearInvoiceCache(id)}
+            />
+          )}
+
           {/* Invoicing */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
               <button onClick={() => toggle('invoicing')} className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-orange-600/20 text-orange-400 text-[11px] font-bold flex items-center justify-center">5</span>
                 <h2 className="text-sm font-semibold text-white">Invoicing</h2>
               </button>
               <div className="flex items-center gap-2">
@@ -1735,7 +1751,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
               <button onClick={() => toggle('commodities')} className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-orange-600/20 text-orange-400 text-[11px] font-bold flex items-center justify-center">6</span>
                 <h2 className="text-sm font-semibold text-white">Commodities</h2>
               </button>
               <div className="flex items-center gap-2">
@@ -1821,24 +1836,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               </div>
             )}
           </div>
-
-          {/* Lumper — receipts we paid on this load; never changes the load's value */}
-          {isNew ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-amber-600/20 text-amber-400 text-[11px] font-bold flex items-center justify-center shrink-0">7</span>
-              <h2 className="text-sm font-semibold text-white">Lumper</h2>
-              <span className="text-[11px] text-gray-600">Guarda la orden para poder agregar lumpers con su recibo</span>
-            </div>
-          ) : (
-            <OrderLumpers
-              orderId={id}
-              orderNumber={orderNumber}
-              truckId={savedRef.current?.truck_id ?? (truckId || null)}
-              cycleId={savedRef.current?.cycle_id ?? cycleId}
-              truckName={trucks.find(t => t.id === (savedRef.current?.truck_id ?? truckId))?.name}
-              onChange={() => clearInvoiceCache(id)}
-            />
-          )}
         </div>
 
         {/* Right column — sidebar (1/3) */}
@@ -2081,29 +2078,54 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             </div>
           </Section>
 
-          {/* Route preview */}
-          {(puCity || doCity) && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Ruta</h3>
-              <div className="flex items-start gap-2">
-                <div className="flex flex-col items-center mt-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                  <div className="w-0.5 h-8 bg-gray-700" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <p className="text-sm text-gray-200">{puCity || '-'}</p>
-                    <p className="text-[11px] text-gray-600">{puDate || 'Sin fecha'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-200">{doCity || '-'}</p>
-                    <p className="text-[11px] text-gray-600">{doDate || 'Sin fecha'}</p>
-                  </div>
+          {/* Route preview: every stop in order (pickup orange, delivery green, extra stop blue) */}
+          {(() => {
+            const STOP_STYLE = {
+              pickup: { dot: 'bg-orange-500', text: 'text-orange-400', label: 'Pickup' },
+              delivery: { dot: 'bg-emerald-500', text: 'text-emerald-400', label: 'Delivery' },
+              stop: { dot: 'bg-sky-500', text: 'text-sky-400', label: 'Parada' },
+            }
+            let route = stops
+              .filter(st => st.city?.trim())
+              .map(st => ({
+                type: st.type,
+                place: st.state?.trim() ? `${st.city.trim()}, ${st.state.trim()}` : st.city.trim(),
+                date: st.date,
+              }))
+            // No stop has a city yet: fall back to the order's origin and destination
+            if (route.length === 0 && (puCity || doCity)) {
+              route = [
+                { type: 'pickup', place: puCity || '-', date: puDate },
+                { type: 'delivery', place: doCity || '-', date: doDate },
+              ]
+            }
+            if (route.length === 0) return null
+            return (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Ruta</h3>
+                <div>
+                  {route.map((st, i) => {
+                    const style = STOP_STYLE[st.type] || STOP_STYLE.stop
+                    return (
+                      <div key={i} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${style.dot}`} />
+                          {i < route.length - 1 && <span className="w-0.5 flex-1 bg-gray-700 my-1" />}
+                        </div>
+                        <div className={i < route.length - 1 ? 'pb-3' : ''}>
+                          <p className="text-sm text-gray-200">
+                            {st.place}
+                            <span className={`ml-2 text-[10px] font-semibold uppercase tracking-wide ${style.text}`}>{style.label}</span>
+                          </p>
+                          <p className="text-[11px] text-gray-600">{st.date || 'Sin fecha'}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Documents panel — existing orders */}
           {!isNew && <OrderDocuments orderId={id} onDocsChange={fetchDocs} mcNumber={(mcInput || newBroker.mc_number || '').trim()} />}

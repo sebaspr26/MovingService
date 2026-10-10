@@ -196,7 +196,6 @@ export default function OrderLumpers({ orderId, orderNumber, truckId, cycleId, t
       )}
       <div className="flex items-center justify-between px-4 py-2.5">
         <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-amber-600/20 text-amber-400 text-[11px] font-bold flex items-center justify-center">7</span>
           <h2 className="text-sm font-semibold text-white">Lumper</h2>
           {lumpers.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 font-medium">{lumpers.length}</span>

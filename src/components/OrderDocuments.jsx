@@ -42,7 +42,6 @@ async function pdfToImagesProgressive(url, onPage) {
 
 const DOC_TYPES = [
   { key: 'RC', label: 'RC', full: 'Rate Confirmation', color: 'text-blue-400 bg-blue-900/40 border-blue-700/50' },
-  { key: 'BOL', label: 'BOL', full: 'Bill of Lading', color: 'text-emerald-400 bg-emerald-900/40 border-emerald-700/50' },
   { key: 'POD', label: 'POD', full: 'Proof of Delivery', color: 'text-orange-400 bg-orange-900/40 border-orange-700/50' },
 ]
 
@@ -52,14 +51,13 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(null) // which type is uploading
   const rcFileRef = useRef()
-  const bolFileRef = useRef()
   const podFileRef = useRef()
-  const fileRefs = { RC: rcFileRef, BOL: bolFileRef, POD: podFileRef }
+  const fileRefs = { RC: rcFileRef, POD: podFileRef }
   const [fullscreen, setFullscreen] = useState(null)
   const [viewerImages, setViewerImages] = useState([])
   const [viewerLoading, setViewerLoading] = useState(false)
   const [draggingType, setDraggingType] = useState(null)
-  const dragCounters = useRef({ RC: 0, BOL: 0, POD: 0 })
+  const dragCounters = useRef({ RC: 0, POD: 0 })
 
   useEffect(() => {
     if (orderId) fetchDocs()
@@ -176,7 +174,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
         <div className="px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full shrink-0 ${
-              type.key === 'RC' ? 'bg-blue-400' : type.key === 'BOL' ? 'bg-emerald-400' : 'bg-orange-400'
+              type.key === 'RC' ? 'bg-blue-400' : 'bg-orange-400'
             }`} />
             <span className={`text-xs font-semibold ${type.color.split(' ')[0]}`}>{type.full}</span>
             {typeDocs.length > 0 && (
