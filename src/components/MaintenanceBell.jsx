@@ -3,17 +3,38 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import { getActiveCompanyId } from '../lib/company'
-import { truckTypeInfo } from '../lib/trucks'
-import { loadMaintenance, pendingAlerts, markAlertsRead, notifyMaintenanceChanged, alertMessage, LEVEL_STYLES } from '../lib/maintenance'
+import {
+  loadMaintenance, pendingAlerts, allAlerts, markAlertsRead, notifyMaintenanceChanged, alertMessage, LEVEL_STYLES,
+} from '../lib/maintenance'
 
 const REFRESH_MS = 5 * 60 * 1000
 const TOASTED_KEY = 'maintenance-toasted'
+const BELL_LIMIT = 5
 
 /**
- * Bell with the maintenance alerts still unread by this user (super admin, admins
- * and the driver of the truck). Yellow = early notice, red = service due. Reading
- * one (clicking it) marks it read; a new service cycle or going from yellow to red
- * is a new alert. In-app only, no emails.
+ * Notification item shared by the bell and the Notificaciones page: the truck's state
+ * in one sentence (yellow = getting close, red = past the limit), dimmed once read.
+ */
+export function AlertItem({ t, onClick, compact = false }) {
+  const st = LEVEL_STYLES[t.summary.level]
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left flex gap-3 hover:bg-gray-800/60 transition-colors ${compact ? 'px-4 py-3 border-b border-gray-800/60 last:border-b-0' : 'p-4'}`}
+    >
+      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${t.read ? 'bg-gray-700' : st.dot}`} />
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm leading-snug ${t.read ? 'text-gray-500' : st.text}`}>{alertMessage(t.summary, t.name)}</span>
+        <span className="block text-[11px] mt-1 text-gray-600">Truck {t.number}{t.read ? ' · leída' : ''}</span>
+      </span>
+    </button>
+  )
+}
+
+/**
+ * Bell with the maintenance notifications of the trucks this user can see (super admin,
+ * admins and the driver of the truck, when allowed in Perfiles). It lists up to 5 (unread
+ * first); the rest are in the Notificaciones page. Opening one marks it read. In-app only.
  */
 export default function MaintenanceBell() {
   const { session } = useAuth()
@@ -34,8 +55,8 @@ export default function MaintenanceBell() {
       if (unseen.length) {
         const critical = unseen.some(t => t.summary.level === 'critical')
         const msg = unseen.length === 1
-          ? `${unseen[0].name}: ${alertMessage(unseen[0].summary)}`
-          : `${unseen.length} alertas de mantenimiento pendientes`
+          ? alertMessage(unseen[0].summary, unseen[0].name)
+          : `${unseen.length} notificaciones de mantenimiento pendientes`
         critical ? toast.error(msg) : toast.warning(msg)
         try { sessionStorage.setItem(TOASTED_KEY, JSON.stringify([...seen, ...unseen.map(t => t.key)])) } catch { /* private mode */ }
       }
@@ -57,17 +78,21 @@ export default function MaintenanceBell() {
     }
   }, [load])
 
-  const alerts = data ? pendingAlerts(data) : []
+  const alerts = data ? allAlerts(data) : []
+  const unread = alerts.filter(t => !t.read)
+  const shown = alerts.slice(0, BELL_LIMIT)
 
   async function openAlert(t) {
     setOpen(false)
-    await markAlertsRead(session, [t.key])
-    notifyMaintenanceChanged()
+    if (!t.read) {
+      await markAlertsRead(session, [t.key])
+      notifyMaintenanceChanged()
+    }
     navigate(`/mantenimiento?truck=${t.id}`)
   }
 
   async function readAll() {
-    await markAlertsRead(session, alerts.map(t => t.key))
+    await markAlertsRead(session, unread.map(t => t.key))
     notifyMaintenanceChanged()
   }
 
@@ -75,15 +100,15 @@ export default function MaintenanceBell() {
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        title="Notificaciones de mantenimiento"
+        title="Notificaciones"
         className="relative w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
         </svg>
-        {alerts.length > 0 && (
-          <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center ${alerts.some(t => t.summary.level === 'critical') ? 'bg-red-600' : 'bg-amber-500'}`}>
-            {alerts.length}
+        {unread.length > 0 && (
+          <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center ${unread.some(t => t.summary.level === 'critical') ? 'bg-red-600' : 'bg-amber-500'}`}>
+            {unread.length}
           </span>
         )}
       </button>
@@ -91,36 +116,23 @@ export default function MaintenanceBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-[min(22rem,92vw)] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-[min(24rem,92vw)] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800">
               <p className="text-sm font-semibold text-white">Notificaciones</p>
-              {alerts.length > 0 && (
+              {unread.length > 0 && (
                 <button onClick={readAll} className="text-[11px] text-gray-500 hover:text-orange-400 transition-colors">Marcar todas como leídas</button>
               )}
             </div>
-            <div className="max-h-80 overflow-y-auto">
-              {alerts.length === 0 ? (
-                <p className="px-4 py-8 text-center text-xs text-gray-600">Sin notificaciones pendientes</p>
-              ) : alerts.map(t => {
-                const st = LEVEL_STYLES[t.summary.level]
-                const type = truckTypeInfo(t.truck_type)
-                return (
-                  <button key={t.key} onClick={() => openAlert(t)} className="w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-800/60 transition-colors border-b border-gray-800/60 last:border-b-0">
-                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${st.dot}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-white truncate">Truck {t.number} — {t.name}</span>
-                        {type && <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-semibold shrink-0 ${type.badge}`}>{type.label}</span>}
-                      </span>
-                      <span className={`block text-xs mt-0.5 ${st.text}`}>{alertMessage(t.summary)}</span>
-                    </span>
-                  </button>
-                )
-              })}
+            <div>
+              {shown.length === 0 ? (
+                <p className="px-4 py-8 text-center text-xs text-gray-600">Sin notificaciones</p>
+              ) : shown.map(t => <AlertItem key={t.key} t={t} compact onClick={() => openAlert(t)} />)}
             </div>
-            <button onClick={() => { setOpen(false); navigate('/mantenimiento') }} className="w-full px-4 py-2.5 text-xs font-medium text-orange-400 hover:bg-gray-800/60 border-t border-gray-800 transition-colors">
-              Ver mantenimiento
-            </button>
+            {alerts.length > BELL_LIMIT && (
+              <button onClick={() => { setOpen(false); navigate('/notificaciones') }} className="w-full px-4 py-2.5 text-xs font-medium text-orange-400 hover:bg-gray-800/60 border-t border-gray-800 transition-colors">
+                Ver más ({alerts.length - BELL_LIMIT})
+              </button>
+            )}
           </div>
         </>
       )}

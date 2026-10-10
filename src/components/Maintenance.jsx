@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast, friendlyError } from './Toast'
@@ -40,7 +40,7 @@ function ProgressBar({ s }) {
 const INPUT = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-orange-500'
 
 /** Detail of one truck: where the miles come from, the settings (admins) and the service history. */
-function TruckDetail({ truck, canEdit, onClose, onChanged }) {
+function TruckDetail({ truck, canEdit, startService, onClose, onChanged }) {
   const { session } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -53,7 +53,8 @@ function TruckDetail({ truck, canEdit, onClose, onChanged }) {
   const [startMiles, setStartMiles] = useState(cfg ? String(cfg.start_miles || 0) : '0')
   const [saving, setSaving] = useState(false)
   const [logs, setLogs] = useState([])
-  const [serviceOpen, setServiceOpen] = useState(false)
+  const [serviceOpen, setServiceOpen] = useState(!!startService && !!truck.cfg)
+  const serviceRef = useRef(null)
   const [serviceDate, setServiceDate] = useState(today())
   const [serviceNotes, setServiceNotes] = useState('')
 
@@ -64,6 +65,7 @@ function TruckDetail({ truck, canEdit, onClose, onChanged }) {
   }, [onClose])
 
   useEffect(() => { fetchServiceLogs(truck.id).then(setLogs) }, [truck.id, cfg?.counting_from])
+  useEffect(() => { if (serviceOpen) serviceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [serviceOpen])
 
   async function save() {
     const iv = Number(interval)
@@ -109,8 +111,16 @@ function TruckDetail({ truck, canEdit, onClose, onChanged }) {
               <h2 className="text-base font-bold text-white truncate">Truck {truck.number} — {truck.name}</h2>
               <TypeBadge type={truck.truck_type} />
             </div>
-            {s && <p className={`text-xs mt-0.5 ${st.text}`}>{alertMessage(s)}</p>}
+            {s && <p className={`text-xs mt-0.5 ${st.text}`}>{alertMessage(s, truck.name)}</p>}
           </div>
+          {canEdit && cfg && (
+            <button
+              onClick={() => setServiceOpen(true)}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 transition-colors"
+            >
+              Mantenimiento realizado
+            </button>
+          )}
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-800 text-gray-400 flex items-center justify-center hover:bg-gray-700 transition-colors shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
           </button>
@@ -251,16 +261,16 @@ function TruckDetail({ truck, canEdit, onClose, onChanged }) {
 
           {/* Services */}
           {cfg && (
-            <div>
+            <div ref={serviceRef}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Mantenimientos realizados</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de mantenimientos{logs.length > 0 && ` · ${logs.length}`}</p>
                 {canEdit && !serviceOpen && (
-                  <button onClick={() => setServiceOpen(true)} className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">+ Registrar mantenimiento hecho</button>
+                  <button onClick={() => setServiceOpen(true)} className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">+ Mantenimiento realizado</button>
                 )}
               </div>
               {serviceOpen && (
                 <div className="border border-emerald-700/40 bg-emerald-600/5 rounded-xl p-3 mb-3 space-y-2">
-                  <p className="text-xs text-gray-400">Al registrarlo el contador vuelve a cero y empieza a contar desde esa fecha.</p>
+                  <p className="text-xs text-gray-400">Al registrarlo el contador vuelve a cero y empieza a contar desde esa fecha. Queda guardado en el historial.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <DatePicker value={serviceDate} onChange={setServiceDate} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500" />
                     <input value={serviceNotes} onChange={e => setServiceNotes(e.target.value)} placeholder="Notas (aceite, frenos...)" className={INPUT} />
@@ -272,14 +282,17 @@ function TruckDetail({ truck, canEdit, onClose, onChanged }) {
                 </div>
               )}
               {logs.length === 0 ? (
-                <p className="text-xs text-gray-600">Sin mantenimientos registrados.</p>
+                <p className="text-xs text-gray-600">Todavía no se ha registrado ningún mantenimiento de este camión.</p>
               ) : (
                 <div className="space-y-1.5">
                   {logs.map(l => (
                     <div key={l.id} className="flex items-center justify-between gap-3 text-xs bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
-                      <span className="text-gray-300 font-medium shrink-0">{fmtDate(l.serviced_at)}</span>
-                      <span className="text-gray-500 truncate flex-1">{l.notes || '—'}</span>
-                      {l.miles_at != null && <span className="text-gray-500 shrink-0">{fmtMi(l.miles_at)} mi</span>}
+                      <span className="text-gray-200 font-medium shrink-0">{fmtDate(l.serviced_at)}</span>
+                      <span className="text-gray-500 truncate flex-1">
+                        {l.notes || 'Mantenimiento realizado'}
+                        {(l.created_by_name || l.created_by_email) && <span className="text-gray-700"> · {l.created_by_name || l.created_by_email}</span>}
+                      </span>
+                      {l.miles_at != null && <span className="text-gray-500 shrink-0">a las {fmtMi(l.miles_at)} mi</span>}
                     </div>
                   ))}
                 </div>
@@ -374,6 +387,15 @@ export default function Maintenance() {
                     ) : (
                       <p className="text-xs text-gray-600">{canEdit ? 'Sin configurar — toca para definir cada cuántas millas' : 'Sin configurar'}</p>
                     )}
+                    {canEdit && s && (
+                      <span
+                        role="button"
+                        onClick={e => { e.stopPropagation(); setParams({ truck: t.id, service: '1' }) }}
+                        className="block text-center py-1.5 rounded-lg bg-emerald-600/15 border border-emerald-600/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-600/25 transition-colors"
+                      >
+                        Mantenimiento realizado
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -399,6 +421,7 @@ export default function Maintenance() {
           key={selected.id}
           truck={selected}
           canEdit={canEdit}
+          startService={params.get('service') === '1'}
           onClose={() => setParams({})}
           onChanged={load}
         />

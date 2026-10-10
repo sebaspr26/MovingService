@@ -24,6 +24,7 @@ import Auditoria from './components/Auditoria'
 import ReportesMenu from './components/ReportesMenu'
 import Ifta from './components/Ifta'
 import Maintenance from './components/Maintenance'
+import Notifications from './components/Notifications'
 import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { isSuperAdmin, canAccess, canDelete } from './lib/permissions'
@@ -117,6 +118,7 @@ function App() {
           <Route path="profile" element={<UserProfile />} />
           <Route path="historial-pagos" element={<PaymentHistory />} />
           <Route path="mantenimiento" element={canAccess(session, 'mantenimiento') ? <Maintenance /> : <Navigate to="/" replace />} />
+          <Route path="notificaciones" element={canAccess(session, 'mantenimiento', 'alertas') ? <Notifications /> : <Navigate to="/" replace />} />
         </Route>
 
         {/* Welcome — pantalla sin sidebar para usuarios con acceso limitado */}

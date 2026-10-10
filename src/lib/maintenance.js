@@ -91,6 +91,21 @@ export function pendingAlerts({ trucks, reads }) {
     .sort((a, b) => (a.summary.level === 'critical' ? 0 : 1) - (b.summary.level === 'critical' ? 0 : 1))
 }
 
+/**
+ * Every yellow/red notification (read or not), each with `read`: unread first, then red
+ * before yellow, then the closest to its limit. The bell shows the first 5; the
+ * Notificaciones page shows them all.
+ */
+export function allAlerts({ trucks, reads }) {
+  return trucks
+    .filter(t => t.summary && t.summary.level !== 'ok')
+    .map(t => ({ ...t, read: reads.has(t.key) }))
+    .sort((a, b) =>
+      (a.read ? 1 : 0) - (b.read ? 1 : 0)
+      || (a.summary.level === 'critical' ? 0 : 1) - (b.summary.level === 'critical' ? 0 : 1)
+      || b.summary.pct - a.summary.pct)
+}
+
 export async function markAlertsRead(session, keys) {
   if (!keys.length || !session?.user?.id) return
   await supabase.from('maintenance_alert_reads')
@@ -137,7 +152,7 @@ export async function registerService(session, truck, { date, notes }) {
 }
 
 export async function fetchServiceLogs(truckId) {
-  const { data } = await supabase.from('maintenance_logs').select('*').eq('truck_id', truckId).order('serviced_at', { ascending: false }).limit(10)
+  const { data } = await supabase.from('maintenance_logs').select('*').eq('truck_id', truckId).order('serviced_at', { ascending: false }).order('created_at', { ascending: false }).limit(100)
   return data || []
 }
 
@@ -149,12 +164,15 @@ export const LEVEL_STYLES = {
   critical: { label: 'Mantenimiento ya', bar: 'bg-red-500', text: 'text-red-400', dot: 'bg-red-500', soft: 'bg-red-600/10 border-red-600/25' },
 }
 
-/** One-line message of a truck's state, for the bell and the cards. */
-export function alertMessage(s) {
+/** What a truck's notification says, e.g. "El camión de LUIS ya lleva 5,120 mi y se acerca su próximo mantenimiento". */
+export function alertMessage(s, name) {
+  const who = name ? `El camión de ${name}` : 'El camión'
   if (s.level === 'critical') {
     const over = -s.remaining
-    return over > 0 ? `Mantenimiento vencido: pasó ${fmtMi(over)} mi del límite de ${fmtMi(s.interval)}` : `Llegó a las ${fmtMi(s.interval)} mi: toca mantenimiento`
+    return over > 0
+      ? `${who} ya lleva ${fmtMi(s.total)} mi y pasó el límite de ${fmtMi(s.interval)} mi: toca mantenimiento ya`
+      : `${who} llegó a las ${fmtMi(s.interval)} mi: toca mantenimiento ya`
   }
-  if (s.level === 'warn') return `Faltan ${fmtMi(s.remaining)} mi para el mantenimiento (aviso a las ${fmtMi(s.warn)} mi)`
-  return `Faltan ${fmtMi(s.remaining)} mi para el mantenimiento`
+  if (s.level === 'warn') return `${who} ya lleva ${fmtMi(s.total)} mi y se acerca su próximo mantenimiento (faltan ${fmtMi(s.remaining)} mi)`
+  return `${who} lleva ${fmtMi(s.total)} mi (faltan ${fmtMi(s.remaining)} mi para el mantenimiento)`
 }
