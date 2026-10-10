@@ -373,3 +373,16 @@ select.sel option {
 /* Main content clears the phone bottom nav (+ home indicator) */
 .pb-nav { padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 1024px) { .pb-nav { padding-bottom: 1.5rem; } }
+
+/* ========================
+   iOS-style "jiggle": cards that can be dragged (Pago Dispatchers, union mode)
+   tremble a little. The delay/duration come from the element (see jiggleStyle)
+   so they don't all move in sync, like the Home Screen icons
+   ======================== */
+@keyframes jiggle {
+  0%   { transform: rotate(-1.1deg) translate(-0.4px, 0.3px); }
+  50%  { transform: rotate(0.9deg) translate(0.4px, -0.3px); }
+  100% { transform: rotate(-1.1deg) translate(-0.4px, 0.3px); }
+}
+.jiggle { animation: jiggle 0.26s ease-in-out infinite; transform-origin: 50% 60%; }
+@media (prefers-reduced-motion: reduce) { .jiggle { animation: none; } }

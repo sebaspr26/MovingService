@@ -208,6 +208,13 @@ export default function PagoDispatchers() {
     if (ok) runUnionAction(() => deleteUnion(session, union), 'Union deshecha')
   }
 
+  // Cada tarjeta tiembla con su propio ritmo (como los iconos del iPhone): el desfase y la
+  // duracion salen del id para que no se muevan todas a la vez
+  const jiggleStyle = id => {
+    const h = [...String(id)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 997, 7)
+    return { animationDelay: `-${((h % 9) * 0.03).toFixed(2)}s`, animationDuration: `${(0.24 + (h % 5) * 0.02).toFixed(2)}s` }
+  }
+
   // Props de arrastre de una tarjeta de dispatcher (solo en modo union)
   const dragProps = user => unionMode && !user.isLegacy && isActivatedUser(user) ? {
     draggable: true,
@@ -369,7 +376,8 @@ export default function PagoDispatchers() {
                 key={user.id}
                 onClick={() => isActivated && !user.isLegacy && setSelectedUser(user)}
                 {...dragProps(user)}
-                className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 transition-colors ${inactive ? 'border-gray-800/50 opacity-50 grayscale' : 'border-gray-800 hover:border-orange-600/50 cursor-pointer hover:bg-gray-900/80'} ${unionMode && !inactive ? 'cursor-grab' : ''} ${dropTarget === `u:${user.id}` ? '!border-orange-500 ring-2 ring-orange-500/50' : ''} ${dragEmail && dragEmail === normEmail(user.email) ? 'opacity-40' : ''}`}
+                className={`bg-gray-900 border rounded-xl p-4 flex flex-col gap-3 transition-colors ${inactive ? 'border-gray-800/50 opacity-50 grayscale' : 'border-gray-800 hover:border-orange-600/50 cursor-pointer hover:bg-gray-900/80'} ${unionMode && !inactive ? 'cursor-grab' : ''} ${dropTarget === `u:${user.id}` ? '!border-orange-500 ring-2 ring-orange-500/50' : ''} ${dragEmail && dragEmail === normEmail(user.email) ? 'opacity-40' : ''} ${unionMode && !inactive && dragEmail !== normEmail(user.email) ? 'jiggle' : ''}`}
+                style={unionMode && !inactive ? jiggleStyle(user.id) : undefined}
               >
                 {/* Header */}
                 <div className="flex items-center gap-3">
