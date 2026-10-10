@@ -2392,18 +2392,22 @@ function DispatcherAutocomplete({ label, value, onChange, authDispatchers, requi
         value={inputText}
         onChange={(e) => { setInputText(e.target.value); setOpen(true) }}
         onFocus={() => { setInputText(''); setOpen(true) }}
-        onBlur={() => setTimeout(() => { setOpen(false); setInputText(displayName) }, 150)}
+        onClick={() => setOpen(true)}
+        onBlur={() => { setOpen(false); setInputText(displayName) }}
         className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
         required={required && !value}
         placeholder="Buscar dispatcher..."
       />
       {open && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        // mousedown is cancelled so picking an option never blurs the input: the old
+        // blur handler ran 150ms later with the PREVIOUS name and put it back in the
+        // box, so the first pick looked ignored and had to be repeated
+        <div onMouseDown={e => e.preventDefault()} className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {suggestions.map(d => (
             <button
               key={d.email}
               type="button"
-              onClick={() => { onChange(d.email); setOpen(false) }}
+              onClick={() => { onChange(d.email); setInputText(d.name); setOpen(false) }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg"
             >
               <div className="text-gray-100 font-medium">{d.name}</div>

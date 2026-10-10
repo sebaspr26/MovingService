@@ -403,13 +403,34 @@ function SectionBilling() {
 
 function SectionCompanyDocs() {
   const { session } = useAuth()
+  const toast = useToast()
   const [docs, setDocs] = useState([])
+  const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef()
   const [preview, setPreview] = useState(null)
   const [docName, setDocName] = useState('')
   const [showNameInput, setShowNameInput] = useState(false)
   const [pendingFile, setPendingFile] = useState(null)
+  const [downloadingId, setDownloadingId] = useState(null)
+
+  // The files live in Storage (company-docs) and each one has a row in
+  // company_documents (supabase/036_company_documents.sql), scoped to the company
+  async function companyId() {
+    return getActiveCompanyId() || (await getCompanySettings())?.id
+  }
+
+  async function fetchDocs() {
+    const cid = await companyId()
+    const { data, error } = await supabase.from('company_documents').select('*').eq('company_id', cid).order('created_at', { ascending: false })
+    if (error) toast.error(friendlyError(error.message))
+    setDocs(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchDocs() }, [])
+
+  const urlOf = doc => supabase.storage.from('company-docs').getPublicUrl(doc.file_path).data?.publicUrl
 
   function handleFileSelect(file) {
     if (!file) return
@@ -418,27 +439,63 @@ function SectionCompanyDocs() {
     setShowNameInput(true)
   }
 
-  function confirmUpload() {
-    if (!pendingFile || !docName.trim()) return
-    const newDoc = {
-      id: Date.now(),
-      name: docName.trim(),
-      file_name: pendingFile.name,
-      mime_type: pendingFile.type,
-      size: pendingFile.size,
-      url: URL.createObjectURL(pendingFile),
-      uploaded_at: new Date().toISOString(),
+  async function confirmUpload() {
+    if (!pendingFile || !docName.trim() || uploading) return
+    setUploading(true)
+    try {
+      const cid = await companyId()
+      const ext = pendingFile.name.split('.').pop()
+      const filePath = `company/${cid}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('company-docs').upload(filePath, pendingFile)
+      if (uploadError) throw uploadError
+      const { data, error: dbError } = await supabase.from('company_documents').insert({
+        company_id: cid,
+        name: docName.trim(),
+        file_name: pendingFile.name,
+        file_path: filePath,
+        file_size: pendingFile.size,
+        mime_type: pendingFile.type,
+        created_by_email: session?.user?.email || null,
+        created_by_name: session?.user?.user_metadata?.name || null,
+      }).select().single()
+      if (dbError) {
+        // Don't leave an orphan file behind when the row couldn't be saved
+        await supabase.storage.from('company-docs').remove([filePath])
+        throw dbError
+      }
+      setDocs(prev => [data, ...prev])
+      toast.success('Documento subido')
+      setPendingFile(null)
+      setDocName('')
+      setShowNameInput(false)
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
-    setDocs(prev => [newDoc, ...prev])
-    setPendingFile(null)
-    setDocName('')
-    setShowNameInput(false)
-    if (fileRef.current) fileRef.current.value = ''
   }
 
-  function removeDoc(id) {
-    setDocs(prev => prev.filter(d => d.id !== id))
-    if (preview?.id === id) setPreview(null)
+  async function removeDoc(doc) {
+    const ok = await toast.confirm(`¿Eliminar el documento "${doc.name}"?`)
+    if (!ok) return
+    const { error } = await supabase.from('company_documents').delete().eq('id', doc.id)
+    if (error) { toast.error(friendlyError(error.message)); return }
+    await supabase.storage.from('company-docs').remove([doc.file_path])
+    setDocs(prev => prev.filter(d => d.id !== doc.id))
+    if (preview?.id === doc.id) setPreview(null)
+    toast.success('Documento eliminado')
+  }
+
+  async function downloadDoc(doc) {
+    setDownloadingId(doc.id)
+    try {
+      await downloadFromUrl(urlOf(doc), doc.file_name)
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   const isImage = (mime) => mime && mime.startsWith('image/')
@@ -469,8 +526,8 @@ function SectionCompanyDocs() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => { setShowNameInput(false); setPendingFile(null) }} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
-            <button onClick={confirmUpload} className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors">Subir</button>
+            <button onClick={() => { setShowNameInput(false); setPendingFile(null) }} disabled={uploading} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50">Cancelar</button>
+            <button onClick={confirmUpload} disabled={uploading || !docName.trim()} className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-500 transition-colors disabled:opacity-50 flex items-center gap-1.5">{uploading && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}Subir</button>
           </div>
         </div>
       ) : (
@@ -494,7 +551,9 @@ function SectionCompanyDocs() {
       />
 
       {/* Documents list */}
-      {docs.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-8"><span className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" /></div>
+      ) : docs.length === 0 ? (
         <div className="text-center py-8 bg-gray-900 rounded-xl border border-gray-800">
           <svg className="w-10 h-10 mx-auto text-gray-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -519,7 +578,7 @@ function SectionCompanyDocs() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-200 truncate">{doc.name}</p>
-                  <p className="text-[10px] text-gray-500">{doc.file_name} - {formatSize(doc.size)}</p>
+                  <p className="text-[10px] text-gray-500">{doc.file_name} - {formatSize(doc.file_size || 0)}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {(isImage(doc.mime_type) || isPdf(doc.mime_type)) && (
@@ -534,18 +593,18 @@ function SectionCompanyDocs() {
                       </svg>
                     </button>
                   )}
-                  <a
-                    href={doc.url}
-                    download={doc.file_name}
-                    className="p-1.5 text-gray-500 hover:text-green-400 transition-colors rounded hover:bg-gray-800"
+                  <button
+                    onClick={() => downloadDoc(doc)}
+                    disabled={downloadingId === doc.id}
+                    className="p-1.5 text-gray-500 hover:text-green-400 transition-colors rounded hover:bg-gray-800 disabled:opacity-50"
                     title="Descargar"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
-                  </a>
+                  </button>
                   {canDelete(session) && <button
-                    onClick={() => removeDoc(doc.id)}
+                    onClick={() => removeDoc(doc)}
                     className="p-1.5 text-gray-500 hover:text-red-400 transition-colors rounded hover:bg-gray-800"
                     title="Eliminar"
                   >
@@ -559,9 +618,9 @@ function SectionCompanyDocs() {
               {preview?.id === doc.id && (
                 <div className="border-t border-gray-800 p-3 bg-gray-950/50">
                   {isImage(doc.mime_type) ? (
-                    <img src={doc.url} alt={doc.name} className="max-h-80 mx-auto rounded border border-gray-700" />
+                    <img src={urlOf(doc)} alt={doc.name} className="max-h-80 mx-auto rounded border border-gray-700" />
                   ) : isPdf(doc.mime_type) ? (
-                    <PdfViewer url={doc.url} className="w-full h-[500px] border border-gray-700" />
+                    <PdfViewer url={urlOf(doc)} className="w-full h-[500px] border border-gray-700" />
                   ) : null}
                 </div>
               )}
