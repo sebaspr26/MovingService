@@ -55,16 +55,23 @@ export default function PagoDispatchers() {
   // Atajos solo para el super admin (con e.code para que Option en Mac no cambie la tecla):
   //   Alt+Shift+V  ver los dispatchers separados / unidos
   //   Alt+Shift+U  modo union: arrastrar un dispatcher sobre otro para unirlos
+  //   Esc          cierra el formulario de union, o sale del modo union (las tarjetas dejan de temblar)
   useEffect(() => {
     if (!superAdmin) return
     function onKey(e) {
+      if (e.key === 'Escape') {
+        if (unionForm) setUnionForm(null)
+        else setUnionMode(false)
+        return
+      }
       if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return
       if (e.code === 'KeyV') { e.preventDefault(); setSeparated(v => !v) }
       if (e.code === 'KeyU') { e.preventDefault(); setUnionMode(v => !v) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [superAdmin])
+  }, [superAdmin, unionForm])
+
   usePageCacheSave('pago-dispatchers', session, { dispatchers }, !loading)
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese dispatcher
@@ -187,25 +194,22 @@ export default function PagoDispatchers() {
     const { name, members, union } = unionForm
     if (!name.trim()) return toast.warning('Ponle un nombre a la union')
     if (!union && members.length < 2) return toast.warning('Selecciona al menos dos dispatchers')
+    if (union && members.length < 2) {
+      const ok = await toast.confirm(`Con menos de 2 dispatchers la unión "${union.name}" se deshace. ¿Continuar?`, { confirmText: 'Deshacer unión' })
+      if (!ok) return
+    }
     await runUnionAction(
       () => (union ? updateUnion(session, union, { name, members }) : createUnion(session, { companyId: activeCompanyId, name, members })),
-      union ? 'Union actualizada' : 'Union creada',
+      union ? (members.length < 2 ? 'Union deshecha' : 'Union actualizada') : 'Union creada',
     )
     setUnionForm(null)
   }
 
-  async function removeMember(union, email) {
-    const leaves = union.members.length <= 2
-    const ok = await toast.confirm(
-      leaves ? `Con solo 1 dispatcher la union "${union.name}" se deshace. ¿Continuar?` : `¿Sacar a ${nameOfEmail(email)} de la union "${union.name}"?`,
-      { confirmText: leaves ? 'Deshacer union' : 'Sacar', confirmClass: 'bg-orange-600 hover:bg-orange-500' },
-    )
-    if (ok) runUnionAction(() => updateUnion(session, union, { members: union.members.filter(m => m !== email) }), leaves ? 'Union deshecha' : 'Dispatcher sacado de la union')
-  }
-
   async function dissolveUnion(union) {
     const ok = await toast.confirm(`¿Deshacer la union "${union.name}"? Los pagos ya hechos se conservan; cada dispatcher vuelve a verse por separado.`, { confirmText: 'Deshacer' })
-    if (ok) runUnionAction(() => deleteUnion(session, union), 'Union deshecha')
+    if (!ok) return
+    setUnionForm(null)
+    runUnionAction(() => deleteUnion(session, union), 'Union deshecha')
   }
 
   // Cada tarjeta tiembla con su propio ritmo (como los iconos del iPhone): el desfase y la
@@ -236,7 +240,12 @@ export default function PagoDispatchers() {
               <kbd className="px-1 py-0.5 rounded bg-gray-800 text-gray-400">Alt+Shift+U</kbd> unir arrastrando
               <span className="mx-1.5">·</span>
               <kbd className="px-1 py-0.5 rounded bg-gray-800 text-gray-400">Alt+Shift+V</kbd> ver {separated ? 'unidos' : 'separados'}
-              {unionMode && <span className="ml-2 text-orange-400 font-semibold">Modo unión activo: arrastra un dispatcher sobre otro</span>}
+              {unionMode && (
+                <span className="ml-2 inline-flex items-center gap-2 text-orange-400 font-semibold">
+                  Modo unión: arrastra un dispatcher sobre otro
+                  <button onClick={() => setUnionMode(false)} className="px-2 py-0.5 rounded-md bg-orange-600 text-white text-[11px] font-bold hover:bg-orange-500 transition-colors">Listo (Esc)</button>
+                </span>
+              )}
               {separated && <span className="ml-2 text-blue-400 font-semibold">Vista separada</span>}
             </p>
           )}
@@ -250,63 +259,6 @@ export default function PagoDispatchers() {
         />
       </div>
 
-      {superAdmin && (
-        <div className={`mb-6 bg-gray-900 border rounded-xl overflow-hidden ${unionMode ? 'border-orange-600/50' : 'border-gray-800'}`}>
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Uniones</h2>
-              <span className="text-xs text-gray-600">{unions.length}</span>
-            </div>
-            <button
-              onClick={() => setUnionForm({ name: '', members: [] })}
-              className="text-xs font-medium text-blue-400 hover:text-orange-300 transition-colors"
-            >+ Nueva unión</button>
-          </div>
-          {unions.length === 0 ? (
-            <p className="px-4 pb-3 text-xs text-gray-600">Sin uniones. Une dos dispatchers para que los administradores los vean como uno solo.</p>
-          ) : (
-            <div className="divide-y divide-gray-800 border-t border-gray-800">
-              {unions.map(un => {
-                const addable = freeUsers
-                return (
-                  <div key={un.id} className="px-4 py-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white truncate flex-1">{un.name}</p>
-                      <button onClick={() => setUnionForm({ name: un.name, members: un.members, union: un })} title="Editar nombre" className="p-1 text-gray-500 hover:text-orange-400 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
-                      </button>
-                      <button onClick={() => dissolveUnion(un)} title="Deshacer unión" className="p-1 text-gray-500 hover:text-red-400 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {un.members.map(m => (
-                        <span key={m} className="inline-flex items-center gap-1 text-xs bg-gray-800 text-gray-300 rounded-full pl-2.5 pr-1 py-0.5">
-                          {nameOfEmail(m)}
-                          <button onClick={() => removeMember(un, m)} title="Sacar de la unión" className="w-4 h-4 rounded-full text-gray-500 hover:text-red-400 hover:bg-gray-700 flex items-center justify-center">
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                          </button>
-                        </span>
-                      ))}
-                      {addable.length > 0 && (
-                        <select
-                          value=""
-                          onChange={e => e.target.value && runUnionAction(() => updateUnion(session, un, { members: [...un.members, normEmail(e.target.value)] }), 'Dispatcher agregado a la unión')}
-                          className="text-xs bg-gray-800 border border-gray-700 rounded-full px-2 py-0.5 text-gray-400 focus:outline-none focus:border-orange-500"
-                        >
-                          <option value="">+ Agregar</option>
-                          {addable.map(u => <option key={u.id} value={u.email}>{u.user_metadata?.name || u.email}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -315,36 +267,6 @@ export default function PagoDispatchers() {
         <div className="text-center py-20 text-gray-500 text-sm">No hay dispatchers</div>
       ) : (
         <div className="space-y-6">
-        {unionCards.length > 0 && (
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Uniones</h2>
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="text-xs text-gray-700">{unionCards.length}</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unionCards.map(un => (
-                <div
-                  key={un.id}
-                  onClick={() => setSelectedUnion(un)}
-                  onDragOver={e => { if (unionMode && dragEmail) { e.preventDefault(); setDropTarget(`n:${un.id}`) } }}
-                  onDragLeave={() => setDropTarget(t => (t === `n:${un.id}` ? null : t))}
-                  onDrop={e => { if (unionMode) { e.preventDefault(); handleDropOnUnion(un) } }}
-                  className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-gray-900/80 ${dropTarget === `n:${un.id}` ? 'border-orange-500 ring-2 ring-orange-500/50' : 'border-gray-800 hover:border-orange-600/50'}`}
-                >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white text-sm leading-tight truncate">{un.name}</p>
-                    {superAdmin && <p className="text-xs text-gray-500 truncate">{un.members.map(nameOfEmail).join(' + ')}</p>}
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 bg-orange-900/30 text-orange-400 border-orange-800/40">Unión</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         {[
           { key: 'super_admin', label: 'Super Admin' },
           { key: 'admin', label: 'Administradores' },
@@ -444,6 +366,54 @@ export default function PagoDispatchers() {
             </div>
           )
         })}
+        {(unionCards.length > 0 || superAdmin) && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Uniones</h2>
+              <div className="flex-1 h-px bg-gray-800" />
+              <span className="text-xs text-gray-700">{unionCards.length}</span>
+              {superAdmin && (
+                <button onClick={() => setUnionForm({ name: '', members: [] })} className="text-xs font-medium text-blue-400 hover:text-orange-300 transition-colors">+ Nueva unión</button>
+              )}
+            </div>
+            {unionCards.length === 0 ? (
+              <p className="text-xs text-gray-600">Sin uniones. Une dos dispatchers para que los administradores los vean como uno solo.</p>
+            ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {unionCards.map(un => (
+                <div
+                  key={un.id}
+                  onClick={() => setSelectedUnion(un)}
+                  onDragOver={e => { if (unionMode && dragEmail) { e.preventDefault(); setDropTarget(`n:${un.id}`) } }}
+                  onDragLeave={() => setDropTarget(t => (t === `n:${un.id}` ? null : t))}
+                  onDrop={e => { if (unionMode) { e.preventDefault(); handleDropOnUnion(un) } }}
+                  className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-gray-900/80 ${dropTarget === `n:${un.id}` ? 'border-orange-500 ring-2 ring-orange-500/50' : 'border-gray-800 hover:border-orange-600/50'}`}
+                >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm leading-tight truncate">{un.name}</p>
+                    {superAdmin && <p className="text-xs text-gray-500 truncate">{un.members.map(nameOfEmail).join(' + ')}</p>}
+                  </div>
+                  {superAdmin ? (
+                    <button
+                      onClick={e => { e.stopPropagation(); setUnionForm({ name: un.name, members: un.members, union: un }) }}
+                      title="Editar unión"
+                      className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg shrink-0 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-orange-300 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+                      Editar
+                    </button>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 bg-orange-900/30 text-orange-400 border-orange-800/40">Unión</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            )}
+          </div>
+        )}
         </div>
       )}
 
@@ -460,7 +430,7 @@ export default function PagoDispatchers() {
         <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4 animate-modal-backdrop" onClick={() => setUnionForm(null)}>
           <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl animate-modal-panel" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-white mb-1">{unionForm.union ? 'Editar unión' : 'Nueva unión'}</h3>
-            <p className="text-xs text-gray-500 mb-4">Los administradores verán esta unión como un solo dispatcher, con los pagos de todos juntos.</p>
+            <p className="text-xs text-gray-500 mb-4">{unionForm.union ? 'Cambia el nombre o marca y desmarca quién forma parte de la unión.' : 'Los administradores verán esta unión como un solo dispatcher, con los pagos de todos juntos.'}</p>
             <label className="block text-xs font-medium text-gray-400 mb-1">Nombre de la unión</label>
             <input
               autoFocus
@@ -469,11 +439,11 @@ export default function PagoDispatchers() {
               onKeyDown={e => { if (e.key === 'Enter') saveUnionForm() }}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-orange-500 mb-4"
             />
-            {!unionForm.union && (
+            {(
               <>
                 <p className="text-xs font-medium text-gray-400 mb-2">Dispatchers ({unionForm.members.length})</p>
                 <div className="max-h-52 overflow-y-auto space-y-1 mb-4 border border-gray-800 rounded-lg p-1.5">
-                  {[...freeUsers].map(u => {
+                  {[...(unionForm.union ? memberUsersOf(unionForm.union) : []), ...freeUsers].map(u => {
                     const em = normEmail(u.email)
                     const on = unionForm.members.includes(em)
                     return (
@@ -489,7 +459,10 @@ export default function PagoDispatchers() {
                 </div>
               </>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center justify-end gap-2">
+              {unionForm.union && (
+                <button onClick={() => dissolveUnion(unionForm.union)} className="mr-auto px-3 py-1.5 text-sm text-red-400 hover:text-red-300 transition-colors">Deshacer unión</button>
+              )}
               <button onClick={() => setUnionForm(null)} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
               <button onClick={saveUnionForm} className="px-4 py-1.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-500 transition-colors">
                 {unionForm.union ? 'Guardar' : 'Crear unión'}
