@@ -1,3 +1,4 @@
+import { TRUCK_TYPES, truckTypeInfo, NO_TRUCK_TYPE_LABEL } from '../lib/trucks'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -35,6 +36,9 @@ export default function Dashboard() {
   const role = session?.user?.user_metadata?.role
   const isDriver = role === 'driver' || role === 'driver_lease'
   const [trucks, setTrucks] = useState([])
+  // The truck-type column exists once supabase/038_truck_type.sql has been run; until then the
+  // field is hidden and never written, so saving a truck keeps working
+  const typeSupported = trucks.length === 0 || 'truck_type' in trucks[0]
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
   const [showTruckModal, setShowTruckModal] = useState(false)
@@ -63,6 +67,7 @@ export default function Dashboard() {
   const [truckIsLis, setTruckIsLis] = useState(false)
   // IFTA-qualified truck (dry van) — only offered when the company has IFTA on
   const [truckIfta, setTruckIfta] = useState(false)
+  const [truckType, setTruckType] = useState('')   // '' = sin eleccion
   const [truckOwnerName, setTruckOwnerName] = useState('')
   const [truckVin, setTruckVin] = useState('')
 
@@ -183,6 +188,7 @@ export default function Dashboard() {
       setTruckNumber(truck.number)
       setTruckIsLis(truck.is_lis || false)
       setTruckIfta(truck.ifta || false)
+      setTruckType(truck.truck_type || '')
       setTruckOwnerName(truck.owner_name || '')
       setTruckVin(truck.vin_number || '')
       setTruckDiscount(String(truck.discount_percent || 13))
@@ -209,6 +215,7 @@ export default function Dashboard() {
       setTruckDriverId('')
       setTruckIsLis(false)
       setTruckIfta(false)
+      setTruckType('')
       setTruckOwnerName('')
       setTruckVin('')
       setTruckPartners([{ name: '', percentage: '' }])
@@ -284,12 +291,18 @@ export default function Dashboard() {
       return
     }
 
+    if (!editingTruck && typeSupported && !truckType) {
+      setTruckError('Elige el tipo de camion')
+      return
+    }
+
     if (truckIsLis && !truckOwnerName.trim()) {
       setTruckError('El nombre del propietario es requerido para trucks LEASE')
       return
     }
 
     const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
+    const typeField = typeSupported ? { truck_type: truckType || null } : {}
 
     if (editingTruck) {
       const prevDriver = drivers.find(d => d.truck_id === editingTruck.id)
@@ -301,7 +314,7 @@ export default function Dashboard() {
       const balanceBefore = activeCycle ? await computeTruckBalance(editingTruck.id, activeCycle.id) : null
 
       const { error } = await supabase.from('trucks')
-        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta })
+        .update({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta, ...typeField })
         .eq('id', editingTruck.id)
       if (error) { setTruckError('Error actualizando camion'); toast.error('Error al actualizar camion'); return }
 
@@ -326,8 +339,8 @@ export default function Dashboard() {
       // Save recurring expenses
       await saveRecurringExpenses(editingTruck.id)
 
-      const afterValues = { name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta }
-      const changes = diffFields(editingTruck, afterValues, ['name', 'number', 'discount_percent', 'is_lis', 'owner_name', 'vin_number', 'ifta'])
+      const afterValues = { name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta, ...typeField }
+      const changes = diffFields(editingTruck, afterValues, ['name', 'number', 'discount_percent', 'is_lis', 'owner_name', 'vin_number', 'ifta', ...(typeSupported ? ['truck_type'] : [])])
       const prevDriverName = prevDriver?.name || null
       const newDriverName = newDriver?.name || null
       if (prevDriverName !== newDriverName) changes.driver = { from: prevDriverName, to: newDriverName }
@@ -342,7 +355,7 @@ export default function Dashboard() {
       else logAudit(session, truckAudit)
     } else {
       const { data: truck, error } = await supabase.from('trucks')
-        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta, company_id: getActiveCompanyId() })
+        .insert({ name: truckName.trim(), number: truckNumber.trim(), discount_percent: discountValue, is_lis: truckIsLis, owner_name: truckIsLis ? truckOwnerName.trim() : null, vin_number: truckVin.trim() || null, ifta: truckIfta, ...typeField, company_id: getActiveCompanyId() })
         .select().single()
 
       if (error || !truck) { setTruckError('Error creando camion'); toast.error('Error al crear camion'); return }
@@ -382,6 +395,7 @@ export default function Dashboard() {
           discount_percent: truck.discount_percent,
           is_lis: truck.is_lis,
           owner_name: truck.owner_name,
+          truck_type: typeSupported ? (truckType || null) : undefined,
           driver: newDriver?.name || null,
           caja_inicial: cajaInicial > 0 ? cajaInicial : null,
           recurring_expenses: recurringExpensesSnapshot(),
@@ -737,7 +751,12 @@ export default function Dashboard() {
                 <div className="flex items-start justify-between mb-4">
                   <Link to={`/truck/${truck.id}`} className="flex-1">
                     <h3 className="text-lg font-semibold text-white group-hover:text-orange-400 transition-colors">Truck {truck.number} <span className="text-gray-400">—</span> {truck.name}</h3>
-                    <p className="text-xs text-gray-500">#{truck.number}{assignedDriver ? ` · ${assignedDriver.name}` : ''}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
+                      <span>#{truck.number}{assignedDriver ? ` · ${assignedDriver.name}` : ''}</span>
+                      {typeSupported && (truckTypeInfo(truck.truck_type)
+                        ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${truckTypeInfo(truck.truck_type).badge}`}>{truckTypeInfo(truck.truck_type).label}</span>
+                        : <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-gray-700 text-gray-600">{NO_TRUCK_TYPE_LABEL}</span>)}
+                    </p>
                   </Link>
                   {!isDriver && <div className="flex gap-1">
                     <button onClick={() => openTruckModal(truck)}
@@ -999,6 +1018,29 @@ export default function Dashboard() {
                   placeholder="1FUJA6CK07LY12345"
                 />
               </div>
+
+              {typeSupported && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de camión{!editingTruck && ' *'}</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TRUCK_TYPES.map(t => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setTruckType(truckType === t.value && editingTruck ? '' : t.value)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          truckType === t.value
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  {editingTruck && !truckType && <p className="text-[10px] text-gray-600 mt-1">{NO_TRUCK_TYPE_LABEL}: elige el tipo de este camión</p>}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Chofer Asignado</label>

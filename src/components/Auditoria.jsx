@@ -6,6 +6,7 @@ import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache
 import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { STATUS_CONFIG } from '../lib/orders'
+import { truckTypeLabel } from '../lib/trucks'
 
 const PAGE_SIZE = 50
 
@@ -71,6 +72,7 @@ const FIELD_LABELS = {
   pay_mode: 'Modo de pago', pay_rate: 'Tarifa de pago',
   ifta: 'IFTA (dry van)',
   dead_miles: 'Millas vacías (DH)',
+  truck_type: 'Tipo de camión',
 }
 
 const LUMPER_FIELDS = { amount: 'Monto', vendor: 'Lumper', receipt_number: 'Recibo #', date: 'Fecha', city: 'Ciudad', notes: 'Notas' }
@@ -83,6 +85,7 @@ function fmtField(field, v) {
   if (MONEY_FIELDS.has(field) && !isNaN(Number(v))) return fmtMoney(Number(v))
   if (field === 'status') return STATUS_CONFIG[v]?.label || String(v)
   if (field === 'pay_mode') return PAY_MODES[v] || String(v)
+  if (field === 'truck_type') return truckTypeLabel(v)
   return fmtVal(v)
 }
 
@@ -190,6 +193,7 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Descuento:</span> <span className="text-gray-300">{info.discount_percent != null ? `${info.discount_percent}%` : '—'}</span></div>
         <div><span className="text-gray-500">Chofer:</span> <span className="text-gray-300">{fmtVal(info.driver)}</span></div>
         <div><span className="text-gray-500">LIS:</span> <span className="text-gray-300">{fmtVal(info.is_lis)}</span></div>
+        {'truck_type' in info && <div><span className="text-gray-500">Tipo:</span> <span className="text-gray-300">{truckTypeLabel(info.truck_type)}</span></div>}
         {info.is_lis && <div><span className="text-gray-500">Propietario:</span> <span className="text-gray-300">{fmtVal(info.owner_name)}</span></div>}
         {info.caja_inicial != null && <div><span className="text-gray-500">Caja inicial:</span> <span className="text-gray-300">{fmtMoney(info.caja_inicial)}</span></div>}
       </div>

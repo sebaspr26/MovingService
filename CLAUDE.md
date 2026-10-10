@@ -57,6 +57,7 @@ src/
     invoiceCache.js     - Cache en memoria de invoices generados; clearInvoiceCache(orderId) lo invalida (OrderDetail al cambiar lumpers)
     dispatcherUnions.js - loadUnions (nunca lanza), createUnion/updateUnion/deleteUnion (una union con <2 miembros se deshace), unionOf. Miembros = emails en minuscula; un dispatcher en una sola union
     dispatcherPayments.js - createDispatcherPayment (pago + gastos por camion + auditoria, con union opcional), deleteDispatcherPayment, emailSettlement, dispatcherProfileRate — compartido por DispatcherPaymentModal y UnionPaymentModal
+    trucks.js           - TRUCK_TYPES (box_truck/dry_van/reefer), truckTypeInfo, truckTypeLabel (null = "Sin elección"). El selector en el modal de camion (Dashboard) es obligatorio al CREAR y opcional al editar; solo se muestra/escribe si la columna existe (despues de correr 038). Etiqueta del tipo en la tarjeta del camion
     download.js         - downloadBase64Pdf(base64, filename) para PDFs generados en cliente (settlements). downloadFromUrl(url, filename) hace fetch+blob para forzar descarga real de URLs de Supabase Storage (cross-origin) — el atributo `download` de un `<a>` normal no funciona en esos casos, el navegador abre pestaña nueva en su lugar
     auditLog.js         - logAudit(session, {action, entityType, entityId, entityName, extraInfo}) inserta en tabla audit_log con company_id + user_id/user_email/user_name del actor. diffFields() calcula el diff de campos para logs de update. Cobertura NO es 100%: ordenes creadas via OrdersTable.jsx (quick-add en TruckView) no llaman logAudit, solo las creadas via OrderDetail.jsx
     here.js             - HERE Maps API: geocoding, truck routing (loaded miles + DH), polyline decode. Console warnings en errores
@@ -113,11 +114,12 @@ supabase/
   033_receipt_images.sql     - receipt_path en expenses/diesel/def/owner_expenses: foto/PDF del recibo en Storage (order-docs, prefijo receipts/). Varias filas pueden compartir la misma foto (varios recibos en una imagen). Ver lib/receipts.js y ReceiptViewer.jsx
   035_order_lumpers.sql      - Tabla order_lumpers (order_id FK CASCADE, amount, vendor, receipt_number, date, city, notes, receipt_path, paid, paid_at, created_by_*). HAY QUE CORRERLA A MANO en el SQL editor de Supabase; antes de eso la app funciona igual pero sin lumpers
   037_dispatcher_unions.sql  - Tabla dispatcher_unions (company_id, name, members text[]) + union_id/union_group en dispatcher_payments. Correr a mano; antes de eso la app funciona sin uniones
+  038_truck_type.sql         - trucks.truck_type (box_truck/dry_van/reefer, NULL = sin eleccion). Correr a mano
   034_ifta.sql               - IFTA: company_settings.features (jsonb, { ifta: true } por empresa, Configuracion > Modulos), trucks.ifta (solo dry van), orders.state_miles (millas por estado de la ruta HERE, loaded/empty), tabla ifta_filings (trimestres declarados)
 ```
 
 ## Database Tables (Supabase)
-- `trucks` (id, name, number, discount_percent [default 13], is_lis [default false], owner_name)
+- `trucks` (id, name, number, discount_percent [default 13], is_lis [default false], owner_name, truck_type [box_truck/dry_van/reefer, NULL = "Sin elección" para los camiones anteriores])
 - `orders` (id, truck_id [nullable], cycle_id [nullable FK→cycles], company_id, order_number, pu_date, pu_city, do_date, do_city, miles, rate, apply_discount, discount_percent, paid, period_start, period_end, status, broker_id, broker_email, equipment_type, load_type, dispatcher [almacena EMAIL del dispatcher, no nombre], driver_id FK→drivers, invoice_notes, dead_miles, ref_number, driver_name [fallback legacy si no hay driver_id], commodity, weight, special_instructions, driver_pay_total, dispatcher_paid [checkbox "pago al conductor" en trucks lease, ver Balance de Ciclo], carried_over [orden traida de un ciclo cerrado sin pagar], created_by_email, created_by_name [solo se graba hacia adelante desde 031_created_by.sql])
 - `brokers` (id, type [broker/customer], name, mc_number, dot_number, ref_number, address, phone, email, company_id)
 - `order_stops` (id, order_id FK CASCADE, type [pickup/delivery/stop], location_name, address, city, state, date, time, time_end, schedule_type [appointment/range], ref_number, sequence, notes)
