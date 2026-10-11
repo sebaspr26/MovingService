@@ -13,15 +13,27 @@ export async function htmlToPdfBase64(html, { containerWidth = 900 } = {}) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
 
-  const container = document.createElement('div')
-  container.style.cssText = `position:fixed;left:-9999px;top:0;width:${containerWidth}px;background:#f3f4f6;padding:24px;box-sizing:border-box;`
-  container.innerHTML = doc.body.innerHTML
-  document.body.appendChild(container)
+  // The document is rendered in its own hidden iframe. html2canvas clones the whole
+  // document it is given; with the app's page that meant cloning every screen (and the
+  // page flashed — row corners went white for a second). In the iframe it only clones
+  // the report, and the app's CSS can't leak into it either.
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.cssText = `position:fixed;left:-9999px;top:0;width:${containerWidth}px;height:100px;border:0;pointer-events:none;`
+  document.body.appendChild(frame)
+  const fdoc = frame.contentDocument
+  const font = getComputedStyle(document.body).fontFamily
+  fdoc.open()
+  fdoc.write(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#f3f4f6;}body{font-family:${font};}</style></head><body><div id="pdf-root" style="width:${containerWidth}px;padding:24px;box-sizing:border-box;background:#f3f4f6;">${doc.body.innerHTML}</div></body></html>`)
+  fdoc.close()
+  const container = fdoc.getElementById('pdf-root')
+  frame.style.height = container.scrollHeight + 'px'
 
   const imgs = container.querySelectorAll('img')
   await Promise.all(Array.from(imgs).map(img =>
     img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r })
   ))
+  frame.style.height = container.scrollHeight + 'px'
 
   const mainDiv = container.firstElementChild || container
 
@@ -68,6 +80,6 @@ export async function htmlToPdfBase64(html, { containerWidth = 900 } = {}) {
     }
   }
 
-  document.body.removeChild(container)
+  document.body.removeChild(frame)
   return pdf.output('datauristring').split(',')[1]
 }
