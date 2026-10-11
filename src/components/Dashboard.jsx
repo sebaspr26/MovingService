@@ -58,6 +58,8 @@ function PercentInput({ value, onChange, step = 1, placeholder, required, autoFo
       <input
         type="number"
         step="0.01"
+        min="0"
+        max="100"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`${TRUCK_INPUT} pr-14`}
@@ -373,6 +375,15 @@ export default function Dashboard() {
     }
 
     const discountValue = truckDiscount === 'custom' ? (Number(truckDiscountCustom) || 0) : Number(truckDiscount)
+    // A negative discount (typed with a "-") would ADD money to every order's net
+    if (discountValue < 0 || discountValue > 100) {
+      setTruckError('El descuento debe estar entre 0% y 100%')
+      return
+    }
+    if (truckPartners.some(p => Number(p.percentage) < 0)) {
+      setTruckError('El porcentaje de un socio no puede ser negativo')
+      return
+    }
     const typeField = typeSupported ? { truck_type: truckType || null } : {}
 
     if (editingTruck) {
