@@ -240,7 +240,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [refNumber, setRefNumber] = useState('')
   const [rate, setRate] = useState('')
   const [applyDiscount, setApplyDiscount] = useState(true)
-  const [discountPercent, setDiscountPercent] = useState(13)
+  // No built-in 13%: a new order shows 0% until a truck is chosen, then that truck's own discount
+  const [discountPercent, setDiscountPercent] = useState(0)
   const [miles, setMiles] = useState('')
   const [deadMiles, setDeadMiles] = useState('')
   const [invoiceNotes, setInvoiceNotes] = useState('')
@@ -334,7 +335,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         const preselectedTruck = (allowedTruckIds !== null ? allTrucks.filter(t => allowedTruckIds.includes(t.id)) : allTrucks)
           .find(t => t.id === preSelectId)
         if (preselectedTruck) {
-          setDiscountPercent(preselectedTruck.discount_percent || 13)
+          setDiscountPercent(Number(preselectedTruck.discount_percent) || 0)
           const assignedDriver = (dRes.data || []).find(d => d.truck_id === preSelectId)
           setDriverName(assignedDriver?.name || '')
           setDriverId(assignedDriver?.id || null)
@@ -956,7 +957,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       let orderId = id
       if (isNew) {
         const truck = trucks.find(t => t.id === truckId)
-        record.discount_percent = truck?.discount_percent ?? 13
+        record.discount_percent = Number(truck?.discount_percent) || 0
 
         const { data: existing } = await supabase.from('orders').select('id')
           .eq('truck_id', truckId).eq('order_number', record.order_number).limit(1)
@@ -1394,7 +1395,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                     }
                     setTruckId(val)
                     const t = trucks.find(x => x.id === val)
-                    if (t) setDiscountPercent(t.discount_percent || 13)
+                    if (t) setDiscountPercent(Number(t.discount_percent) || 0)
                     const assignedDriver = drivers.find(d => d.truck_id === val)
                     setDriverName(assignedDriver?.name || '')
                     setDriverId(assignedDriver?.id || null)
