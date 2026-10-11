@@ -693,7 +693,9 @@ export default function Dashboard() {
           </svg>
           Camion
         </button>
-        {trucksWithCycles.length > 0 && (
+        {/* Always in the stack, only hidden until the open cycles are known: appearing later pushed
+            the "Camion" button up when the data loaded (the stack grows upwards from the corner) */}
+        <div className={`flex flex-col gap-3 items-end transition-opacity duration-300 ${trucksWithCycles.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <>
             <button onClick={() => openOrderDrawer()}
               className="px-4 py-2.5 bg-green-600/20 border border-green-600/40 text-green-400 rounded-xl text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center gap-2 backdrop-blur-sm shadow-lg">
@@ -710,7 +712,7 @@ export default function Dashboard() {
               Gasto
             </button>
           </>
-        )}
+        </div>
       </div>}
 
       {/* Floating action button - mobile: expandable */}
