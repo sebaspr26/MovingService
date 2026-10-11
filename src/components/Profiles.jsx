@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
-import { inspectDriverRecords, removeDriverRecords } from '../lib/driverRecords'
+import { inspectDriverRecords, inspectDriverById, removeDriverRecords } from '../lib/driverRecords'
 import { logAudit } from '../lib/auditLog'
 import Avatar, { kindOfRole } from './Avatar'
 import { createPortal } from 'react-dom'
@@ -216,6 +216,7 @@ export default function Profiles() {
   const [rateHistory, setRateHistory] = useState([])
   const [impersonateUser, setImpersonateUser] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null) // { user, records, deleteHistory, busy }
+  const [orphanTarget, setOrphanTarget] = useState(null) // { driver, record, deleteHistory, busy } — conductor sin cuenta
   const [impersonateLink, setImpersonateLink] = useState(null)
   const [impersonateLoading, setImpersonateLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -531,6 +532,33 @@ export default function Profiles() {
     } catch (err) {
       toast.error(err.message)
       setDeleteTarget(t => (t ? { ...t, busy: false } : t))
+    }
+  }
+
+  // A driver row with no login account (the account was deleted earlier, or never existed)
+  async function handleDeleteOrphan(driver) {
+    setOrphanTarget({ driver, record: null, deleteHistory: false, busy: false })
+    const record = await inspectDriverById(driver.id).catch(() => null)
+    setOrphanTarget(t => (t && t.driver.id === driver.id ? { ...t, record: record || false } : t))
+  }
+
+  async function confirmDeleteOrphan() {
+    const { driver, record, deleteHistory } = orphanTarget
+    setOrphanTarget(t => ({ ...t, busy: true }))
+    try {
+      const summary = await removeDriverRecords(session, record ? [record] : [], { deleteHistory })
+      logAudit(session, {
+        action: 'delete_user', entityType: 'user', entityId: driver.id,
+        entityName: driver.name || driver.email,
+        extraInfo: { email: driver.email || null, role: 'driver', account: false, driver_rows_deleted: summary.deleted, driver_rows_deactivated: summary.deactivated, payment_history_deleted: !!deleteHistory },
+      })
+      invalidatePageCache('conductores', 'pago-conductores', 'pago-dispatchers', 'company-drivers', 'profiles')
+      toast.success(summary.deactivated ? 'Se conserva como conductor inactivo (tiene historial)' : 'Conductor eliminado')
+      setOrphanTarget(null)
+      fetchUsers()
+    } catch (err) {
+      toast.error(err.message)
+      setOrphanTarget(t => (t ? { ...t, busy: false } : t))
     }
   }
 
@@ -985,6 +1013,13 @@ export default function Profiles() {
                         >
                           Invitar
                         </button>
+                        <button
+                          onClick={() => handleDeleteOrphan(driver)}
+                          title="Eliminar conductor"
+                          className="px-2 py-0.5 text-xs rounded-md bg-red-600/15 text-red-400 hover:bg-red-600/25 transition-colors font-medium"
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </div>
                   )})}
@@ -1394,6 +1429,33 @@ export default function Profiles() {
                   </label>
                 )}
               </div>
+            )}
+          </ConfirmDeleteModal>
+        )
+      })()}
+
+      {orphanTarget && (() => {
+        const { driver, record, deleteHistory, busy } = orphanTarget
+        const hasOrders = record && record.orders > 0
+        const hasPayments = record && record.payments > 0
+        return (
+          <ConfirmDeleteModal
+            title="Eliminar conductor"
+            subtitle={`${driver.name || ''} ${driver.email ? '· ' + driver.email : ''}`.trim()}
+            confirmWord={driver.name?.trim() || driver.email || 'eliminar'}
+            confirmLabel="Eliminar conductor"
+            busy={busy}
+            onConfirm={confirmDeleteOrphan}
+            onClose={() => setOrphanTarget(null)}
+          >
+            <p>Este conductor no tiene cuenta. Se quita de <span className="text-white font-medium">Conductores y Pago Conductores</span> y no se puede deshacer.</p>
+            {record === null && <p className="text-xs text-gray-500">Revisando su historial...</p>}
+            {hasOrders && <p className="text-xs text-gray-400">Tiene órdenes asignadas: se conserva su historial y queda como <span className="text-gray-200">inactivo</span> (sin camión).</p>}
+            {hasPayments && !hasOrders && (
+              <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-300">
+                <input type="checkbox" checked={deleteHistory} disabled={busy} onChange={e => setOrphanTarget(t => ({ ...t, deleteHistory: e.target.checked }))} className="mt-0.5 accent-red-500" />
+                <span>Eliminar también sus {record.payments} pago{record.payments !== 1 ? 's' : ''} y los gastos que generó en el camión <span className="text-red-300">(para un conductor de prueba)</span>. Si no, queda como inactivo.</span>
+              </label>
             )}
           </ConfirmDeleteModal>
         )
