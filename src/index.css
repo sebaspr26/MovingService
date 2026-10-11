@@ -72,6 +72,118 @@ html.light {
   color-scheme: light;
 }
 
+/* ========================
+   EXTRA THEMES — each one only overrides the gray palette (and the page background /
+   scrollbar, which need plain hex). Medianoche = Tailwind's default, Claro = html.light above.
+   Light ones are `html.light[data-theme=...]` so they also get every `html.light` rule
+   ======================== */
+html[data-theme="graphite"] {
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f4f4f5;
+  --color-gray-200: #e4e4e7;
+  --color-gray-300: #d4d4d8;
+  --color-gray-400: #a1a1aa;
+  --color-gray-500: #71717a;
+  --color-gray-600: #52525b;
+  --color-gray-700: #3f3f46;
+  --color-gray-800: #27272a;
+  --color-gray-900: #18181b;
+  --color-gray-950: #09090b;
+}
+html[data-theme="ocean"] {
+  --color-gray-50: #f6f9fb;
+  --color-gray-100: #edf3f7;
+  --color-gray-200: #dbe7ef;
+  --color-gray-300: #bcd0de;
+  --color-gray-400: #8fb0c6;
+  --color-gray-500: #5f87a3;
+  --color-gray-600: #35607f;
+  --color-gray-700: #1f4565;
+  --color-gray-800: #143049;
+  --color-gray-900: #0b2036;
+  --color-gray-950: #04111f;
+}
+html.light[data-theme="mint"] {
+  --color-gray-50: #0f221a;
+  --color-gray-100: #1d3529;
+  --color-gray-200: #2d4c3b;
+  --color-gray-300: #3f6652;
+  --color-gray-400: #5d8870;
+  --color-gray-500: #5d8870;
+  --color-gray-600: #8fb7a0;
+  --color-gray-700: #b9d6c4;
+  --color-gray-800: #d5e9dc;
+  --color-gray-900: #e8f4ec;
+  --color-gray-950: #f6fbf7;
+  --color-white: #0f221a;
+}
+html.light[data-theme="rose"] {
+  --color-gray-50: #261419;
+  --color-gray-100: #3a2229;
+  --color-gray-200: #52313a;
+  --color-gray-300: #6e434c;
+  --color-gray-400: #96606a;
+  --color-gray-500: #96606a;
+  --color-gray-600: #c98f97;
+  --color-gray-700: #e4b8bd;
+  --color-gray-800: #f1d5d8;
+  --color-gray-900: #f9e9ea;
+  --color-gray-950: #fdf6f6;
+  --color-white: #261419;
+}
+
+html[data-theme="graphite"],
+html[data-theme="graphite"] body {
+  background-color: #09090b;
+}
+html[data-theme="ocean"],
+html[data-theme="ocean"] body {
+  background-color: #04111f;
+}
+html.light[data-theme="mint"],
+html.light[data-theme="mint"] body {
+  background-color: #f6fbf7;
+}
+html.light[data-theme="rose"],
+html.light[data-theme="rose"] body {
+  background-color: #fdf6f6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="graphite"],
+  html[data-theme="graphite"] .main-scroll { scrollbar-color: #ea580c #27272a; }
+  html[data-theme="graphite"]::-webkit-scrollbar-track,
+  html[data-theme="graphite"] .main-scroll::-webkit-scrollbar-track { background: #27272a; }
+  html[data-theme="graphite"]::-webkit-scrollbar-thumb,
+  html[data-theme="graphite"] .main-scroll::-webkit-scrollbar-thumb { background: #ea580c; }
+  html[data-theme="graphite"]::-webkit-scrollbar-thumb:hover,
+  html[data-theme="graphite"] .main-scroll::-webkit-scrollbar-thumb:hover { background: #c2410c; }
+  html[data-theme="ocean"],
+  html[data-theme="ocean"] .main-scroll { scrollbar-color: #ea580c #143049; }
+  html[data-theme="ocean"]::-webkit-scrollbar-track,
+  html[data-theme="ocean"] .main-scroll::-webkit-scrollbar-track { background: #143049; }
+  html[data-theme="ocean"]::-webkit-scrollbar-thumb,
+  html[data-theme="ocean"] .main-scroll::-webkit-scrollbar-thumb { background: #ea580c; }
+  html[data-theme="ocean"]::-webkit-scrollbar-thumb:hover,
+  html[data-theme="ocean"] .main-scroll::-webkit-scrollbar-thumb:hover { background: #c2410c; }
+  html.light[data-theme="mint"],
+  html.light[data-theme="mint"] .main-scroll { scrollbar-color: #86c9a0 #d5e9dc; }
+  html.light[data-theme="mint"]::-webkit-scrollbar-track,
+  html.light[data-theme="mint"] .main-scroll::-webkit-scrollbar-track { background: #d5e9dc; }
+  html.light[data-theme="mint"]::-webkit-scrollbar-thumb,
+  html.light[data-theme="mint"] .main-scroll::-webkit-scrollbar-thumb { background: #86c9a0; }
+  html.light[data-theme="mint"]::-webkit-scrollbar-thumb:hover,
+  html.light[data-theme="mint"] .main-scroll::-webkit-scrollbar-thumb:hover { background: #5fb280; }
+  html.light[data-theme="rose"],
+  html.light[data-theme="rose"] .main-scroll { scrollbar-color: #e8a0aa #f1d5d8; }
+  html.light[data-theme="rose"]::-webkit-scrollbar-track,
+  html.light[data-theme="rose"] .main-scroll::-webkit-scrollbar-track { background: #f1d5d8; }
+  html.light[data-theme="rose"]::-webkit-scrollbar-thumb,
+  html.light[data-theme="rose"] .main-scroll::-webkit-scrollbar-thumb { background: #e8a0aa; }
+  html.light[data-theme="rose"]::-webkit-scrollbar-thumb:hover,
+  html.light[data-theme="rose"] .main-scroll::-webkit-scrollbar-thumb:hover { background: #d9808d; }
+}
+
 /* Keep actual white text on solid colored buttons */
 html.light :is(
   .bg-blue-600, .bg-blue-500, .bg-blue-700,
@@ -181,8 +293,8 @@ select.sel {
   padding-right: 2rem !important;
 }
 select.sel option {
-  background-color: #1f2937;
-  color: #f3f4f6;
+  background-color: var(--color-gray-800);
+  color: var(--color-gray-100);
 }
 
 

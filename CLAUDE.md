@@ -339,12 +339,14 @@ All tables have RLS enabled with open policies (no auth yet).
 - **Camiones**: lista de trucks del Dashboard con documentos (license plate, cab card, truck picture, VIN picture, custom)
 - **Trailers**: CRUD con tipo (Dry Van, Flatbed, Reefer, etc.), asignacion a truck, documentos custom
 
-### Light/Dark Theme
-- **ThemeProvider** en `lib/theme.jsx`: persiste en localStorage, aplica clase `light` en `<html>`
-- **CSS overrides** en `index.css`: invierte paleta de grays de Tailwind v4 via CSS variables. Todos los componentes se adaptan automaticamente
-- **Scrollbar**: dark mode = naranja (#ea580c), light mode = azul claro (#93c5fd)
-- **Configuracion** en `/settings`: dos cards de preview (Dark/Light) para seleccionar tema
-- `text-white` se overridea a oscuro en light mode. Se preserva blanco en botones con bg solido
+### Temas (6): 3 oscuros + 3 claros
+- Catalogo en `lib/themes.js`: oscuros **Medianoche** (`dark`, el de siempre), **Grafito** (`graphite`), **Océano** (`ocean`); claros **Claro** (`light`, el de siempre), **Verde claro** (`mint`), **Rojo claro** (`rose`). `dark`/`light` conservan su id para no romper lo ya guardado en localStorage
+- **ThemeProvider** (`lib/theme.jsx`): `theme`, `setTheme(id, event)` (revela con un circulo desde el clic via View Transition), `isLight`, `themes`. Pone la clase `light` en `<html>` para TODOS los claros y `data-theme="<id>"`. Usar `isLight`, nunca `theme === 'light'`
+- **index.css**: cada tema solo sobreescribe la paleta `--color-gray-*` (+ fondo de html/body y scrollbar en hex, por html2canvas/oklch). Los claros comparten las reglas `html.light` (acentos, textos) y se definen como `html.light[data-theme=...]`. El acento sigue siendo naranja en todos
+- Colores inline que deben seguir el tema: usar `color-mix(in srgb, var(--color-gray-900) 94%, transparent)`, no rgba fijos
+- El selector de tema esta solo en **Configuracion** (todos los usuarios). Ya no hay boton en el sidebar; en celular el menu de usuario lleva a Configuracion. El modulo IFTA de la empresa (Configuracion) lo ven admin y super admin
+- Scrollbar principal: naranja en oscuros, tono del tema en claros
+- `text-white` se overridea a oscuro en los claros. Se preserva blanco en botones con bg solido azul/rojo/verde/emerald
 
 ### Sidebar Layout
 - Company Name y DBA dinamicos desde Supabase (company_settings, cargados al montar)

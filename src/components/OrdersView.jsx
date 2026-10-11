@@ -170,7 +170,7 @@ function StatusSelect({ row, onChange, disabled }) {
 export default function OrdersView() {
   const navigate = useNavigate()
   const { session } = useAuth()
-  const { theme } = useTheme()
+  const { isLight } = useTheme()
   const userRole = session?.user?.user_metadata?.role
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
   const [orders, setOrders] = useState([])
@@ -1011,7 +1011,7 @@ export default function OrdersView() {
       {filtered.length > 0 && (
         <MobileStatsBar
           orders={filtered}
-          theme={theme}
+          isLight={isLight}
           bottomOffset={isSuperAdmin(session) || canAccess(session, 'dashboard') ? 88 : 66}
         />
       )}
@@ -1025,7 +1025,7 @@ export default function OrdersView() {
 // it. While hidden, a small "Totales" chip brings it back without scrolling.
 const STATS_IDLE_MS = 1600
 
-function MobileStatsBar({ orders, theme, bottomOffset }) {
+function MobileStatsBar({ orders, isLight, bottomOffset }) {
   const [mode, setMode] = useState('peek') // 'hidden' | 'peek' (showing while scrolling) | 'pinned'
   const barRef = useRef(null)
   const idleTimer = useRef(null)
@@ -1076,9 +1076,9 @@ function MobileStatsBar({ orders, theme, bottomOffset }) {
   // Above the bottom nav, which grows by the iPhone home-indicator inset
   const bottom = `calc(${bottomOffset}px + env(safe-area-inset-bottom, 0px))`
   const surface = {
-    background: theme === 'light' ? 'rgba(243,244,246,0.95)' : 'rgba(17,17,24,0.92)',
+    background: 'color-mix(in srgb, var(--color-gray-900) 94%, transparent)',
     backdropFilter: 'blur(20px)',
-    boxShadow: theme === 'light' ? '0 8px 32px rgba(0,0,0,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
+    boxShadow: isLight ? '0 8px 32px rgba(0,0,0,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
   }
 
   return (
