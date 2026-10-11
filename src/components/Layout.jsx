@@ -13,6 +13,7 @@ import MaintenanceBell from './MaintenanceBell'
 import { getDashboardCache, refreshDashboard } from '../lib/dashboardData'
 import { getOrdersCache, refreshOrders } from '../lib/ordersData'
 import { loadAuthUsers, readPageCache, writePageCache } from '../lib/pageCache'
+import { preloadSections } from '../lib/preload'
 import { loadQuarterView, startedQuarters, IFTA_DEFAULT_YEAR } from '../lib/ifta'
 export default function Layout() {
   const { toast } = useToast()
@@ -61,6 +62,8 @@ export default function Layout() {
       if (['super_admin', 'admin', 'dispatcher'].includes(session.user.user_metadata?.role)) {
         loadAuthUsers().catch(() => {})
       }
+      // Conductores, Pagos, Compañía...: their data ready before they are opened
+      preloadSections(session)
     }, 1200)
     return () => clearTimeout(timer)
   }, [session?.user?.id, activeCompany?.id])

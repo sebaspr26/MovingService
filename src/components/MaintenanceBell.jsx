@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import { getActiveCompanyId } from '../lib/company'
 import {
-  loadMaintenance, pendingAlerts, allAlerts, markAlertsRead, notifyMaintenanceChanged, alertMessage, LEVEL_STYLES,
+  refreshMaintenance, getMaintenanceCache, pendingAlerts, allAlerts, markAlertsRead, notifyMaintenanceChanged, alertMessage, LEVEL_STYLES,
 } from '../lib/maintenance'
 
 const REFRESH_MS = 5 * 60 * 1000
@@ -40,12 +40,12 @@ export default function MaintenanceBell() {
   const { session } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
-  const [data, setData] = useState(null)
+  const [data, setData] = useState(() => getMaintenanceCache(session, getActiveCompanyId()))
   const [open, setOpen] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      const next = await loadMaintenance(session, getActiveCompanyId())
+      const next = await refreshMaintenance(session, getActiveCompanyId())
       setData(next)
       // On the first sight of unread alerts, a heads-up at the top of the screen
       const fresh = pendingAlerts(next)

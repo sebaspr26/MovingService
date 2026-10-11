@@ -5,7 +5,7 @@ import { useToast, friendlyError } from './Toast'
 import { getActiveCompanyId } from '../lib/company'
 import { canAccess } from '../lib/permissions'
 import { truckTypeInfo } from '../lib/trucks'
-import { loadMaintenance, allAlerts, markAlertsRead, notifyMaintenanceChanged, fmtMi, LEVEL_STYLES } from '../lib/maintenance'
+import { refreshMaintenance, getMaintenanceCache, allAlerts, markAlertsRead, notifyMaintenanceChanged, fmtMi, LEVEL_STYLES } from '../lib/maintenance'
 import { AlertItem } from './MaintenanceBell'
 
 /**
@@ -18,11 +18,11 @@ export default function Notifications() {
   const toast = useToast()
   const navigate = useNavigate()
   const canService = canAccess(session, 'mantenimiento', 'configurar')
-  const [data, setData] = useState(null)
+  const [data, setData] = useState(() => getMaintenanceCache(session, getActiveCompanyId()))
 
   const load = useCallback(async () => {
     try {
-      setData(await loadMaintenance(session, getActiveCompanyId()))
+      setData(await refreshMaintenance(session, getActiveCompanyId()))
     } catch (err) {
       toast.error(friendlyError(err.message))
     }

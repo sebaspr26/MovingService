@@ -2,11 +2,31 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { calculateTruckRoute } from '../lib/here'
 import { getActiveCompanyId } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
+import { readPageCache, writePageCache } from '../lib/pageCache'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 
+// Rate-per-mile stats of the company's orders (rows: rate, miles, pu_city, do_city)
+function buildStats(data) {
+  if (!data || data.length === 0) return null
+  const rates = data.map(o => o.rate / o.miles)
+  const avg = rates.reduce((s, r) => s + r, 0) / rates.length
+  const sorted = [...rates].sort((a, b) => a - b)
+  return {
+    totalOrders: data.length,
+    avgPerMile: avg,
+    medianPerMile: sorted[Math.floor(sorted.length / 2)],
+    minPerMile: sorted[0],
+    maxPerMile: sorted[sorted.length - 1],
+    orders: data,
+  }
+}
+
 export default function RateCalculator() {
-  const [stats, setStats] = useState(null)
+  const { session } = useAuth()
+  // Opens with the last rows (preloaded at app start) and refreshes in the background
+  const [stats, setStats] = useState(() => buildStats(readPageCache('rate-stats', session)?.data))
   const [origin, setOrigin] = useState('')
   const [destination, setDestination] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,22 +43,8 @@ export default function RateCalculator() {
       const { data } = await q
 
       if (!data || data.length === 0) return
-
-      const rates = data.map(o => o.rate / o.miles)
-      const avg = rates.reduce((s, r) => s + r, 0) / rates.length
-      const sorted = [...rates].sort((a, b) => a - b)
-      const min = sorted[0]
-      const max = sorted[sorted.length - 1]
-      const median = sorted[Math.floor(sorted.length / 2)]
-
-      setStats({
-        totalOrders: data.length,
-        avgPerMile: avg,
-        medianPerMile: median,
-        minPerMile: min,
-        maxPerMile: max,
-        orders: data,
-      })
+      writePageCache('rate-stats', session, { data })
+      setStats(buildStats(data))
     }
     loadStats()
   }, [])

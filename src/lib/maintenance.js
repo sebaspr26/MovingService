@@ -112,8 +112,34 @@ export async function markAlertsRead(session, keys) {
     .upsert(keys.map(k => ({ user_id: session.user.id, alert_key: k })), { onConflict: 'user_id,alert_key' })
 }
 
-/** Tells the bell and the page to reload their data. */
-export const notifyMaintenanceChanged = () => window.dispatchEvent(new Event('maintenance:changed'))
+// ── Shared cache: the bell loads at app start, so Mantenimiento and Notificaciones open
+// with its data at once (and refresh in the background) instead of a spinner ──
+const cache = {}
+let version = 0
+const cacheKey = (session, companyId) => `${session?.user?.id || ''}|${companyId || ''}`
+
+export function getMaintenanceCache(session, companyId) {
+  return cache[cacheKey(session, companyId)]?.data || null
+}
+
+/** Loads (or joins a load already running for the current version) and stores it in the cache. */
+export function refreshMaintenance(session, companyId) {
+  const key = cacheKey(session, companyId)
+  const entry = cache[key]
+  if (entry?.pending && entry.v === version) return entry.pending
+  const v = version
+  const pending = loadMaintenance(session, companyId)
+    .then(data => { if (cache[key]?.pending === pending) cache[key] = { data, v }; return data })
+    .catch(err => { if (cache[key]?.pending === pending) cache[key] = { data: entry?.data, v }; throw err })
+  cache[key] = { data: entry?.data, pending, v }
+  return pending
+}
+
+/** Tells the bell and the pages to reload their data (a load already running is not reused: it may predate the change). */
+export const notifyMaintenanceChanged = () => {
+  version++
+  window.dispatchEvent(new Event('maintenance:changed'))
+}
 
 export async function saveMaintenanceConfig(session, truck, { interval, warn, countingFrom, startMiles }) {
   const row = {

@@ -40,7 +40,7 @@ export default function PagoDispatchers() {
 
   // Uniones: el super admin las crea/edita; los demas solo ven la union como si
   // fuera un dispatcher (ver lib/dispatcherUnions.js y UnionPaymentModal)
-  const [unions, setUnions] = useState([])
+  const [unions, setUnions] = useState(cached?.unions || [])
   const [unionsLoaded, setUnionsLoaded] = useState(false)
   const [selectedUnion, setSelectedUnion] = useState(null)
   const [separated, setSeparated] = useState(false)   // super admin: ver cada dispatcher por separado
@@ -72,7 +72,7 @@ export default function PagoDispatchers() {
     return () => window.removeEventListener('keydown', onKey)
   }, [superAdmin, unionForm])
 
-  usePageCacheSave('pago-dispatchers', session, { dispatchers }, !loading)
+  usePageCacheSave('pago-dispatchers', session, { dispatchers, unions }, !loading)
 
   // Llegada desde el badge "#N" en Ordenes: abrir el modal de ese dispatcher
   // (o el de su union, si la ve unida) y resaltar el pago + la orden especifica

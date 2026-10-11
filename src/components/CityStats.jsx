@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
+import { useAuth } from '../context/AuthContext'
+import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 
 export default function CityStats() {
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { session } = useAuth()
+  // Last list right away (preloaded at app start); the effect below refreshes it
+  const cached = readPageCache('city-stats', session)
+  const [orders, setOrders] = useState(cached?.orders || [])
+  const [loading, setLoading] = useState(!cached)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all') // all, pickup, delivery
+  usePageCacheSave('city-stats', session, { orders }, !loading)
 
   useEffect(() => {
     async function load() {

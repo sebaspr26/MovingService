@@ -6,7 +6,7 @@ import { getActiveCompanyId } from '../lib/company'
 import { canAccess } from '../lib/permissions'
 import { truckTypeInfo, NO_TRUCK_TYPE_LABEL } from '../lib/trucks'
 import {
-  loadMaintenance, markAlertsRead, notifyMaintenanceChanged, saveMaintenanceConfig, registerService,
+  refreshMaintenance, getMaintenanceCache, markAlertsRead, notifyMaintenanceChanged, saveMaintenanceConfig, registerService,
   fetchServiceLogs, alertMessage, fmtMi, LEVEL_STYLES,
 } from '../lib/maintenance'
 import DatePicker from './DatePicker'
@@ -312,12 +312,13 @@ export default function Maintenance() {
   const toast = useToast()
   const [params, setParams] = useSearchParams()
   const canEdit = canAccess(session, 'mantenimiento', 'configurar')
-  const [data, setData] = useState(null)
+  // Opens with what the bell already loaded; refreshes in the background
+  const [data, setData] = useState(() => getMaintenanceCache(session, getActiveCompanyId()))
   const selectedId = params.get('truck')
 
   const load = useCallback(async () => {
     try {
-      setData(await loadMaintenance(session, getActiveCompanyId()))
+      setData(await refreshMaintenance(session, getActiveCompanyId()))
     } catch (err) {
       toast.error(friendlyError(err.message))
     }
