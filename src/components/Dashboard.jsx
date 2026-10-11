@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { TRUCK_TYPES, truckTypeInfo, NO_TRUCK_TYPE_LABEL } from '../lib/trucks'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
@@ -685,7 +686,11 @@ export default function Dashboard() {
       </div>
 
       {/* Floating action buttons - desktop: vertical stack visible */}
-      {!isDriver && <div className="fixed bottom-6 right-6 z-40 hidden sm:flex flex-col gap-3 items-end">
+      {/* The floating buttons go through a portal: the page-enter animation (animate-tab-in)
+          puts a transform on the page wrapper, and inside a transformed element `fixed` is
+          relative to that element, not the screen. So they first showed at the top of the page
+          and jumped to the corner when the animation ended */}
+      {!isDriver && createPortal(<div className="fixed bottom-6 right-6 z-40 hidden sm:flex flex-col gap-3 items-end">
         <button onClick={() => openTruckModal()}
           className="px-5 py-3 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 transition-colors shadow-lg flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -713,13 +718,14 @@ export default function Dashboard() {
             </button>
           </>
         </div>
-      </div>}
+      </div>, document.body)}
 
       {/* Floating action button - mobile: expandable */}
-      {!isDriver && fabOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30 sm:hidden transition-opacity duration-200" onClick={() => setFabOpen(false)} />
+      {!isDriver && fabOpen && createPortal(
+        <div className="fixed inset-0 bg-black/40 z-30 sm:hidden transition-opacity duration-200" onClick={() => setFabOpen(false)} />,
+        document.body,
       )}
-      {!isDriver && <div className="fixed bottom-24 right-4 z-40 sm:hidden flex flex-col items-end gap-3">
+      {!isDriver && createPortal(<div className="fixed bottom-24 right-4 z-40 sm:hidden flex flex-col items-end gap-3">
         <div className={`flex flex-col gap-2 items-end transition-all duration-300 ease-out ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <button onClick={() => { openTruckModal(); setFabOpen(false) }}
             className={`px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-500 shadow-lg flex items-center gap-2 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 delay-100' : 'opacity-0 translate-y-3'}`}>
@@ -755,7 +761,7 @@ export default function Dashboard() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         </button>
-      </div>}
+      </div>, document.body)}
 
       {/* Recurring expenses banner */}
       {!isDriver && pendingRecurring.length > 0 && (
