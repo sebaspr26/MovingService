@@ -129,6 +129,61 @@ async function loadRateStats() {
   return data?.length ? { data } : null
 }
 
+// Perfiles (super admin): READ-ONLY copy of what the page loads. The page itself also
+// syncs Auth drivers into the drivers table and migrates dispatcher names; that stays
+// there (it runs when the page opens and refreshes the list), preloading never writes.
+const ROLE_ORDER = { super_admin: 0, admin: 1, dispatcher: 2, driver: 3, driver_lease: 4 }
+async function loadProfiles() {
+  const cId = getActiveCompanyId()
+  const [auth, { data: dbDrivers }, { data: dbTrucks }, { data: orders }] = await Promise.all([
+    loadAuthUsers(),
+    scoped(supabase.from('drivers').select('*').order('name'), cId),
+    scoped(supabase.from('trucks').select('id, name, number, is_lis').order('number'), cId),
+    scoped(supabase.from('orders').select('dispatcher').not('dispatcher', 'is', null).neq('dispatcher', ''), cId),
+  ])
+  const sorted = [...(auth.users || [])]
+    .sort((a, b) => (ROLE_ORDER[a.user_metadata?.role] ?? 99) - (ROLE_ORDER[b.user_metadata?.role] ?? 99))
+    .filter(u => {
+      if (!cId || u.user_metadata?.role === 'super_admin') return true
+      const ac = u.user_metadata?.allowed_companies
+      return Array.isArray(ac) && ac.length > 0 && ac.includes(cId)
+    })
+  const nameToEmail = {}
+  sorted.forEach(u => {
+    const name = (u.user_metadata?.name || '').trim().toLowerCase()
+    if (name && u.email) nameToEmail[name] = u.email
+  })
+  const dispatchers = [...new Set((orders || []).map(o => o.dispatcher).filter(Boolean))]
+    .map(d => (!d.includes('@') && nameToEmail[d.trim().toLowerCase()]) ? nameToEmail[d.trim().toLowerCase()] : d)
+  return { users: sorted, dbDrivers: dbDrivers || [], dbDispatchers: [...new Set(dispatchers)].sort(), dbTrucks: dbTrucks || [] }
+}
+
+// Auditoría (super admin): the unfiltered first page, the filter options and the names
+const AUDIT_PAGE = 50
+async function loadAuditoria() {
+  const cId = getActiveCompanyId()
+  const [{ data: rows }, { data: all }, auth] = await Promise.all([
+    scoped(supabase.from('audit_log').select('*').order('created_at', { ascending: false }).range(0, AUDIT_PAGE - 1), cId),
+    scoped(supabase.from('audit_log').select('entity_type, entity_name, user_name, user_email'), cId),
+    loadAuthUsers().catch(() => ({ users: [] })),
+  ])
+  const list = all || []
+  const trucks = [...new Set(list.filter(r => r.entity_type !== 'order').map(r => r.entity_name).filter(Boolean))].sort()
+  const userMap = new Map()
+  list.forEach(r => {
+    const key = r.user_email || r.user_name
+    if (key && !userMap.has(key)) userMap.set(key, r.user_name || r.user_email)
+  })
+  const dispatcherNames = {}
+  ;(auth.users || []).forEach(u => { dispatcherNames[u.email] = u.user_metadata?.name || u.email })
+  return {
+    rows: rows || [],
+    truckOptions: trucks.map(t => ({ value: t, label: t })),
+    userOptions: [...userMap.keys()].map(u => ({ value: u, label: userMap.get(u) || u })),
+    dispatcherNames,
+  }
+}
+
 /**
  * Warms every section this user can open, one after another (so the first screens
  * the user actually opens aren't competing with a burst of requests). Skips the ones
@@ -143,6 +198,8 @@ export async function preloadSections(session) {
   add('company-drivers', canAccess(session, 'company'), loadCompanyDrivers)
   add('company-trucks', canAccess(session, 'company'), loadCompanyTrucks)
   add('payment-history', !isSuperAdmin(session), () => loadPaymentHistory(session))
+  add('profiles', isSuperAdmin(session), loadProfiles)
+  add('auditoria', canAccess(session, 'reportes', 'auditoria'), loadAuditoria)
   add('city-stats', canAccess(session, 'statistics'), loadCityStats)
   add('rate-stats', canAccess(session, 'statistics'), loadRateStats)
   // Mantenimiento / Notificaciones (shared with the bell, which may have started it already)
