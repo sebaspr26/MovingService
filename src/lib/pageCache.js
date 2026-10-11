@@ -24,6 +24,11 @@ export function writePageCache(name, session, data, extra) {
   store[keyOf(name, session, extra)] = data
 }
 
+/** Forgets what other sections kept (after something they list was deleted), so they don't flash it. */
+export function invalidatePageCache(...names) {
+  for (const k of Object.keys(store)) if (names.some(n => k.startsWith(n + '|'))) delete store[k]
+}
+
 /** Saves `data` as the section's last data whenever it changes and `ready`. */
 export function usePageCacheSave(name, session, data, ready, extra) {
   const key = keyOf(name, session, extra)

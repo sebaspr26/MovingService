@@ -52,6 +52,7 @@ const ACTIONS = {
   delete_union: { label: 'Unión de dispatchers deshecha', color: 'red', icon: ICON.delete },
   update_maintenance: { label: 'Mantenimiento configurado', color: 'blue', icon: ICON.update },
   service_maintenance: { label: 'Mantenimiento realizado', color: 'emerald', icon: ICON.cycle },
+  delete_user: { label: 'Usuario eliminado', color: 'red', icon: ICON.delete },
   update_driver: { label: 'Chofer editado', color: 'blue', icon: ICON.update },
   delete_driver: { label: 'Chofer eliminado', color: 'red', icon: ICON.delete },
 }
@@ -222,6 +223,16 @@ function EntryDetails({ row, dispatcherNames }) {
         <div><span className="text-gray-500">Cuadre caja:</span> <span className="text-gray-300">{info.cuadre_caja != null ? fmtMoney(info.cuadre_caja) : '—'}</span></div>
       </div>
     )
+  } else if (row.action === 'delete_user') {
+    content = (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Correo:</span> <span className="text-gray-300">{fmtVal(info.email)}</span></div>
+        <div><span className="text-gray-500">Rol:</span> <span className="text-gray-300">{fmtVal(info.role)}</span></div>
+        {(info.driver_rows_deleted > 0 || info.driver_rows_deactivated > 0) && (
+          <div className="col-span-2"><span className="text-gray-500">Conductor:</span> <span className="text-gray-300">{info.driver_rows_deleted > 0 ? 'eliminado' : 'queda inactivo'}{info.payment_history_deleted ? ' · historial de pagos eliminado' : ''}</span></div>
+        )}
+      </div>
+    )
   } else if (row.action === 'update_maintenance') {
     content = (
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
@@ -365,7 +376,7 @@ const HAS_DETAILS_ACTIONS = new Set([
   'update_truck', 'create_truck', 'delete_truck', 'open_cycle', 'close_cycle',
   'create_expense', 'update_expense', 'delete_expense',
   'create_lumper', 'update_lumper', 'delete_lumper', 'pay_lumper', 'unpay_lumper',
-  'create_union', 'update_union', 'delete_union', 'update_maintenance', 'service_maintenance',
+  'create_union', 'update_union', 'delete_union', 'update_maintenance', 'service_maintenance', 'delete_user',
   'create_diesel', 'update_diesel', 'delete_diesel',
   'create_def', 'update_def', 'delete_def',
   'create_order', 'update_order', 'delete_order',

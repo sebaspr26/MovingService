@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import ConfirmDeleteModal from './ConfirmDeleteModal'
+import { inspectDriverRecords, removeDriverRecords } from '../lib/driverRecords'
+import { logAudit } from '../lib/auditLog'
 import Avatar, { kindOfRole } from './Avatar'
 import { createPortal } from 'react-dom'
 import { useToast } from './Toast'
@@ -15,7 +18,7 @@ function getUserAvatarUrl(user) {
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { auditedDriverWrite } from '../lib/balance'
-import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
+import { readPageCache, usePageCacheSave, loadAuthUsers, invalidatePageCache } from '../lib/pageCache'
 
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --' }) {
   const [open, setOpen] = useState(false)
@@ -212,6 +215,7 @@ export default function Profiles() {
   const [dispatcherRate, setDispatcherRate] = useState('')
   const [rateHistory, setRateHistory] = useState([])
   const [impersonateUser, setImpersonateUser] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null) // { user, records, deleteHistory, busy }
   const [impersonateLink, setImpersonateLink] = useState(null)
   const [impersonateLoading, setImpersonateLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -487,21 +491,46 @@ export default function Profiles() {
     }
   }
 
-  async function handleDelete(userId, email) {
-    const confirmed = await toast.confirm(`¿Eliminar al usuario ${email}? Esta acción no se puede deshacer.`)
-    if (!confirmed) return
+  // Deleting a user is irreversible: it opens a confirmation where the name must be typed.
+  // A driver's row in Conductores goes with it (see lib/driverRecords.js).
+  async function handleDelete(user) {
+    const isDriver = ['driver', 'driver_lease'].includes(user.user_metadata?.role)
+    setDeleteTarget({ user, records: isDriver ? null : [], deleteHistory: false, busy: false })
+    if (isDriver) {
+      const records = await inspectDriverRecords(user.email).catch(() => [])
+      setDeleteTarget(t => (t && t.user.id === user.id ? { ...t, records } : t))
+    }
+  }
+
+  async function confirmDelete() {
+    const { user, records, deleteHistory } = deleteTarget
+    setDeleteTarget(t => ({ ...t, busy: true }))
     try {
       const res = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', email, userId }),
+        body: JSON.stringify({ action: 'delete', email: user.email, userId: user.id }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`)
-      toast.success('Usuario eliminado')
+      let summary = { deleted: 0, deactivated: 0 }
+      try {
+        summary = await removeDriverRecords(session, records || [], { deleteHistory })
+      } catch (err) {
+        toast.warning('Se eliminó la cuenta, pero no se pudo quitar de Conductores: ' + err.message)
+      }
+      logAudit(session, {
+        action: 'delete_user', entityType: 'user', entityId: user.id,
+        entityName: user.user_metadata?.name || user.email,
+        extraInfo: { email: user.email, role: user.user_metadata?.role || null, driver_rows_deleted: summary.deleted, driver_rows_deactivated: summary.deactivated, payment_history_deleted: !!deleteHistory },
+      })
+      invalidatePageCache('conductores', 'pago-conductores', 'pago-dispatchers', 'company-drivers')
+      toast.success(summary.deactivated ? 'Usuario eliminado (su historial se conserva como conductor inactivo)' : 'Usuario eliminado')
+      setDeleteTarget(null)
       fetchUsers()
     } catch (err) {
       toast.error(err.message)
+      setDeleteTarget(t => (t ? { ...t, busy: false } : t))
     }
   }
 
@@ -861,7 +890,7 @@ export default function Profiles() {
                               </button>
                             )}
                             <button
-                              onClick={() => handleDelete(user.id, user.email)}
+                              onClick={() => handleDelete(user)}
                               className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                               title="Eliminar usuario"
                             >
@@ -1334,6 +1363,42 @@ export default function Profiles() {
       )}
 
       {/* Modal — Entrar como usuario */}
+      {deleteTarget && (() => {
+        const { user, records, deleteHistory, busy } = deleteTarget
+        const meta = user.user_metadata || {}
+        const word = meta.name?.trim() || user.email
+        const withPayments = (records || []).filter(r => r.orders === 0 && r.payments > 0)
+        const withOrders = (records || []).filter(r => r.orders > 0)
+        const history = (records || []).reduce((a, r) => a + r.payments, 0)
+        return (
+          <ConfirmDeleteModal
+            title="Eliminar usuario"
+            subtitle={`${meta.name || ''} ${meta.name ? '·' : ''} ${user.email}`.trim()}
+            confirmWord={word}
+            confirmLabel="Eliminar usuario"
+            busy={busy}
+            onConfirm={confirmDelete}
+            onClose={() => setDeleteTarget(null)}
+          >
+            <p>Se borra su cuenta: <span className="text-white font-medium">ya no podrá iniciar sesión</span> y esto no se puede deshacer.</p>
+            {records === null && <p className="text-xs text-gray-500">Revisando su registro de conductor...</p>}
+            {records && records.length > 0 && (
+              <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-xs text-gray-400 space-y-1.5">
+                <p className="text-gray-300 font-medium">También se quita de Conductores y de Pago Conductores.</p>
+                {withOrders.length > 0 && <p>Tiene órdenes asignadas: se conserva su historial y queda como <span className="text-gray-200">inactivo</span> (sin camión).</p>}
+                {withPayments.length > 0 && !deleteHistory && <p>Tiene {history} pago{history !== 1 ? 's' : ''} registrado{history !== 1 ? 's' : ''}: por defecto se conserva y queda como <span className="text-gray-200">inactivo</span>.</p>}
+                {withPayments.length > 0 && (
+                  <label className="flex items-start gap-2 pt-1 cursor-pointer text-gray-300">
+                    <input type="checkbox" checked={deleteHistory} disabled={busy} onChange={e => setDeleteTarget(t => ({ ...t, deleteHistory: e.target.checked }))} className="mt-0.5 accent-red-500" />
+                    <span>Eliminar también su historial de pagos y los gastos que generó en el camión <span className="text-red-300">(para un conductor de prueba)</span></span>
+                  </label>
+                )}
+              </div>
+            )}
+          </ConfirmDeleteModal>
+        )
+      })()}
+
       {impersonateUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-modal-backdrop" onClick={() => { setImpersonateUser(null); setImpersonateLink(null) }} />

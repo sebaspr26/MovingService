@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ConfirmDeleteModal from './ConfirmDeleteModal'
+import { inspectDriverById, removeDriverRecords } from '../lib/driverRecords'
 import DatePicker from './DatePicker'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
@@ -8,7 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete } from '../lib/permissions'
 import { downloadFromUrl } from '../lib/download'
 import { auditedDriverWrite } from '../lib/balance'
-import { readPageCache, usePageCacheSave } from '../lib/pageCache'
+import { readPageCache, usePageCacheSave, invalidatePageCache } from '../lib/pageCache'
 
 // The Trailers tab is hidden (no trailers registered, no function yet); SectionTrailers below is kept to bring it back
 const SECTIONS = [
@@ -927,6 +929,7 @@ function SectionChoferes() {
   const [editing, setEditing] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [docs, setDocs] = useState({})
+  const [deleteTarget, setDeleteTarget] = useState(null) // { driver, record, deleteHistory, busy }
   usePageCacheSave('company-drivers', session, { drivers, trucks }, !loading)
 
   const [form, setForm] = useState({ name: '', phone: '', email: '', license_number: '', license_state: '', license_expiry: '', medical_card_expiry: '', truck_id: '', status: 'active', is_lease: false })
@@ -997,15 +1000,29 @@ function SectionChoferes() {
     }
   }
 
+  // Removing a driver asks for his name typed and looks at what hangs from him first:
+  // with orders he can't be deleted (history stays, he becomes inactive); with payments
+  // only, he is kept unless the history is deleted too (lib/driverRecords.js)
   async function handleDelete(driver) {
-    const ok = await toast.confirm(`¿Eliminar chofer "${driver.name}"?`)
-    if (!ok) return
-    const { error } = await auditedDriverWrite(session, { driverId: driver.id, action: 'delete_driver', after: null },
-      () => supabase.from('drivers').delete().eq('id', driver.id))
-    if (error) { toast.error(friendlyError(error.message)); return }
-    toast.success('Chofer eliminado')
-    if (expanded === driver.id) setExpanded(null)
-    fetchDrivers()
+    setDeleteTarget({ driver, record: null, deleteHistory: false, busy: false })
+    const record = await inspectDriverById(driver.id).catch(() => null)
+    setDeleteTarget(t => (t && t.driver.id === driver.id ? { ...t, record } : t))
+  }
+
+  async function confirmDeleteDriver() {
+    const { driver, record, deleteHistory } = deleteTarget
+    setDeleteTarget(t => ({ ...t, busy: true }))
+    try {
+      const summary = await removeDriverRecords(session, [record], { deleteHistory })
+      toast.success(summary.deactivated ? 'El chofer queda inactivo (su historial se conserva)' : 'Chofer eliminado')
+      invalidatePageCache('conductores', 'pago-conductores')
+      if (expanded === driver.id) setExpanded(null)
+      setDeleteTarget(null)
+      fetchDrivers()
+    } catch (err) {
+      toast.error(friendlyError(err.message))
+      setDeleteTarget(t => (t ? { ...t, busy: false } : t))
+    }
   }
 
   function toggleExpand(driverId) {
@@ -1200,6 +1217,36 @@ function SectionChoferes() {
           })}
         </div>
       )}
+
+      {deleteTarget && (() => {
+        const { driver, record, deleteHistory, busy } = deleteTarget
+        return (
+          <ConfirmDeleteModal
+            title="Quitar chofer"
+            subtitle={driver.name}
+            confirmWord={driver.name}
+            confirmLabel="Quitar chofer"
+            busy={busy}
+            onConfirm={confirmDeleteDriver}
+            onClose={() => setDeleteTarget(null)}
+          >
+            <p>Se quita de <span className="text-white font-medium">Conductores y de Pago Conductores</span>. Esto no se puede deshacer.</p>
+            {record === null && <p className="text-xs text-gray-500">Revisando su historial...</p>}
+            {record && record.orders > 0 && (
+              <p className="text-xs rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-gray-400">Tiene {record.orders} orden{record.orders !== 1 ? 'es' : ''} asignada{record.orders !== 1 ? 's' : ''}: se conserva su historial y queda como <span className="text-gray-200">inactivo</span> (sin camión).</p>
+            )}
+            {record && record.orders === 0 && record.payments > 0 && (
+              <div className="text-xs rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-gray-400 space-y-1.5">
+                {!deleteHistory && <p>Tiene {record.payments} pago{record.payments !== 1 ? 's' : ''} registrado{record.payments !== 1 ? 's' : ''}: por defecto se conserva y queda como <span className="text-gray-200">inactivo</span>.</p>}
+                <label className="flex items-start gap-2 cursor-pointer text-gray-300">
+                  <input type="checkbox" checked={deleteHistory} disabled={busy} onChange={e => setDeleteTarget(t => ({ ...t, deleteHistory: e.target.checked }))} className="mt-0.5 accent-red-500" />
+                  <span>Eliminar también su historial de pagos y los gastos que generó en el camión <span className="text-red-300">(para un chofer de prueba)</span></span>
+                </label>
+              </div>
+            )}
+          </ConfirmDeleteModal>
+        )
+      })()}
     </div>
   )
 }
