@@ -223,13 +223,19 @@ export default function OrdersView() {
     if (!loading) patchOrdersCache(session, getActiveCompanyId(), { orders })
   }, [orders, loading, session])
   useEffect(() => { setPage(0) }, [tab, search, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
-  // Smooth list animation on tab/filter changes (immediate) or search (debounced)
-  useEffect(() => { setListKey(k => k + 1) }, [tab, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
+  // Smooth list animation on tab/filter changes (immediate) or search (debounced).
+  // Not on the first render: bumping listKey then remounted the list (and replayed its
+  // entrance animation) right after it appeared, and again 300ms later from the search
+  // timer, so the list seemed to load two or three times
+  const listMountedRef = useRef(false)
+  useEffect(() => { if (listMountedRef.current) setListKey(k => k + 1) }, [tab, filterTrucks, filterDispatchers, filterBrokers, filterDateFrom, filterDateTo])
   useEffect(() => {
+    if (!listMountedRef.current) return
     clearTimeout(searchDebounceRef.current)
     searchDebounceRef.current = setTimeout(() => setListKey(k => k + 1), 300)
     return () => clearTimeout(searchDebounceRef.current)
   }, [search])
+  useEffect(() => { listMountedRef.current = true }, [])
 
   const openDrawer = useCallback((id) => {
     setDrawerId(id)
