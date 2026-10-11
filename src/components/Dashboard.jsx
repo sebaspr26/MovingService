@@ -115,6 +115,7 @@ export default function Dashboard() {
   const [truckCycles, setTruckCycles] = useState({})
   const [summaries, setSummaries] = useState({})
   const [showTruckModal, setShowTruckModal] = useState(false)
+  const [savingTruck, setSavingTruck] = useState(false)
   const [editingTruck, setEditingTruck] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -346,7 +347,20 @@ export default function Dashboard() {
     }
   }
 
+  // The save takes a few seconds (several queries) and used to give no sign of life, so a
+  // second click re-ran it: two saves, two "actualizado" toasts. Now it locks while saving.
   async function handleSaveTruck(e) {
+    e.preventDefault()
+    if (savingTruck) return
+    setSavingTruck(true)
+    try {
+      await saveTruck(e)
+    } finally {
+      setSavingTruck(false)
+    }
+  }
+
+  async function saveTruck(e) {
     e.preventDefault()
     setTruckError('')
 
@@ -1300,15 +1314,18 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => { setShowTruckModal(false); setEditingTruck(null) }}
-                  className="flex-1 px-4 py-2.5 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                  disabled={savingTruck}
+                  className="flex-1 px-4 py-2.5 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-500 transition-colors"
+                  disabled={savingTruck}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {editingTruck ? 'Guardar cambios' : 'Crear camión'}
+                  {savingTruck && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  {savingTruck ? 'Guardando...' : editingTruck ? 'Guardar cambios' : 'Crear camión'}
                 </button>
               </div>
             </form>
