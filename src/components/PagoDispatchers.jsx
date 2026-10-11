@@ -23,6 +23,47 @@ const ROLE_COLORS = {
   dispatcher: 'bg-purple-900/30 text-purple-400 border-purple-800/40',
 }
 
+// Mac key caps (⌥ Option, ⇧ Shift) for the shortcuts of the unions
+function Key({ children }) {
+  return (
+    <kbd className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-md bg-gray-700 border border-gray-600 border-b-2 text-[12px] font-semibold text-gray-100 leading-none shadow-sm">{children}</kbd>
+  )
+}
+
+// Small (i) next to the title: hover shows how unions work
+function UnionHelp() {
+  return (
+    <div className="relative group">
+      <button type="button" aria-label="Cómo funcionan las uniones" className="w-5 h-5 rounded-full text-gray-500 hover:text-orange-400 transition-colors flex items-center justify-center focus:outline-none focus-visible:text-orange-400">
+        <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+        </svg>
+      </button>
+      <div className="absolute left-0 top-full pt-2 z-50 invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150">
+        <div className="w-72 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 text-left">
+          <p className="text-sm font-semibold text-white mb-0.5">Uniones de dispatchers</p>
+          <p className="text-[11px] text-gray-500 mb-3 leading-snug">Une dos o más dispatchers para que los administradores los vean como uno solo.</p>
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-3">
+              <span className="flex items-center gap-1 shrink-0 w-[88px]"><Key>⌥</Key><Key>⇧</Key><Key>U</Key></span>
+              <p className="text-xs text-gray-300 leading-snug">Modo unión: arrastra un dispatcher sobre otro, o sobre una unión para agregarlo.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex items-center gap-1 shrink-0 w-[88px]"><Key>⌥</Key><Key>⇧</Key><Key>V</Key></span>
+              <p className="text-xs text-gray-300 leading-snug">Ver los dispatchers separados o unidos.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex items-center gap-1 shrink-0 w-[88px]"><Key>esc</Key></span>
+              <p className="text-xs text-gray-300 leading-snug">Salir del modo unión.</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-600 mt-3 leading-snug">Sin teclado también puedes crear una con <span className="text-gray-400">+ Nueva unión</span> al final de la lista.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PagoDispatchers() {
   const { session } = useAuth()
   const location = useLocation()
@@ -234,20 +275,20 @@ export default function PagoDispatchers() {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Pago Dispatchers</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">Pago Dispatchers</h1>
+            {superAdmin && <UnionHelp />}
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">{dispatchers.length} dispatcher{dispatchers.length !== 1 ? 's' : ''} registrados</p>
-          {superAdmin && (
-            <p className="text-[11px] text-gray-600 mt-1">
-              <kbd className="px-1 py-0.5 rounded bg-gray-800 text-gray-400">Alt+Shift+U</kbd> unir arrastrando
-              <span className="mx-1.5">·</span>
-              <kbd className="px-1 py-0.5 rounded bg-gray-800 text-gray-400">Alt+Shift+V</kbd> ver {separated ? 'unidos' : 'separados'}
+          {superAdmin && (unionMode || separated) && (
+            <p className="text-[11px] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               {unionMode && (
-                <span className="ml-2 inline-flex items-center gap-2 text-orange-400 font-semibold">
+                <span className="inline-flex items-center gap-2 text-orange-400 font-semibold">
                   Modo unión: arrastra un dispatcher sobre otro
-                  <button onClick={() => setUnionMode(false)} className="px-2 py-0.5 rounded-md bg-orange-600 text-white text-[11px] font-bold hover:bg-orange-500 transition-colors">Listo (Esc)</button>
+                  <button onClick={() => setUnionMode(false)} className="px-2 py-0.5 rounded-md bg-orange-600 text-white text-[11px] font-bold hover:bg-orange-500 transition-colors">Listo</button>
                 </span>
               )}
-              {separated && <span className="ml-2 text-blue-400 font-semibold">Vista separada</span>}
+              {separated && <span className="text-blue-400 font-semibold">Vista separada</span>}
             </p>
           )}
         </div>

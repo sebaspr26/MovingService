@@ -236,7 +236,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   const [mcSearching, setMcSearching] = useState(false)
   const [equipmentType, setEquipmentType] = useState('')
   const [loadType, setLoadType] = useState('')
-  const [dispatcher, setDispatcher] = useState(isNew ? userEmail : '')
+  // A new order starts with its creator as dispatcher, except for a super admin (he doesn't dispatch)
+  const [dispatcher, setDispatcher] = useState(isNew && userRole !== 'super_admin' ? userEmail : '')
   const [refNumber, setRefNumber] = useState('')
   const [rate, setRate] = useState('')
   const [applyDiscount, setApplyDiscount] = useState(true)
@@ -325,7 +326,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       // Solo usuarios con rol de dispatcher/admin/super_admin
       const dispatchers = (usersRes.users || [])
         .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
-        .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
+        .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email, role: u.user_metadata?.role }))
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
 
@@ -2375,8 +2376,10 @@ function DispatcherAutocomplete({ label, value, onChange, authDispatchers, requi
 
   const suggestions = useMemo(() => {
     const term = inputText.trim().toLowerCase()
-    if (!term) return authDispatchers.slice(0, 10)
-    return authDispatchers.filter(d =>
+    // authDispatchers also resolves the name of an order already assigned to a super admin; he is just not offered
+    const options = authDispatchers.filter(d => d.role !== 'super_admin')
+    if (!term) return options.slice(0, 10)
+    return options.filter(d =>
       d.name.toLowerCase().includes(term) || d.email.toLowerCase().includes(term)
     ).slice(0, 10)
   }, [inputText, authDispatchers])

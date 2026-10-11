@@ -400,7 +400,8 @@ export default function OrdersView() {
     })
   )].sort()
   const dispatcherOptions = [
-    ...authDispatchers.map(d => ({ value: d.email, label: d.name })),
+    // Super admins don't dispatch: they are not offered as a filter
+    ...authDispatchers.filter(d => d.role !== 'super_admin').map(d => ({ value: d.email, label: d.name })),
     ...legacyDispatchers.map(d => ({ value: d, label: d })),
   ]
   const brokerList = Object.values(brokers).sort((a, b) => (a.name || '').localeCompare(b.name || ''))

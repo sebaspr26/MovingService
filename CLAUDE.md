@@ -298,7 +298,9 @@ All tables have RLS enabled with open policies (no auth yet).
 - Solo el **super admin** crea/edita uniones: Alt+Shift+U = modo union (arrastrar un dispatcher sobre otro pide el nombre; sobre una union lo agrega), tabla "Uniones" (renombrar, sacar miembros, agregar, deshacer, + Nueva union para tactil). Alt+Shift+V alterna ver los dispatchers **separados** (solo super admin)
 - Los **administradores** (y el super admin en vista unida) ven solo la union: sus miembros desaparecen de la lista, historial combinado, sin saber quien hizo cual carga. Pueden pagar (UnionPaymentModal) pero no unir/editar
 - Pagar una union = un pago normal por dispatcher (dispatcher_payments + gastos por camion como siempre) con `union_id` y `union_group` compartidos; cada dispatcher recibe SU settlement (un documento por pago, con sus cargas y su %). El historial self-service de cada dispatcher (PaymentHistory) no cambia
+- Las instrucciones de los atajos estan en un (i) junto al titulo "Pago Dispatchers" (hover, solo super admin), con simbolos de Mac (⌥ ⇧ U, ⌥ ⇧ V, esc)
 - Ojo: la lista de Ordenes y el detalle de la orden siguen mostrando el dispatcher; el ocultamiento aplica a la seccion de Pagos
+- **Super admin no despacha**: no aparece en el filtro de dispatcher de Ordenes ni en el selector de la orden, y al crear una orden su campo Dispatcher arranca vacio (admins/dispatchers arrancan con su propio email). Los directorios (`loadDispatcherDirectory`, OrderDetail.authDispatchers) lo siguen incluyendo con `role` solo para resolver el nombre de ordenes viejas
 
 ### Email de Invoice (api/send-invoice.js)
 - **Envio directo**: click "Enviar Email" → modal de confirmacion con switches

@@ -103,12 +103,12 @@ export function refreshOrders(session, companyId) {
 // ── Dispatcher directory (Auth users, shared and once per session) ──
 const migrated = new Set()
 
-/** [{ email, name }] of super_admin/admin/dispatcher users. */
+/** [{ email, name, role }] of super_admin/admin/dispatcher users (names are resolved with all of them; the pickers leave super admins out, they don't dispatch). */
 export async function loadDispatcherDirectory() {
   const data = await loadAuthUsers()
   return (data.users || [])
     .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
-    .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email }))
+    .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email, role: u.user_metadata?.role }))
 }
 
 /**
