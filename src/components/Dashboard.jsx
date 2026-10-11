@@ -46,6 +46,40 @@ function FormSection({ title, hint, aside, children }) {
   )
 }
 
+// Percentage field with the app's own −/+ buttons instead of the browser's arrows
+function PercentInput({ value, onChange, step = 1, placeholder, required, autoFocus }) {
+  const bump = dir => {
+    const next = Math.round(((parseFloat(value) || 0) + dir * step) * 100) / 100
+    onChange(String(Math.min(100, Math.max(0, next))))
+  }
+  const arrow = 'w-4 h-3.5 flex items-center justify-center rounded text-gray-500 hover:text-orange-300 hover:bg-orange-600/20 transition-colors'
+  return (
+    <div className="relative">
+      <input
+        type="number"
+        step="0.01"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${TRUCK_INPUT} pr-14`}
+        placeholder={placeholder}
+        required={required}
+        autoFocus={autoFocus}
+      />
+      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        <span className="text-gray-500 text-sm">%</span>
+        <div className="flex flex-col gap-px">
+          <button type="button" tabIndex={-1} onClick={() => bump(1)} className={arrow} aria-label="Subir">
+            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" /></svg>
+          </button>
+          <button type="button" tabIndex={-1} onClick={() => bump(-1)} className={arrow} aria-label="Bajar">
+            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SwitchRow({ label, hint, checked, onChange, color = 'bg-orange-600' }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -1135,18 +1169,8 @@ export default function Dashboard() {
                           Otro
                         </button>
                         {truckDiscount === 'custom' && (
-                          <div className="relative flex-1 min-w-[96px]">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={truckDiscountCustom}
-                              onChange={(e) => setTruckDiscountCustom(e.target.value)}
-                              className={`${TRUCK_INPUT} pr-7`}
-                              placeholder="Ej: 10"
-                              autoFocus
-                              required
-                            />
-                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                          <div className="flex-1 min-w-[120px]">
+                            <PercentInput value={truckDiscountCustom} onChange={setTruckDiscountCustom} step={0.25} placeholder="Ej: 10" autoFocus required />
                           </div>
                         )}
                       </div>
@@ -1181,16 +1205,8 @@ export default function Dashboard() {
                               className={`${TRUCK_INPUT} flex-1 min-w-0`}
                               placeholder="Nombre"
                             />
-                            <div className="relative w-24 shrink-0">
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={p.percentage}
-                                onChange={(e) => updatePartner(i, 'percentage', e.target.value)}
-                                className={`${TRUCK_INPUT} pr-7`}
-                                placeholder="%"
-                              />
-                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                            <div className="w-32 shrink-0">
+                              <PercentInput value={p.percentage} onChange={(v) => updatePartner(i, 'percentage', v)} step={5} placeholder="0" />
                             </div>
                             {truckPartners.length > 1 && (
                               <button type="button" onClick={() => removePartner(i)} className="p-1.5 text-gray-500 hover:text-red-400 shrink-0">

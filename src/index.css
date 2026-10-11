@@ -386,3 +386,8 @@ select.sel option {
 }
 .jiggle { animation: jiggle 0.26s ease-in-out infinite; transform-origin: 50% 60%; }
 @media (prefers-reduced-motion: reduce) { .jiggle { animation: none; } }
+
+/* Number inputs: no native browser up/down arrows (the app has its own look) */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
