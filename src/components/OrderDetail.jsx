@@ -215,6 +215,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [saveStep, setSaveStep] = useState({ pct: 0, label: '' }) // progress bar shown while saving
   const [dirty, setDirty] = useState(false)
   const [rcFullscreen, setRcFullscreen] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
@@ -891,6 +892,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     if (!rate && rate !== 0) { toast.warning('Rate es requerido'); return }
 
     setSaving(true)
+    setSaveStep({ pct: 8, label: 'Validando...' })
     try {
       // Persiste el MC# del broker seleccionado como parte del mismo guardado —
       // antes se guardaba solo, en background, sin feedback ni garantia real
@@ -907,6 +909,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         }
       }
 
+      setSaveStep({ pct: 20, label: 'Preparando la orden...' })
       const pStart = periodStart || puDate || new Date().toISOString().split('T')[0]
       const pEnd = periodEnd || doDate || pStart
 
@@ -952,6 +955,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
       // Solo las ordenes pagadas afectan el balance del ciclo (via orderNet en el
       // credito) — el snapshot antes/despues solo tiene sentido para esas
+      setSaveStep({ pct: 38, label: isNew ? 'Creando la orden...' : 'Guardando cambios...' })
       const affectsBalance = isNew && record.paid && record.truck_id && record.cycle_id
       const balanceBefore = affectsBalance ? await computeTruckBalance(record.truck_id, record.cycle_id) : null
 
@@ -1008,6 +1012,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           refreshFollowingDeadheads({ truckId: saved.truck_id, fromDate: saved.pu_date, excludeOrderId: id, session })
         }
       }
+      setSaveStep({ pct: 70, label: 'Guardando paradas...' })
       // This order is (now) the previous delivery of the truck's next order(s)
       if (record.truck_id && record.pu_date) {
         refreshFollowingDeadheads({ truckId: record.truck_id, fromDate: record.pu_date, excludeOrderId: orderId, session })
@@ -1040,7 +1045,11 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       }
 
       // Upload RC if pending
-      if (rcFile) await uploadRcToStorage(orderId)
+      if (rcFile) {
+        setSaveStep({ pct: 85, label: 'Subiendo el RC...' })
+        await uploadRcToStorage(orderId)
+      }
+      setSaveStep({ pct: 100, label: 'Listo' })
 
       setDirty(false)
       toast.success(isNew ? 'Orden creada' : 'Orden actualizada')
@@ -1179,7 +1188,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       {/* One row on every screen: back + title (truncates) on the left, actions on
           the right. On phones the actions are equal-size icon buttons (they used to
           wrap under the title, left-aligned, with Eliminar between the others) */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="relative flex items-center justify-between gap-2">
+        {/* Progress while saving: overlaid under the header so nothing below it moves */}
+        {saving && (
+          <div className="absolute left-0 right-0 -bottom-2.5 flex items-center gap-2 pointer-events-none" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={saveStep.pct} aria-label="Guardando">
+            <div className="flex-1 h-1 rounded-full bg-gray-800 overflow-hidden">
+              <div className="h-full rounded-full bg-orange-500 transition-[width] duration-500 ease-out" style={{ width: `${saveStep.pct}%` }} />
+            </div>
+            <span className="text-[10px] text-gray-500 tabular-nums whitespace-nowrap">{saveStep.label} {saveStep.pct}%</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button onClick={async () => {
             if (dirty) {
@@ -1252,7 +1270,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             disabled={saving}
             className="h-8 px-3 sm:px-4 inline-flex items-center bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? `Guardando ${saveStep.pct}%` : 'Guardar'}
           </button>
         </div>
       </div>
