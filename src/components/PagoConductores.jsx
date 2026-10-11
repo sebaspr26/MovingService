@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Avatar from './Avatar'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
@@ -105,7 +106,6 @@ export default function PagoConductores() {
           {normalDrivers.map(driver => {
             const truck = trucks[driver.truck_id]
             const isActive = driver.status === 'active'
-            const initials = driver.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
             const avatarUrl = driver.email ? avatarMap[driver.email.toLowerCase()] : null
             return (
               <div
@@ -113,10 +113,7 @@ export default function PagoConductores() {
                 onClick={() => isActive && setSelectedDriver(driver)}
                 className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-3 transition-colors ${isActive ? 'border-gray-800 hover:border-cyan-600/50 cursor-pointer hover:bg-gray-900/80' : 'border-gray-800/40 opacity-60'}`}
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
-                  style={{ background: isActive ? 'linear-gradient(135deg, #0891b2, #0e7490)' : 'linear-gradient(135deg, #374151, #1f2937)' }}>
-                  {avatarUrl ? <img src={avatarUrl} alt={driver.name} className="w-full h-full object-cover" /> : initials}
-                </div>
+                <Avatar name={driver.name} src={avatarUrl} kind={isActive ? 'driver' : 'inactive'} size={40} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-white text-sm leading-tight">{driver.name}</p>
                   {truck && <p className="text-xs text-orange-400 mt-0.5">{truck.name} #{truck.number}</p>}
@@ -140,7 +137,6 @@ export default function PagoConductores() {
               {leaseDrivers.map(driver => {
                 const truck = trucks[driver.truck_id]
                 const isActive = driver.status === 'active'
-                const initials = driver.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
                 const avatarUrl = driver.email ? avatarMap[driver.email.toLowerCase()] : null
                 return (
                   <div
@@ -148,10 +144,7 @@ export default function PagoConductores() {
                     onClick={() => isActive && setSelectedDriver(driver)}
                     className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-3 transition-colors ring-1 ring-green-900/30 ${isActive ? 'border-green-900/40 hover:border-green-600/50 cursor-pointer hover:bg-gray-900/80' : 'border-gray-800/40 opacity-60'}`}
                   >
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
-                      style={{ background: isActive ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #374151, #1f2937)' }}>
-                      {avatarUrl ? <img src={avatarUrl} alt={driver.name} className="w-full h-full object-cover" /> : initials}
-                    </div>
+                    <Avatar name={driver.name} src={avatarUrl} kind={isActive ? 'lease' : 'inactive'} size={40} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-white text-sm leading-tight">{driver.name}</p>
                       {truck && <p className="text-xs text-orange-400 mt-0.5">{truck.name} #{truck.number}</p>}

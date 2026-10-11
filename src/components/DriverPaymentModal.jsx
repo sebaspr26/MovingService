@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Avatar from './Avatar'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
@@ -493,9 +494,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800 shrink-0 gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-cyan-600 to-cyan-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
-              {driverName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
+            <Avatar name={driverName} kind={isLease ? 'lease' : 'driver'} size={38} bg="var(--color-gray-950)" />
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{driverName}</h2>
               <p className="text-xs text-gray-500 truncate">

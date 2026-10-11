@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Avatar, { kindOfRole } from './Avatar'
 import { createPortal } from 'react-dom'
 import { useToast } from './Toast'
 import { MODULES, defaultPermissions, legacyModuleDefaults } from '../lib/permissions'
@@ -771,13 +772,7 @@ export default function Profiles() {
                       >
                         {/* Row 1: Avatar + Name + Status */}
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                          >
-                            {getInitials(name, user.email)}
-                            {getUserAvatarUrl(user) && <img src={getUserAvatarUrl(user)} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-                          </div>
+                          <Avatar name={name} fallback={user.email} src={getUserAvatarUrl(user)} kind={kindOfRole(user.user_metadata?.role)} size={40} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-white truncate">{name || user.email}</p>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -889,12 +884,7 @@ export default function Profiles() {
                       className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
-                        >
-                          {getInitials(name, '')}
-                        </div>
+                        <Avatar name={name} kind="neutral" size={40} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-white truncate">{name}</p>
                           <p className="text-xs text-gray-500 mt-0.5">Registrado en órdenes</p>
@@ -928,12 +918,7 @@ export default function Profiles() {
                       className="p-3 sm:p-4 rounded-xl border border-gray-800/60 bg-gray-900 hover:border-gray-700 transition-colors opacity-50 grayscale"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #64748b, #475569)' }}
-                        >
-                          {getInitials(driver.name, driver.email)}
-                        </div>
+                        <Avatar name={driver.name} fallback={driver.email} kind="neutral" size={40} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-white truncate">{driver.name}</p>
                           <p className="text-xs text-gray-500 truncate mt-0.5">
@@ -990,13 +975,7 @@ export default function Profiles() {
 
             {/* Header */}
             <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-800 shrink-0">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-                style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-                {getInitials(permUser.user_metadata?.name, permUser.email)}
-                {getUserAvatarUrl(permUser) && (
-                  <img src={getUserAvatarUrl(permUser)} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                )}
-              </div>
+              <Avatar name={permUser.user_metadata?.name} fallback={permUser.email} src={getUserAvatarUrl(permUser)} kind={kindOfRole(permUser.user_metadata?.role)} size={44} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm sm:text-base font-bold text-white leading-tight truncate">{permUser.user_metadata?.name || permUser.email}</p>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{permUser.email}</p>
@@ -1560,9 +1539,7 @@ function LinkUserModal({ activeCompanyId, onLink, linkingId, onClose }) {
             const companiesCount = (meta.allowed_companies || []).length
             return (
               <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-800 hover:border-gray-700 transition-colors">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)' }}>
-                  {initials}
-                </div>
+                <Avatar name={name} kind={kindOfRole(role)} size={38} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white leading-tight truncate">{name}</p>
                   <div className="flex items-center gap-2 mt-0.5">

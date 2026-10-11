@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import Avatar from './Avatar'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/orders'
@@ -196,11 +197,11 @@ export default function UnionPaymentModal({ union, memberUsers, onClose, highlig
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800 shrink-0 gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center text-white shrink-0">
+            <Avatar kind="union" size={38} bg="var(--color-gray-950)">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
               </svg>
-            </div>
+            </Avatar>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{union.name}</h2>
               <p className="text-xs text-gray-500 truncate">Unión de dispatchers · pagos combinados</p>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import Avatar, { kindOfRole } from './Avatar'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCompanyId } from '../lib/company'
@@ -286,7 +287,6 @@ export default function PagoDispatchers() {
             const meta = user.user_metadata || {}
             const role = meta.role || 'dispatcher'
             const name = meta.name || user.email || ''
-            const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
             const companyMeta = (activeCompanyId && meta.company_settings?.[activeCompanyId]) || {}
             const allRates = companyMeta.dispatcher_rates || []
             const currentRate = allRates.slice(-1)[0]
@@ -303,22 +303,7 @@ export default function PagoDispatchers() {
               >
                 {/* Header */}
                 <div className="flex items-center gap-3">
-                  {(() => {
-                    const avatarPath = meta.avatar_path
-                    const avatarUrl = avatarPath
-                      ? supabase.storage.from('company-docs').getPublicUrl(avatarPath).data?.publicUrl
-                      : null
-                    return (
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden"
-                        style={{ background: inactive ? 'linear-gradient(135deg, #374151, #1f2937)' : 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                      >
-                        {avatarUrl
-                          ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                          : initials}
-                      </div>
-                    )
-                  })()}
+                  <Avatar name={name} src={meta.avatar_path ? supabase.storage.from('company-docs').getPublicUrl(meta.avatar_path).data?.publicUrl : null} kind={inactive ? 'inactive' : kindOfRole(role)} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-white text-sm leading-tight truncate">{name}</p>
                     {!user.isLegacy && meta.name && (
@@ -389,9 +374,9 @@ export default function PagoDispatchers() {
                   onDrop={e => { if (unionMode) { e.preventDefault(); handleDropOnUnion(un) } }}
                   className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-gray-900/80 ${dropTarget === `n:${un.id}` ? 'border-orange-500 ring-2 ring-orange-500/50' : 'border-gray-800 hover:border-orange-600/50'}`}
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                  <Avatar kind="union" size={40}>
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
-                  </div>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-white text-sm leading-tight truncate">{un.name}</p>
                     {superAdmin && <p className="text-xs text-gray-500 truncate">{un.members.map(nameOfEmail).join(' + ')}</p>}

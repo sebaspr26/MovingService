@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import Avatar, { kindOfRole } from './Avatar'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { supabase } from '../lib/supabase'
@@ -111,7 +112,6 @@ export default function Inicio() {
   const role = session?.user?.user_metadata?.role
   const name = session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || 'Usuario'
   const firstName = name.split(' ')[0]
-  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
   const avatarPath = session?.user?.user_metadata?.avatar_path
   const avatarUrl = avatarPath
     ? supabase.storage.from('company-docs').getPublicUrl(avatarPath).data?.publicUrl
@@ -130,12 +130,8 @@ export default function Inicio() {
     <div className="flex flex-col items-center pt-4 pb-2">
       {/* Avatar + saludo */}
       <div className="flex flex-col items-center text-center mb-8">
-        <div
-          className="w-20 h-20 rounded-full overflow-hidden relative flex items-center justify-center text-2xl font-bold text-white mb-4 shrink-0"
-          style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 8px 32px rgba(234,88,12,0.35)' }}
-        >
-          {initials}
-          {avatarUrl && <img src={avatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+        <div className="mb-3">
+          <Avatar name={name} src={avatarUrl} kind={kindOfRole(role)} size={80} bg="var(--color-gray-950)" />
         </div>
         <h1 className="text-3xl font-bold text-white leading-tight" style={{ letterSpacing: '-0.02em' }}>
           Bienvenido,{' '}

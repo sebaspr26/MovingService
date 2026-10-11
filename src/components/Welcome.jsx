@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import Avatar, { kindOfRole } from './Avatar'
 import { signOut } from '../lib/auth'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -37,9 +38,6 @@ export default function Welcome() {
 
   const name = session?.user?.user_metadata?.name || ''
   const firstName = name.split(' ')[0] || 'bienvenido'
-  const initials = name
-    ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : session?.user?.email?.slice(0, 2).toUpperCase() || '?'
   const userAvatarUrl = getAvatarUrl(session?.user?.user_metadata?.avatar_path)
 
   const companyName = activeCompany?.company_info?.company_name || activeCompany?.display_name || ''
@@ -68,13 +66,7 @@ export default function Welcome() {
 
         {/* Avatar + cerrar sesión */}
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
-            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-          >
-            {initials}
-            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-          </div>
+          <Avatar name={name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(session?.user?.user_metadata?.role)} size={34} />
           <button
             onClick={handleSignOut}
             className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1.5"
@@ -92,12 +84,8 @@ export default function Welcome() {
 
         {/* Saludo */}
         <div className="text-center mb-12">
-          <div
-            className="w-20 h-20 rounded-full overflow-hidden relative flex items-center justify-center text-2xl font-bold text-white mx-auto mb-6"
-            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 8px 32px rgba(234,88,12,0.35)' }}
-          >
-            {initials}
-            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+          <div className="mx-auto mb-5 w-fit">
+            <Avatar name={name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(session?.user?.user_metadata?.role)} size={80} bg="var(--color-gray-950)" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3" style={{ letterSpacing: '-0.03em' }}>
             Bienvenido, <span style={{ background: 'linear-gradient(135deg, #ea580c, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{firstName}</span>

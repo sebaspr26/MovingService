@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Avatar, { kindOfRole } from './Avatar'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getLogoUrl, setActiveCompanyId, getActiveCompanyId, hasFeature } from '../lib/company'
 import { supabase } from '../lib/supabase'
@@ -30,9 +31,6 @@ export default function Layout() {
   // User profile info
   const userMeta = session?.user?.user_metadata || {}
   const userName = userMeta.name || session?.user?.email || ''
-  const userInitials = userMeta.name
-    ? userMeta.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : session?.user?.email?.slice(0, 2).toUpperCase() || '?'
   const userAvatarUrl = userMeta.avatar_path
     ? supabase.storage.from('company-docs').getPublicUrl(userMeta.avatar_path).data?.publicUrl
     : null
@@ -445,19 +443,7 @@ export default function Layout() {
               title={collapsed ? userName : undefined}
               className={`flex items-center gap-3 flex-1 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors min-w-0 ${collapsed ? 'justify-center w-full' : ''}`}
             >
-              <div
-                className="rounded-full overflow-hidden relative flex items-center justify-center font-bold text-white shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, #ea580c, #c2410c)',
-                  width: collapsed ? '36px' : '28px',
-                  height: collapsed ? '36px' : '28px',
-                  fontSize: collapsed ? '13px' : '11px',
-                  transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1), height 0.35s cubic-bezier(0.4,0,0.2,1)',
-                }}
-              >
-                {userInitials}
-                {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-              </div>
+              <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={collapsed ? 36 : 28} bg="var(--color-gray-900)" />
               <span
                 className="text-sm text-gray-400 truncate flex-1 text-left"
                 style={{
@@ -547,11 +533,9 @@ export default function Layout() {
           {/* User avatar */}
           <button
             onClick={() => setShowMobileUserMenu(v => !v)}
-            className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-white text-xs shrink-0"
-            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
+            className="rounded-full shrink-0"
           >
-            {userInitials}
-            {userAvatarUrl && <img src={userAvatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+            <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={32} />
           </button>
 
           {/* User dropdown */}

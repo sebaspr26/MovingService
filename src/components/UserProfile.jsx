@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import Avatar, { kindOfRole } from './Avatar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
@@ -156,10 +157,6 @@ export default function UserProfile() {
     }
   }
 
-  const initials = name
-    ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email?.slice(0, 2).toUpperCase() || '?'
-
   const dirty = name !== (meta.name || '') || phone !== (meta.phone || '')
 
   function formatPhone(raw) {
@@ -298,13 +295,7 @@ export default function UserProfile() {
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
-          <div
-            className="w-16 h-16 rounded-full overflow-hidden relative flex items-center justify-center text-xl font-bold text-white"
-            style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-          >
-            {initials}
-            {avatarUrl && <img src={avatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-          </div>
+          <Avatar name={name} src={avatarUrl} kind={kindOfRole(meta.role)} size={64} flush />
           {uploading && (
             <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
