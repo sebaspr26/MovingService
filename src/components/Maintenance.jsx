@@ -75,9 +75,11 @@ function TruckDetail({ truck, canEdit, startService, onClose, onChanged }) {
     setSaving(true)
     try {
       await saveMaintenanceConfig(session, truck, { interval: iv, warn: wn, countingFrom, startMiles })
+      // Wait for the truck to come back WITH its config before closing the form: showing the
+      // summary while cfg was still null crashed the whole screen the first time a truck was set up
+      await onChanged()
       toast.success('Mantenimiento configurado')
       setEditing(false)
-      onChanged()
     } catch (err) {
       toast.error(friendlyError(err.message))
     } finally {
@@ -223,7 +225,7 @@ function TruckDetail({ truck, canEdit, startService, onClose, onChanged }) {
                   </button>
                 )}
               </div>
-              {editing ? (
+              {editing || !cfg ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block">
