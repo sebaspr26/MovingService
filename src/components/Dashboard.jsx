@@ -27,6 +27,43 @@ const EXPENSE_CATEGORIES = [
 ]
 
 
+// Building blocks of the create/edit truck form
+const TRUCK_LABEL = 'block text-xs font-medium text-gray-400 mb-1'
+const TRUCK_INPUT = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-orange-500'
+
+function FormSection({ title, hint, aside, children }) {
+  return (
+    <section className="rounded-xl border border-gray-800 bg-gray-800/20 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{title}</h4>
+          {hint && <p className="text-[10px] text-gray-600 mt-0.5">{hint}</p>}
+        </div>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function SwitchRow({ label, hint, checked, onChange, color = 'bg-orange-600' }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-300">{label}</p>
+        {hint && <p className="text-[10px] text-gray-600 mt-0.5">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={onChange}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? color : 'bg-gray-700'}`}
+      >
+        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+      </button>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const toast = useToast()
   const { session } = useAuth()
@@ -971,314 +1008,280 @@ export default function Dashboard() {
 
       {/* Create/Edit Truck Modal */}
       {showTruckModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-gray-800">
-              <h3 className="text-lg font-semibold text-white">{editingTruck ? 'Editar Camion' : 'Agregar Camion'}</h3>
-              <button onClick={() => { setShowTruckModal(false); setEditingTruck(null) }} className="text-gray-500 hover:text-gray-300">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
+              <div>
+                <h3 className="text-lg font-semibold text-white">{editingTruck ? 'Editar camión' : 'Agregar camión'}</h3>
+                {editingTruck && <p className="text-xs text-gray-500 mt-0.5">Truck {editingTruck.number} — {editingTruck.name}</p>}
+              </div>
+              <button onClick={() => { setShowTruckModal(false); setEditingTruck(null) }} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSaveTruck} className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Nombre Truck</label>
-                  <input
-                    type="text"
-                    value={truckName}
-                    onChange={(e) => setTruckName(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                    placeholder="Ej: CARLOS"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Numero</label>
-                  <input
-                    type="text"
-                    value={truckNumber}
-                    onChange={(e) => setTruckNumber(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                    placeholder="Ej: 109"
-                    required
-                  />
-                </div>
-              </div>
+            <form onSubmit={handleSaveTruck} className="flex flex-col min-h-0 flex-1">
+              <div className="flex-1 overflow-y-auto p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">VIN #</label>
-                <input
-                  type="text"
-                  value={truckVin}
-                  onChange={(e) => setTruckVin(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500 font-mono"
-                  placeholder="1FUJA6CK07LY12345"
-                />
-              </div>
-
-              {typeSupported && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de camión{!editingTruck && ' *'}</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TRUCK_TYPES.map(t => (
-                      <button
-                        key={t.value}
-                        type="button"
-                        onClick={() => setTruckType(truckType === t.value && editingTruck ? '' : t.value)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          truckType === t.value
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                  {editingTruck && !truckType && <p className="text-[10px] text-gray-600 mt-1">{NO_TRUCK_TYPE_LABEL}: elige el tipo de este camión</p>}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Chofer Asignado</label>
-                <select
-                  value={truckDriverId}
-                  onChange={(e) => setTruckDriverId(e.target.value)}
-                  className="sel w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                >
-                  <option value="">{editingTruck ? 'Sin asignar' : 'Seleccionar conductor...'}</option>
-                  {drivers
-                    .filter(d => d.status === 'active' && (!d.truck_id || d.truck_id === editingTruck?.id))
-                    .map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))
-                  }
-                </select>
-                <p className="text-[10px] text-gray-600 mt-1">Los choferes se crean en Compania → Choferes</p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-400">Truck LEASE (propietario externo)</label>
-                  <button
-                    type="button"
-                    onClick={() => setTruckIsLis(!truckIsLis)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${truckIsLis ? 'bg-amber-600' : 'bg-gray-700'}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${truckIsLis ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-                {truckIsLis && (
-                  <input
-                    type="text"
-                    value={truckOwnerName}
-                    onChange={(e) => setTruckOwnerName(e.target.value)}
-                    className="mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-amber-500"
-                    placeholder="Nombre del propietario"
-                    required
-                  />
-                )}
-              </div>
-
-              {iftaEnabled && (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Incluir en IFTA (dry van)</label>
-                      <p className="text-[10px] text-gray-600 mt-0.5">Sus millas y diesel entran al reporte IFTA. Los box trucks no declaran IFTA</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setTruckIfta(!truckIfta)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${truckIfta ? 'bg-blue-600' : 'bg-gray-700'}`}
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${truckIfta ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Descuento sobre Orders (%)</label>
-                <div className="flex gap-2">
-                  {['13', '11'].map(val => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => { setTruckDiscount(val); setTruckDiscountCustom('') }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        truckDiscount === val
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
-                      }`}
-                    >
-                      {val}%
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setTruckDiscount('custom')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      truckDiscount === 'custom'
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
-                    }`}
-                  >
-                    Otro
-                  </button>
-                  {truckDiscount === 'custom' && (
-                    <div className="relative flex-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={truckDiscountCustom}
-                        onChange={(e) => setTruckDiscountCustom(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                        placeholder="Ej: 10"
-                        autoFocus
-                        required
-                      />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-400">Socios</label>
-                  <span className={`text-xs ${Math.abs(totalPct - 100) < 0.01 && truckPartners.some(p => p.percentage) ? 'text-green-400' : totalPct > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
-                    {totalPct > 0 ? `${totalPct}%` : ''}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {truckPartners.map((p, i) => (
-                    <div key={i} className="flex flex-wrap gap-2 items-center bg-gray-800/30 rounded-lg p-2 sm:p-0 sm:bg-transparent sm:rounded-none">
-                      <input
-                        type="text"
-                        value={p.name}
-                        onChange={(e) => updatePartner(i, 'name', e.target.value)}
-                        className="flex-1 min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                        placeholder="Nombre"
-                      />
-                      <div className="relative w-20 sm:w-24">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={p.percentage}
-                          onChange={(e) => updatePartner(i, 'percentage', e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pr-7 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                          placeholder="%"
-                        />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                  {/* Left column: the truck itself */}
+                  <div className="space-y-4">
+                    <FormSection title="Datos del camión">
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className={TRUCK_LABEL}>Nombre</span>
+                          <input type="text" value={truckName} onChange={(e) => setTruckName(e.target.value)} className={TRUCK_INPUT} placeholder="Ej: CARLOS" required />
+                        </label>
+                        <label className="block">
+                          <span className={TRUCK_LABEL}>Número</span>
+                          <input type="text" value={truckNumber} onChange={(e) => setTruckNumber(e.target.value)} className={TRUCK_INPUT} placeholder="Ej: 109" required />
+                        </label>
                       </div>
-                      {truckPartners.length > 1 && (
-                        <button type="button" onClick={() => removePartner(i)} className="p-1.5 text-gray-500 hover:text-red-400">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                      <label className="block">
+                        <span className={TRUCK_LABEL}>VIN #</span>
+                        <input type="text" value={truckVin} onChange={(e) => setTruckVin(e.target.value)} className={`${TRUCK_INPUT} font-mono`} placeholder="1FUJA6CK07LY12345" />
+                      </label>
+                      {typeSupported && (
+                        <div>
+                          <span className={TRUCK_LABEL}>Tipo de camión{!editingTruck && <span className="text-orange-500"> *</span>}</span>
+                          <div className="grid grid-cols-3 gap-2">
+                            {TRUCK_TYPES.map(t => (
+                              <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => setTruckType(truckType === t.value && editingTruck ? '' : t.value)}
+                                className={`px-2 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                                  truckType === t.value
+                                    ? 'bg-orange-600 text-white'
+                                    : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                                }`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                          {editingTruck && !truckType && <p className="text-[10px] text-gray-600 mt-1.5">{NO_TRUCK_TYPE_LABEL}: elige el tipo de este camión</p>}
+                        </div>
                       )}
-                    </div>
-                  ))}
-                </div>
-                <button type="button" onClick={addPartnerRow}
-                  className="mt-2 text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Agregar Socio
-                </button>
-              </div>
+                    </FormSection>
 
-              {/* Gastos Recurrentes */}
-              <div>
-                <label className="text-sm font-medium text-gray-400 mb-2 block">Gastos Recurrentes</label>
-                {truckRecurring.length > 0 && (
-                  <div className="space-y-2 mb-2">
-                    {truckRecurring.map((r, i) => (
-                      <div key={i} className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="grid grid-cols-3 gap-2 flex-1">
+                    <FormSection title="Chofer y propiedad">
+                      <label className="block">
+                        <span className={TRUCK_LABEL}>Chofer asignado</span>
+                        <select
+                          value={truckDriverId}
+                          onChange={(e) => setTruckDriverId(e.target.value)}
+                          className={`sel ${TRUCK_INPUT}`}
+                        >
+                          <option value="">{editingTruck ? 'Sin asignar' : 'Seleccionar conductor...'}</option>
+                          {drivers
+                            .filter(d => d.status === 'active' && (!d.truck_id || d.truck_id === editingTruck?.id))
+                            .map(d => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))
+                          }
+                        </select>
+                        <span className="block text-[10px] text-gray-600 mt-1">Los choferes se crean en Compañía → Choferes</span>
+                      </label>
+
+                      <div className="border-t border-gray-800 pt-3 space-y-3">
+                        <SwitchRow label="Truck LEASE" hint="Propietario externo" checked={truckIsLis} onChange={() => setTruckIsLis(!truckIsLis)} color="bg-amber-600" />
+                        {truckIsLis && (
+                          <input
+                            type="text"
+                            value={truckOwnerName}
+                            onChange={(e) => setTruckOwnerName(e.target.value)}
+                            className={`${TRUCK_INPUT} focus:border-amber-500`}
+                            placeholder="Nombre del propietario"
+                            required
+                          />
+                        )}
+                        {iftaEnabled && (
+                          <SwitchRow label="Incluir en IFTA" hint="Dry van: sus millas y diesel entran al reporte IFTA" checked={truckIfta} onChange={() => setTruckIfta(!truckIfta)} color="bg-blue-600" />
+                        )}
+                      </div>
+                    </FormSection>
+                  </div>
+
+                  {/* Right column: the money */}
+                  <div className="space-y-4">
+                    <FormSection title="Descuento sobre órdenes">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {['13', '11'].map(val => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => { setTruckDiscount(val); setTruckDiscountCustom('') }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              truckDiscount === val
+                                ? 'bg-orange-600 text-white'
+                                : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                            }`}
+                          >
+                            {val}%
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setTruckDiscount('custom')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            truckDiscount === 'custom'
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                          }`}
+                        >
+                          Otro
+                        </button>
+                        {truckDiscount === 'custom' && (
+                          <div className="relative flex-1 min-w-[96px]">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={truckDiscountCustom}
+                              onChange={(e) => setTruckDiscountCustom(e.target.value)}
+                              className={`${TRUCK_INPUT} pr-7`}
+                              placeholder="Ej: 10"
+                              autoFocus
+                              required
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                          </div>
+                        )}
+                      </div>
+                      {!editingTruck && (
+                        <label className="block border-t border-gray-800 pt-3">
+                          <span className={TRUCK_LABEL}>Caja inicial ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={truckCajaInicial}
+                            onChange={(e) => setTruckCajaInicial(e.target.value)}
+                            className={TRUCK_INPUT}
+                            placeholder="0.00 (saldo anterior del primer ciclo)"
+                          />
+                        </label>
+                      )}
+                    </FormSection>
+
+                    <FormSection
+                      title="Socios"
+                      aside={totalPct > 0 && (
+                        <span className={`text-xs font-semibold ${Math.abs(totalPct - 100) < 0.01 && truckPartners.some(p => p.percentage) ? 'text-green-400' : 'text-yellow-400'}`}>{totalPct}%</span>
+                      )}
+                    >
+                      <div className="space-y-2">
+                        {truckPartners.map((p, i) => (
+                          <div key={i} className="flex gap-2 items-center">
                             <input
                               type="text"
-                              value={r.description}
-                              onChange={(e) => updateRecurring(i, 'description', e.target.value)}
-                              className="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
+                              value={p.name}
+                              onChange={(e) => updatePartner(i, 'name', e.target.value)}
+                              className={`${TRUCK_INPUT} flex-1 min-w-0`}
                               placeholder="Nombre"
                             />
-                            <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                            <div className="relative w-24 shrink-0">
                               <input
                                 type="number"
                                 step="0.01"
-                                value={r.amount}
-                                onChange={(e) => updateRecurring(i, 'amount', e.target.value)}
-                                className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-6 pr-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-orange-500"
-                                placeholder="Valor"
+                                value={p.percentage}
+                                onChange={(e) => updatePartner(i, 'percentage', e.target.value)}
+                                className={`${TRUCK_INPUT} pr-7`}
+                                placeholder="%"
                               />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
                             </div>
-                            <DayPicker
-                              value={r.day_of_month}
-                              onChange={(day) => updateRecurring(i, 'day_of_month', day)}
-                              placeholder="Dia del mes"
-                            />
+                            {truckPartners.length > 1 && (
+                              <button type="button" onClick={() => removePartner(i)} className="p-1.5 text-gray-500 hover:text-red-400 shrink-0">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
-                          <button type="button" onClick={() => removeRecurring(i)} className="p-1 text-gray-500 hover:text-red-400 shrink-0">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                      <button type="button" onClick={addPartnerRow} className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Agregar socio
+                      </button>
+                    </FormSection>
+                  </div>
+
+                  {/* Full width: recurring expenses */}
+                  <div className="md:col-span-2">
+                    <FormSection title="Gastos recurrentes" hint="Se aplican solos al abrir un ciclo nuevo">
+                      {truckRecurring.length > 0 && (
+                        <div className="space-y-2">
+                          {truckRecurring.map((r, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+                                <input
+                                  type="text"
+                                  value={r.description}
+                                  onChange={(e) => updateRecurring(i, 'description', e.target.value)}
+                                  className={TRUCK_INPUT}
+                                  placeholder="Nombre"
+                                />
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={r.amount}
+                                    onChange={(e) => updateRecurring(i, 'amount', e.target.value)}
+                                    className={`${TRUCK_INPUT} pl-7`}
+                                    placeholder="Valor"
+                                  />
+                                </div>
+                                <DayPicker
+                                  value={r.day_of_month}
+                                  onChange={(day) => updateRecurring(i, 'day_of_month', day)}
+                                  placeholder="Día del mes"
+                                />
+                              </div>
+                              <button type="button" onClick={() => removeRecurring(i)} className="p-1.5 text-gray-500 hover:text-red-400 shrink-0">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button type="button" onClick={addRecurringRow} className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Agregar gasto recurrente
+                      </button>
+                    </FormSection>
+                  </div>
+                </div>
+
+                {truckError && (
+                  <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 mt-4">
+                    <p className="text-xs text-red-400">{truckError}</p>
                   </div>
                 )}
-                <button type="button" onClick={addRecurringRow}
-                  className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Agregar Gasto Recurrente
-                </button>
               </div>
 
-              {!editingTruck && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Caja Inicial ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={truckCajaInicial}
-                    onChange={(e) => setTruckCajaInicial(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 text-sm focus:outline-none focus:border-orange-500"
-                    placeholder="0.00 (saldo anterior del primer ciclo)"
-                  />
-                </div>
-              )}
-
-              {truckError && (
-                <div className="bg-red-900/30 border border-red-800 rounded-lg p-3">
-                  <p className="text-xs text-red-400">{truckError}</p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 px-5 py-4 border-t border-gray-800 shrink-0 bg-gray-900">
                 <button
                   type="button"
                   onClick={() => { setShowTruckModal(false); setEditingTruck(null) }}
-                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-gray-800 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-500 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-500 transition-colors"
                 >
-                  {editingTruck ? 'Guardar Cambios' : 'Crear Camion'}
+                  {editingTruck ? 'Guardar cambios' : 'Crear camión'}
                 </button>
               </div>
             </form>
