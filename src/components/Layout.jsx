@@ -428,7 +428,7 @@ export default function Layout() {
         </nav>
 
         <div
-          className="border-t border-gray-800 overflow-hidden"
+          className="border-t border-gray-800"
           style={{ padding: '8px' }}
         >
           {/* User profile */}
@@ -436,7 +436,7 @@ export default function Layout() {
             <button
               onClick={() => navigate('/profile')}
               title={collapsed ? userName : undefined}
-              className="flex items-center gap-3 flex-1 py-2 pr-3 rounded-lg hover:bg-gray-800 min-w-0 w-full overflow-hidden"
+              className="flex items-center gap-3 flex-1 py-2 pr-3 rounded-lg hover:bg-gray-800 min-w-0 w-full"
               style={{ paddingLeft: collapsed ? 6 : 10, transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s' }}
             >
               <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={collapsed ? 36 : 28} bg="var(--color-gray-900)" />
