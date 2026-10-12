@@ -9,7 +9,7 @@ const KINDS = {
   dispatcher: { color: '#9333ea' },
   admin: { color: '#2563eb' },
   super_admin: { color: '#ea580c' },
-  union: { color: '#dc4a1c' },
+  union: { color: '#dc2626' },
   neutral: { color: '#64748b' },
   inactive: { color: '#4b5563' },
 }
