@@ -23,6 +23,7 @@ import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
 import { computeDeadhead, firstPickupPlace, refreshFollowingDeadheads } from '../lib/deadhead'
 import { loadAuthUsers } from '../lib/pageCache'
+import { dispatchersOfCompany } from '../lib/ordersData'
 import InfoTip from './InfoTip'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
@@ -326,9 +327,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
       setAllBrokers(bRes.data || [])
       setDrivers(dRes.data || [])
       // Solo usuarios con rol de dispatcher/admin/super_admin
-      const dispatchers = (usersRes.users || [])
-        .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
-        .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email, role: u.user_metadata?.role }))
+      // Only this company's dispatchers (allowed_companies), not every account in the system
+      const dispatchers = dispatchersOfCompany(usersRes.users, getActiveCompanyId())
         .sort((a, b) => a.name.localeCompare(b.name))
       setAuthDispatchers(dispatchers)
 

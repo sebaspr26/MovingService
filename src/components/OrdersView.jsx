@@ -594,7 +594,6 @@ export default function OrdersView() {
               </span>
             )}
           </div>
-          <InfoTip id="orders.search" className="hidden sm:inline-flex" />
           {/* Phones: the filters are folded behind this button (desktop always shows them) */}
           <button
             type="button"

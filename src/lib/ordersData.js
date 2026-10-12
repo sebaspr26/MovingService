@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { getAllowedTruckIds, getPerCompanyMeta } from './permissions'
 import { advanceStatuses, saveAdvancedStatuses } from './orders'
 import { loadAuthUsers } from './pageCache'
+import { getActiveCompanyId } from './company'
 
 // Data for the Orders list, loaded once and kept: the next visit shows it
 // right away and refreshes it in the background. Only the columns the list
@@ -104,11 +105,26 @@ export function refreshOrders(session, companyId) {
 const migrated = new Set()
 
 /** [{ email, name, role }] of super_admin/admin/dispatcher users (names are resolved with all of them; the pickers leave super admins out, they don't dispatch). */
-export async function loadDispatcherDirectory() {
-  const data = await loadAuthUsers()
-  return (data.users || [])
+/**
+ * Dispatchers (admins and dispatchers) of ONE company: only the users assigned to it through
+ * allowed_companies, the same strict rule as Perfiles and Pago Dispatchers — a dispatcher who
+ * works in another company must not show up in this one's filter or picker. The super admin
+ * is kept (to resolve the name on old orders); the screens do not offer him as a dispatcher.
+ */
+export function dispatchersOfCompany(users, companyId) {
+  return (users || [])
     .filter(u => ['super_admin', 'admin', 'dispatcher'].includes(u.user_metadata?.role))
+    .filter(u => {
+      if (!companyId || u.user_metadata?.role === 'super_admin') return true
+      const ac = u.user_metadata?.allowed_companies
+      return Array.isArray(ac) && ac.includes(companyId)
+    })
     .map(u => ({ email: u.email, name: u.user_metadata?.name || u.email, role: u.user_metadata?.role }))
+}
+
+export async function loadDispatcherDirectory(companyId = getActiveCompanyId()) {
+  const data = await loadAuthUsers()
+  return dispatchersOfCompany(data.users, companyId)
 }
 
 /**
