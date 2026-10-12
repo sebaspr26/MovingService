@@ -552,7 +552,7 @@ export default function OrdersView() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {!isDriver && (
-          <div className="flex items-center gap-1.5"><InfoTip id="orders.new" /><button
+          <button
             onClick={() => openDrawer('new')}
             className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
           >
@@ -560,7 +560,7 @@ export default function OrdersView() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             Nueva Orden
-          </button></div>
+          </button>
         )}
         </div>
       </div>

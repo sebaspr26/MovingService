@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
@@ -42,6 +43,21 @@ export default function MaintenanceBell() {
   const navigate = useNavigate()
   const [data, setData] = useState(() => getMaintenanceCache(session, getActiveCompanyId()))
   const [open, setOpen] = useState(false)
+  const btnRef = useRef(null)
+  const [panelPos, setPanelPos] = useState(null)
+
+  // The panel is placed from the bell's position, in a portal: on a phone it spans the
+  // screen (12px each side) instead of hanging off the bell and leaving the screen
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const w = window.innerWidth
+      setPanelPos(w < 640
+        ? { left: 12, right: 12, top: r.bottom + 8, origin: `${Math.max(0, r.left + r.width / 2 - 12)}px top` }
+        : { right: Math.max(12, w - r.right), top: r.bottom + 8, width: 384, origin: 'right top' })
+    }
+    setOpen(v => !v)
+  }
 
   const load = useCallback(async () => {
     try {
@@ -99,9 +115,10 @@ export default function MaintenanceBell() {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={toggle}
         title="Notificaciones"
-        className="relative w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+        className="relative w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 active:scale-90 transition-all"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -113,10 +130,13 @@ export default function MaintenanceBell() {
         )}
       </button>
 
-      {open && (
+      {open && panelPos && createPortal(
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-[min(24rem,92vw)] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div
+            className="fixed bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-bell-panel"
+            style={{ left: panelPos.left, right: panelPos.right, top: panelPos.top, width: panelPos.width, transformOrigin: panelPos.origin, maxHeight: `calc(100vh - ${panelPos.top + 12}px)`, overflowY: 'auto' }}
+          >
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800">
               <p className="text-sm font-semibold text-white">Notificaciones</p>
               {unread.length > 0 && (
@@ -134,7 +154,8 @@ export default function MaintenanceBell() {
               </button>
             )}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   )
