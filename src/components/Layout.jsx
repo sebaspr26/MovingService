@@ -479,16 +479,6 @@ export default function Layout() {
               Cerrar Sesión
             </span>
           </button>
-          <p
-            className="text-xs text-gray-600 whitespace-nowrap mt-2"
-            style={{
-              opacity: collapsed ? 0.7 : 1,
-              transition: 'opacity 0.2s ease',
-              textAlign: collapsed ? 'center' : 'left',
-            }}
-          >
-            {collapsed ? 'v1.4' : 'v1.4 - Fase 5'}
-          </p>
         </div>
       </aside>
 
