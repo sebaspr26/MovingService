@@ -217,8 +217,8 @@ export default function Layout() {
         <div className="border-b border-gray-800 relative">
           <button
             onClick={canSwitchCompany ? () => setShowSwitcher(v => !v) : undefined}
-            className={`w-full flex items-center gap-3 transition-colors ${canSwitchCompany ? 'hover:bg-gray-800/60 cursor-pointer' : 'cursor-default'}`}
-            style={{ padding: collapsed ? '12px' : '14px 16px' }}
+            className={`w-full flex items-center gap-3 overflow-hidden transition-colors ${canSwitchCompany ? 'hover:bg-gray-800/60 cursor-pointer' : 'cursor-default'}`}
+            style={{ padding: '14px' }}
             title={collapsed ? companyName : undefined}
           >
             {/* Logo o iniciales */}
@@ -235,16 +235,16 @@ export default function Layout() {
             <div
               className="flex-1 text-left overflow-hidden"
               style={{
-                width: collapsed ? 0 : 'auto',
                 opacity: collapsed ? 0 : 1,
-                transition: 'opacity 0.2s ease',
+                transition: 'opacity 0.25s ease',
+                overflow: 'hidden',
               }}
             >
               <p className="text-sm font-bold text-white truncate leading-tight">{companyName}</p>
               {companyDba && <p className="text-xs text-gray-500 truncate">{companyDba}</p>}
             </div>
 
-            {!collapsed && canSwitchCompany && (
+            {canSwitchCompany && (
               <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
               </svg>
@@ -306,7 +306,10 @@ export default function Layout() {
         </div>
 
         {/* collapse button row */}
-        <div className="flex justify-end px-2 py-1 border-b border-gray-800/50">
+        <div
+          className="flex justify-end py-1 border-b border-gray-800/50"
+          style={{ paddingRight: collapsed ? 18 : 8, transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}
+        >
           <button
             onClick={toggleCollapsed}
             className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 shrink-0"
@@ -327,11 +330,8 @@ export default function Layout() {
         </div>
 
         <nav
-          className="flex-1 flex flex-col"
-          style={{
-            padding: collapsed ? '8px' : '16px',
-            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
+          className="flex-1 flex flex-col overflow-hidden"
+          style={{ padding: '12px 8px' }}
         >
           {/* Main nav items */}
           <div className="space-y-1">
@@ -342,11 +342,11 @@ export default function Layout() {
                 end={item.end}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
                     isActive
                       ? 'bg-orange-600/20 text-orange-400'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                  } ${collapsed ? 'justify-center' : ''}`
+                  }`
                 }
                 style={{ transition: 'color 0.2s, background 0.2s' }}
               >
@@ -355,9 +355,8 @@ export default function Layout() {
                 </svg>
                 <span
                   style={{
-                    width: collapsed ? 0 : 'auto',
                     opacity: collapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
+                    transition: 'opacity 0.25s ease',
                     overflow: 'hidden',
                   }}
                 >
@@ -403,11 +402,11 @@ export default function Layout() {
                 to={item.to}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap ${
                     isActive
                       ? 'bg-orange-600/20 text-orange-400'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                  } ${collapsed ? 'justify-center' : ''}`
+                  }`
                 }
                 style={{ transition: 'color 0.2s, background 0.2s' }}
               >
@@ -416,9 +415,8 @@ export default function Layout() {
                 </svg>
                 <span
                   style={{
-                    width: collapsed ? 0 : 'auto',
                     opacity: collapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
+                    transition: 'opacity 0.25s ease',
                     overflow: 'hidden',
                   }}
                 >
@@ -431,25 +429,22 @@ export default function Layout() {
 
         <div
           className="border-t border-gray-800 overflow-hidden"
-          style={{
-            padding: collapsed ? '8px' : '16px',
-            transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
+          style={{ padding: '8px' }}
         >
           {/* User profile */}
           <div className={`flex items-center gap-1 mb-1 ${collapsed ? 'flex-col' : ''}`}>
             <button
               onClick={() => navigate('/profile')}
               title={collapsed ? userName : undefined}
-              className={`flex items-center gap-3 flex-1 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors min-w-0 ${collapsed ? 'justify-center w-full' : ''}`}
+              className="flex items-center gap-3 flex-1 py-2 pr-3 rounded-lg hover:bg-gray-800 min-w-0 w-full overflow-hidden"
+              style={{ paddingLeft: collapsed ? 6 : 10, transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s' }}
             >
               <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={collapsed ? 36 : 28} bg="var(--color-gray-900)" />
               <span
                 className="text-sm text-gray-400 truncate flex-1 text-left"
                 style={{
-                  width: collapsed ? 0 : 'auto',
                   opacity: collapsed ? 0 : 1,
-                  transition: 'opacity 0.2s ease',
+                  transition: 'opacity 0.25s ease',
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
                 }}
@@ -462,16 +457,15 @@ export default function Layout() {
           <button
             onClick={handleSignOut}
             title="Cerrar sesión"
-            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors ${collapsed ? 'justify-center' : ''}`}
+            className="flex items-center gap-3 w-full px-3.5 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors overflow-hidden"
           >
             <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
             </svg>
             <span
               style={{
-                width: collapsed ? 0 : 'auto',
                 opacity: collapsed ? 0 : 1,
-                transition: 'opacity 0.2s ease',
+                transition: 'opacity 0.25s ease',
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
               }}
@@ -780,9 +774,9 @@ function NavSection({ label, icon, items: rawItems, color, collapsed }) {
       <button
         onClick={() => setOpen(!open)}
         title={collapsed ? label : undefined}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap w-full ${
+        className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium overflow-hidden whitespace-nowrap w-full ${
           open || inSection ? active : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-        } ${collapsed ? 'justify-center' : ''}`}
+        }`}
         style={{ transition: 'color 0.2s, background 0.2s' }}
       >
         <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -791,15 +785,14 @@ function NavSection({ label, icon, items: rawItems, color, collapsed }) {
         <span
           className="flex-1 text-left"
           style={{
-            width: collapsed ? 0 : 'auto',
             opacity: collapsed ? 0 : 1,
-            transition: 'opacity 0.2s ease',
+            transition: 'opacity 0.25s ease',
             overflow: 'hidden',
           }}
         >
           {label}
         </span>
-        {!collapsed && (
+        {(
           <svg
             className="w-4 h-4 shrink-0"
             style={{
