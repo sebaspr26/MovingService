@@ -15,6 +15,7 @@ import { getActiveCompanyId } from '../lib/company'
 import { auditedBalanceWrite } from '../lib/balance'
 import { refreshFollowingDeadheads } from '../lib/deadhead'
 import { useTheme } from '../lib/theme'
+import InfoTip from './InfoTip'
 
 function useCountUp(target, duration = 700) {
   const [value, setValue] = useState(target)
