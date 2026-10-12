@@ -8,6 +8,7 @@ import { uploadReceipt } from '../lib/receipts'
 import ReceiptViewer from './ReceiptViewer'
 import DatePicker from './DatePicker'
 import { stateOfCity } from '../lib/ifta'
+import InfoTip from './InfoTip'
 
 const EXPENSE_CATEGORIES = [
   'Mantenimiento', 'Seguro', 'Peajes', 'Reparacion', 'Llantas',
@@ -333,7 +334,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">
-          <h3 className="text-lg font-semibold text-white">{editRow ? 'Editar Registro' : 'Agregar Gasto'}</h3>
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">{editRow ? 'Editar Registro' : 'Agregar Gasto'}<InfoTip id="receipt.modal" /></h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -351,7 +352,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
               onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); scanDragCounter.current--; if (scanDragCounter.current === 0) setScanDragging(false) }}
               onDrop={(e) => { e.preventDefault(); e.stopPropagation(); scanDragCounter.current = 0; setScanDragging(false); const f = e.dataTransfer.files[0]; if (f) handleScan(f) }}
             >
-              <button
+              <div className="flex items-center gap-2"><InfoTip id="receipt.scan" /><button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={scanning}
@@ -380,7 +381,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
                     Escanear recibos (uno o varios en la foto)
                   </>
                 )}
-              </button>
+              </button></div>
               <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleScan(e.target.files[0])} />
               {scanError && <p className="text-xs text-red-400 mt-1">{scanError}</p>}
             </div>
@@ -493,6 +494,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
                                 {t === 'expense' ? 'Gasto' : t === 'chofer' ? 'Chofer' : t.toUpperCase()}
                               </button>
                             ))}
+                            <InfoTip id="receipt.types" size={14} className="self-center" />
                           </div>
                           {r.lines.length > 1 && !editRow && (
                             <button type="button" onClick={() => removeLine(ri, li)} className="p-1 text-gray-500 hover:text-red-400">

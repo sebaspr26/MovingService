@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { logAudit } from '../lib/auditLog'
 import DatePicker from './DatePicker'
 import { downloadCycleReport } from '../lib/cycleReport'
+import InfoTip from './InfoTip'
 
 export default function CashBox({ truckId, truckName, cycle, period, debito, credito, grossIncome, netIncome, discount13, discountPct, onCycleClosed }) {
   const toast = useToast()
@@ -87,7 +88,7 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
               <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
-              <h4 className="text-sm font-semibold text-emerald-400">Ciclo Cerrado</h4>
+              <div className="flex items-center gap-1.5"><h4 className="text-sm font-semibold text-emerald-400">Ciclo Cerrado</h4><InfoTip id="truck.cashbox" /></div>
             </div>
             <button onClick={handleReopen} className="text-xs text-gray-500 hover:text-yellow-400 transition-colors">
               Reabrir
@@ -133,7 +134,7 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
         </div>
       ) : showCierre ? (
         <div className="bg-gradient-to-r from-yellow-900/20 to-gray-900 rounded-xl p-4 sm:p-5 border border-yellow-800/50">
-          <h4 className="text-sm font-semibold text-yellow-400 mb-1">Cerrar Ciclo</h4>
+          <div className="flex items-center gap-1.5 mb-1"><h4 className="text-sm font-semibold text-yellow-400">Cerrar Ciclo</h4><InfoTip id="truck.cashbox" /></div>
           <p className="text-[10px] sm:text-xs text-gray-500 mb-4">Cuanto desea dejar en la caja para el siguiente ciclo?</p>
 
           <div className="mb-4">
@@ -215,7 +216,7 @@ export default function CashBox({ truckId, truckName, cycle, period, debito, cre
               className="border border-gray-600 text-gray-200 hover:border-emerald-500 hover:text-white hover:bg-emerald-600/10"
             />
           </div>
-          <p className="text-[10px] text-gray-600 mt-2">Finalizar el ciclo y repartir dividendos · el reporte se descarga solo al cerrar</p>
+          <p className="text-[10px] text-gray-600 mt-2">Finalizar el ciclo y repartir dividendos · el reporte se descarga solo al cerrar<InfoTip id="truck.report" size={12} className="ml-1" /></p>
         </div>
       )}
     </div>

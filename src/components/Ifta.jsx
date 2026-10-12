@@ -13,6 +13,7 @@ import { useToast } from './Toast'
 import { readPageCache, writePageCache } from '../lib/pageCache'
 import OrderDetail from './OrderDetail'
 import PdfViewer from './PdfViewer'
+import InfoTip from './InfoTip'
 
 // IFTA (International Fuel Tax Agreement) — super admin only, and only for
 // companies that turned the module on in Configuración. One card per quarter
@@ -148,7 +149,7 @@ export default function Ifta() {
     <div className="animate-tab-in">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">IFTA</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">IFTA</h1><InfoTip id="ifta.page" /></div>
           <p className="text-sm text-gray-500 mt-0.5">Impuesto de combustible por estado · camiones marcados como dry van</p>
         </div>
         <div className="flex items-center gap-3">

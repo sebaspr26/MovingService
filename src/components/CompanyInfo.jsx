@@ -11,6 +11,7 @@ import { canDelete } from '../lib/permissions'
 import { downloadFromUrl } from '../lib/download'
 import { auditedDriverWrite } from '../lib/balance'
 import { readPageCache, usePageCacheSave, invalidatePageCache } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 // The Trailers tab is hidden (no trailers registered, no function yet); SectionTrailers below is kept to bring it back
 const SECTIONS = [
@@ -25,7 +26,7 @@ export default function CompanyInfo() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Informaci&oacute;n de la Compa&ntilde;&iacute;a</h1>
+        <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-white">Informaci&oacute;n de la Compa&ntilde;&iacute;a</h1><InfoTip id="company.page" /></div>
         <p className="text-sm text-gray-500 mt-1">Documentos, choferes y camiones</p>
       </div>
 
@@ -109,7 +110,7 @@ function SectionCompanyInfo() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white">Company Information</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">Company Information<InfoTip id="company.info" /></h2>
           <p className="text-[10px] text-gray-600">Esta info se muestra en el Bill/Invoice y sidebar</p>
         </div>
         <button
@@ -260,7 +261,7 @@ function SectionBilling() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Billing Information</h2>
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">Billing Information<InfoTip id="company.billing" /></h2>
         <button
           onClick={handleSave}
           disabled={!isDirty}
@@ -507,7 +508,7 @@ function SectionCompanyDocs() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-white">Company Documents</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">Company Documents<InfoTip id="company.docs" /></h2>
           <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">{docs.length}</span>
         </div>
       </div>
@@ -1052,7 +1053,7 @@ function SectionChoferes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-white">Choferes</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">Choferes<InfoTip id="company.drivers" /></h2>
           <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">{drivers.length}</span>
         </div>
         <button
@@ -1306,7 +1307,7 @@ function SectionCamiones() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-white">Camiones</h2>
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">Camiones<InfoTip id="company.trucks" /></h2>
         <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">{trucks.length}</span>
         <p className="text-xs text-gray-600 ml-auto">Los camiones se crean desde el Dashboard</p>
       </div>

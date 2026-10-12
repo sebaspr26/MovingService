@@ -6,6 +6,7 @@ import { getActiveCompanyId } from '../lib/company'
 import DriverPaymentModal from './DriverPaymentModal'
 import { useAuth } from '../context/AuthContext'
 import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 
 export default function PagoConductores() {
@@ -82,7 +83,7 @@ export default function PagoConductores() {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Pago Conductores</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Pago Conductores</h1><InfoTip id="pagoConductores.page" /></div>
           <p className="text-sm text-gray-500 mt-0.5">{normalDrivers.length} conductor{normalDrivers.length !== 1 ? 'es' : ''}{leaseDrivers.length > 0 ? ` · ${leaseDrivers.length} lease` : ''}</p>
         </div>
         <input

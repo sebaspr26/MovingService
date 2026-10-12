@@ -10,6 +10,7 @@ import { loadUnions, createUnion, updateUnion, deleteUnion, unionOf, normEmail }
 import { useAuth } from '../context/AuthContext'
 import { isSuperAdmin } from '../lib/permissions'
 import { readPageCache, usePageCacheSave, loadAuthUsers } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -276,7 +277,7 @@ export default function PagoDispatchers() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Pago Dispatchers</h1>
+            <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Pago Dispatchers</h1><InfoTip id="pagoDispatchers.page" /></div>
             {superAdmin && <UnionHelp />}
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{dispatchers.length} dispatcher{dispatchers.length !== 1 ? 's' : ''} registrados</p>

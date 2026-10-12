@@ -544,13 +544,14 @@ export default function OrdersView() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             Ordenes / Cargas
+            <InfoTip id="orders.page" />
             {refreshing && !loading && <span title="Actualizando" className="w-3.5 h-3.5 border-2 border-gray-600 border-t-orange-500 rounded-full animate-spin" />}
           </h1>
           <p className="text-sm text-gray-500 mt-1">{orders.length} ordenes totales</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {!isDriver && (
-          <button
+          <div className="flex items-center gap-1.5"><InfoTip id="orders.new" /><button
             onClick={() => openDrawer('new')}
             className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-500 transition-colors inline-flex items-center gap-2 w-fit"
           >
@@ -558,7 +559,7 @@ export default function OrdersView() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             Nueva Orden
-          </button>
+          </button></div>
         )}
         </div>
       </div>
@@ -592,6 +593,7 @@ export default function OrdersView() {
               </span>
             )}
           </div>
+          <InfoTip id="orders.search" className="hidden sm:inline-flex" />
           {/* Phones: the filters are folded behind this button (desktop always shows them) */}
           <button
             type="button"
@@ -658,7 +660,7 @@ export default function OrdersView() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-400 font-semibold border-b border-gray-800 uppercase tracking-wide">
-                  <th className="pb-2 pr-3">St.</th>
+                  <th className="pb-2 pr-3"><span className="inline-flex items-center gap-0.5">St.<InfoTip id="orders.status" size={12} /></span></th>
                   <th className="pb-2 pr-3">Orden #</th>
                   <th className="pb-2 pr-3">Truck</th>
                   <th className="pb-2 pr-3 hidden sm:table-cell">Dispatcher</th>
@@ -666,7 +668,7 @@ export default function OrdersView() {
                   <th className="pb-2 pr-3">Destino</th>
                   <th className="pb-2 pr-3 text-right hidden sm:table-cell">Miles / DH</th>
                   <th className="pb-2 pr-3 text-right">Rate</th>
-                  <th className="pb-2 pr-3 text-center hidden lg:table-cell">Pago Disp.</th>
+                  <th className="pb-2 pr-3 text-center hidden lg:table-cell"><span className="inline-flex items-center gap-0.5">Pago Disp.<InfoTip id="orders.payments" size={12} /></span></th>
                   <th className="pb-2 pr-3 text-center hidden lg:table-cell">Pago Cond.</th>
                   <th className="pb-2 w-8"></th>
                 </tr>

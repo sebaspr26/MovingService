@@ -11,6 +11,7 @@ import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
+import InfoTip from './InfoTip'
 
 const MODE_COLORS = {
   flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   payout: 'text-blue-400',   payoutBg: 'bg-blue-600/15 border-blue-600/30' },
@@ -534,7 +535,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
           {/* Left: History */}
           <div className={`flex-col overflow-hidden ${showNew ? 'hidden lg:flex lg:flex-1 lg:border-r lg:border-gray-800' : 'flex flex-1'}`}>
             <div className="px-5 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos<InfoTip id="payment.history" size={13} className="ml-1.5" /></p>
               <span className="text-[10px] text-gray-600">{payments.length} registro{payments.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
@@ -709,7 +710,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
 
               {/* Pay mode — read-only from driver profile */}
               <div className="px-5 pt-4 pb-3 border-b border-gray-800 shrink-0">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago<InfoTip id="payment.eligible" size={13} className="ml-1.5" /></p>
 
                 {!payMode ? (
                   <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-800/40 rounded-xl px-3 py-2.5 mb-3">

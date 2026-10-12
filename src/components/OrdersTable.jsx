@@ -13,6 +13,7 @@ import { computeDeadhead, refreshFollowingDeadheads } from '../lib/deadhead'
 import { canAccess, isSuperAdmin, canDelete } from '../lib/permissions'
 import OrderDetail from './OrderDetail'
 import DatePicker from './DatePicker'
+import InfoTip from './InfoTip'
 
 export default function OrdersTable({ truckId, truckName, period, cycle, onDataChange, readOnly, discountPct, isLease, carriedOverOnly }) {
   const toast = useToast()
@@ -314,12 +315,12 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
             </svg>
           </button>
           {!readOnly && canAccess(session, 'orders', 'crear_ordenes') && (
-            <button
+            <div className="flex items-center gap-1.5"><InfoTip id="truck.addOrder" /><button
               onClick={() => openOrderDrawer()}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
             >
               + Agregar Orden
-            </button>
+            </button></div>
           )}
         </div>
       </div>
@@ -328,8 +329,8 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
-              <th className="pb-2 pr-2 w-8"><span className="sr-only">Pagado</span></th>
-              {isLease && <th className="pb-2 pr-3 w-16 text-center text-violet-500">Cond.</th>}
+              <th className="pb-2 pr-2 w-8"><span className="sr-only">Pagado</span><InfoTip id="truck.paid" size={12} /></th>
+              {isLease && <th className="pb-2 pr-3 w-16 text-center text-violet-500"><span className="inline-flex items-center gap-0.5">Cond.<InfoTip id="truck.leaseDriver" size={12} /></span></th>}
               <th className="pb-2 pr-4">Orden #</th>
               <th className="pb-2 pr-4">PU Date</th>
               <th className="pb-2 pr-4">PU City</th>

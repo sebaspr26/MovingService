@@ -7,6 +7,7 @@ import { getActiveCompanyId } from '../lib/company'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { readPageCache, usePageCacheSave } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—'
@@ -209,7 +210,7 @@ export default function PaymentHistory() {
     <div className="animate-tab-in">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Historial de Pagos</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Historial de Pagos</h1><InfoTip id="paymentHistory.page" /></div>
           <p className="text-sm text-gray-500 mt-0.5">
             {payments.length} pago{payments.length !== 1 ? 's' : ''} registrado{payments.length !== 1 ? 's' : ''}
             {payments.length > 0 && <span className="text-gray-600"> · Total: <span className="text-green-400 font-semibold">{fmt(totalPayout)}</span></span>}

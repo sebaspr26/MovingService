@@ -4,6 +4,7 @@ import { useToast, friendlyError } from './Toast'
 import AddModal from './AddModal'
 import { useAuth } from '../context/AuthContext'
 import { auditedBalanceWrite } from '../lib/balance'
+import InfoTip from './InfoTip'
 
 const fields = [
   { name: 'description', label: 'Descripcion', required: true },
@@ -159,12 +160,12 @@ export default function AccountingTable({ truckId, truckName, period, cycle, onD
             </svg>
           </button>
           {!readOnly && (
-            <button
+            <div className="flex items-center gap-1.5"><InfoTip id="truck.accounting" /><button
               onClick={() => { setEditRow(null); setShowModal(true) }}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
             >
               + Agregar Registro
-            </button>
+            </button></div>
           )}
         </div>
       </div>

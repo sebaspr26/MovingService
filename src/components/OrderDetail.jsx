@@ -23,6 +23,7 @@ import PdfViewer from './PdfViewer'
 import { findBrokerMatch, findStoredMc, lookupStoredMcAnyCompany } from '../lib/brokers'
 import { computeDeadhead, firstPickupPlace, refreshFollowingDeadheads } from '../lib/deadhead'
 import { loadAuthUsers } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 // ─── Custom Select ─────────────────────────────────────────────────────────
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --', compact = false }) {
@@ -1221,16 +1222,16 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           {/* Destructive action kept apart from the rest */}
           {!isNew && (
             <>
-              <button onClick={handleDelete} title="Eliminar orden" aria-label="Eliminar orden" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-red-600/15 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors">
+              <><InfoTip id="order.delete" /><button onClick={handleDelete} title="Eliminar orden" aria-label="Eliminar orden" className="h-8 w-8 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 bg-red-600/15 text-red-400 rounded-lg text-xs font-medium hover:bg-red-600/30 transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                 </svg>
                 <span className="hidden sm:inline">Eliminar</span>
-              </button>
+              </button></>
               <span className="w-px h-5 bg-gray-700/70 mx-0.5" aria-hidden="true" />
             </>
           )}
-          <button
+          <><InfoTip id="order.scan" /><button
             type="button"
             onClick={() => scanRef.current?.click()}
             disabled={scanning}
@@ -1250,10 +1251,10 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               </svg>
             )}
             <span className="hidden sm:inline">{scanning ? 'Analizando...' : 'Escanear'}</span>
-          </button>
+          </button></>
           <input ref={scanRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleScan(e.target.files[0])} />
           {!isNew && (status === 'invoiced' || status === 'paid' || status === 'tonu' || (status === 'delivered' && hasPod)) && (
-            <button
+            <><InfoTip id="order.invoice" /><button
               onClick={() => setShowInvoice(true)}
               title={status === 'delivered' ? 'Generar factura' : 'Ver invoice'}
               aria-label={status === 'delivered' ? 'Generar factura' : 'Ver invoice'}
@@ -1263,20 +1264,21 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
               </svg>
               <span className="hidden sm:inline">{status === 'delivered' ? 'Generar Factura' : 'Invoice'}</span>
-            </button>
+            </button></>
           )}
-          <button
+          <><InfoTip id="order.save" /><button
             onClick={handleSave}
             disabled={saving}
             className="h-8 px-3 sm:px-4 inline-flex items-center bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
             {saving ? `Guardando ${saveStep.pct}%` : 'Guardar'}
-          </button>
+          </button></>
         </div>
       </div>
 
       {/* Status bar — always visible at top */}
-      <div className={`bg-gray-900 border rounded-xl p-3 ${isTerminalStatus(status) ? STATUS_CONFIG[status].border : 'border-gray-800'}`}>
+      <div className={`relative bg-gray-900 border rounded-xl p-3 ${isTerminalStatus(status) ? STATUS_CONFIG[status].border : 'border-gray-800'}`}>
+        <span className="absolute -top-2 -right-2 z-10 rounded-full bg-gray-900"><InfoTip id="order.statusBar" /></span>
         {isTerminalStatus(status) ? (
           /* Terminal status display */
           <div className="flex items-center justify-between">
@@ -1391,7 +1393,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         {/* Left column — main content (2/3) */}
         <div className="lg:col-span-2 space-y-4">
           {/* Orden details */}
-          <Section title="Detalles de Orden" open={sections.order} onToggle={() => toggle('order')}>
+          <Section help="order.details" title="Detalles de Orden" open={sections.order} onToggle={() => toggle('order')}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Orden #" value={orderNumber} onChange={setOrderNumber} required />
               <Field label="Ref #" value={refNumber} onChange={setRefNumber} />
@@ -1463,7 +1465,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <p className="text-xs font-medium text-gray-300">Descuento ({discountPercent}%)</p>
+                    <p className="text-xs font-medium text-gray-300 flex items-center gap-1">Descuento ({discountPercent}%)<InfoTip id="order.discount" size={14} /></p>
                     {rateNum > 0 && (
                       <p className="text-[11px] text-gray-500">
                         {fmt(rateNum)} → <span className="text-gray-400">{fmt(netoPreview)}</span>
@@ -1497,7 +1499,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           </Section>
 
           {/* Stops */}
-          <Section title="Paradas" open={sections.stops} onToggle={() => toggle('stops')}>
+          <Section help="order.stops" title="Paradas" open={sections.stops} onToggle={() => toggle('stops')}>
             <div className="space-y-2">
               {stops.map((stop, idx) => (
                 <div key={idx} className={`rounded-lg border p-2.5 ${
@@ -1655,6 +1657,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           {isNew ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-2">
               <h2 className="text-sm font-semibold text-white">Lumper</h2>
+              <InfoTip id="order.lumper" />
               <span className="text-[11px] text-gray-600">Guarda la orden para poder agregar lumpers con su recibo</span>
             </div>
           ) : (
@@ -1671,9 +1674,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           {/* Invoicing */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <button onClick={() => toggle('invoicing')} className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5"><InfoTip id="order.invoicing" /><button onClick={() => toggle('invoicing')} className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-white">Invoicing</h2>
-              </button>
+              </button></div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setInvoiceItems(prev => [...prev, emptyInvoiceItem()])}
                   className="text-blue-400 text-xs font-medium hover:text-orange-300 transition-colors flex items-center gap-1">
@@ -1770,9 +1773,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           {/* Commodities */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <button onClick={() => toggle('commodities')} className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5"><InfoTip id="order.commodities" /><button onClick={() => toggle('commodities')} className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-white">Commodities</h2>
-              </button>
+              </button></div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setCommodities(prev => [...prev, emptyCommodity()])}
                   className="text-blue-400 text-xs font-medium hover:text-orange-300 transition-colors flex items-center gap-1">
@@ -1862,7 +1865,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         <div className="space-y-4">
           {/* Quick info card */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Resumen</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">Resumen<InfoTip id="order.summary" size={14} /></h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Rate</span>
@@ -1896,7 +1899,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           </div>
 
           {/* Broker section */}
-          <Section title="Cliente / Broker" open={sections.client} onToggle={() => toggle('client')}>
+          <Section help="order.client" title="Cliente / Broker" open={sections.client} onToggle={() => toggle('client')}>
             <div className="space-y-3">
               {/* Selected broker display */}
               {selectedBroker && !showNewBroker ? (
@@ -2122,7 +2125,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             if (route.length === 0) return null
             return (
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Ruta</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">Ruta<InfoTip id="order.route" size={14} /></h3>
                 <div>
                   {route.map((st, i) => {
                     const style = STOP_STYLE[st.type] || STOP_STYLE.stop
@@ -2154,7 +2157,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           {isNew && (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Rate Confirmation</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">Rate Confirmation<InfoTip id="order.rc" size={14} /></h3>
               </div>
 
               {!rcPreviewUrl ? (
@@ -2278,7 +2281,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500" />
-              <h3 className="text-sm font-semibold text-white">TONU — Truck Order Not Used</h3>
+              <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">TONU — Truck Order Not Used<InfoTip id="order.tonu" size={14} /></h3>
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1">Cargo TONU (USD)</label>
@@ -2343,18 +2346,24 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   )
 }
 
-function Section({ title, open, onToggle, children }) {
+function Section({ title, open, onToggle, children, help }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 transition-colors cursor-pointer"
       >
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
+        <span className="flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          {help && <InfoTip id={help} />}
+        </span>
         <svg className={`w-4 h-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
         </svg>
-      </button>
+      </div>
       {open && <div className="px-4 pb-4">{children}</div>}
     </div>
   )

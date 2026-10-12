@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { auditedDriverWrite } from '../lib/balance'
 import { readPageCache, usePageCacheSave, loadAuthUsers, invalidatePageCache } from '../lib/pageCache'
+import InfoTip from './InfoTip'
 
 function CustomSelect({ value, onChange, options, placeholder = '-- Seleccionar --' }) {
   const [open, setOpen] = useState(false)
@@ -709,7 +710,7 @@ export default function Profiles() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Perfiles de Usuario</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Perfiles de Usuario</h1><InfoTip id="profiles.page" /></div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Gestiona los usuarios del sistema</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1060,7 +1061,7 @@ export default function Profiles() {
 
               {/* Columna izquierda: Permisos */}
               <div className="flex-1 p-4 sm:p-5 md:overflow-y-auto md:border-r border-b md:border-b-0 border-gray-800">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos</p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Módulos y permisos<InfoTip id="profiles.permissions" size={13} className="ml-1.5" /></p>
                 {(permUser.user_metadata?.role === 'driver' || permUser.user_metadata?.role === 'driver_lease') ? (
                   /* Drivers: solo Dashboard y Ordenes, acceso automático */
                   <div className="space-y-3">

@@ -11,6 +11,7 @@ import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { createDispatcherPayment, deleteDispatcherPayment, dispatcherProfileRate } from '../lib/dispatcherPayments'
+import InfoTip from './InfoTip'
 
 function useCountUp(target, duration = 600) {
   const [value, setValue] = useState(target)
@@ -426,7 +427,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
           {/* Left: Payment history — oculto en mobile cuando showNew está abierto */}
           <div className={`flex-col overflow-hidden ${showNew ? 'hidden lg:flex lg:flex-1 lg:border-r lg:border-gray-800' : 'flex flex-1'}`}>
             <div className="px-5 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos<InfoTip id="payment.history" size={13} className="ml-1.5" /></p>
               <span className="text-[10px] text-gray-600">{payments.length} registro{payments.length !== 1 ? 's' : ''}</span>
             </div>
 
@@ -594,7 +595,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
 
               {/* Summary cards */}
               <div className="px-5 py-4 border-b border-gray-800 shrink-0">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago<InfoTip id="payment.eligible" size={13} className="ml-1.5" /></p>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-gray-800/70 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>
@@ -752,7 +753,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
       <div className="fixed inset-0 z-[80] flex flex-col bg-black/80">
         {/* Preview toolbar */}
         <div className="flex items-center justify-between px-5 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
-          <p className="text-sm font-semibold text-white">Vista previa — Settlement #{payments.find(p => htmlCache.current[p.id] === previewHtml)?.payment_number || ''}</p>
+          <p className="text-sm font-semibold text-white"><InfoTip id="payment.settlement" size={14} className="mr-1.5" />Vista previa — Settlement #{payments.find(p => htmlCache.current[p.id] === previewHtml)?.payment_number || ''}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {

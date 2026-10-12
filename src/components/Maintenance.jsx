@@ -10,6 +10,7 @@ import {
   fetchServiceLogs, alertMessage, fmtMi, LEVEL_STYLES,
 } from '../lib/maintenance'
 import DatePicker from './DatePicker'
+import InfoTip from './InfoTip'
 
 const today = () => new Date().toISOString().split('T')[0]
 const fmtDate = d => {
@@ -348,7 +349,7 @@ export default function Maintenance() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Mantenimiento</h1>
+        <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Mantenimiento</h1><InfoTip id="maintenance.page" /></div>
         <p className="text-sm text-gray-500 mt-0.5">Millas recorridas (cargadas + DH) desde el último mantenimiento de cada camión</p>
       </div>
 

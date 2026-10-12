@@ -14,6 +14,7 @@ import AccountingTable from './AccountingTable'
 import CashBox from './CashBox'
 import OwnerExpensesTable from './OwnerExpensesTable'
 import DatePicker from './DatePicker'
+import InfoTip from './InfoTip'
 
 function fmt_d(d) { return d.toISOString().split('T')[0] }
 
@@ -338,7 +339,7 @@ export default function TruckView() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white">{truck.name}</h2>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">{truck.name}<InfoTip id="truck.cycle" /></h2>
         <p className="text-sm text-gray-500">#{truck.number}</p>
       </div>
 
@@ -471,6 +472,7 @@ export default function TruckView() {
                 Ciclo Anterior ({summary.carriedOverCount})
               </button>
             )}
+            <InfoTip id="truck.weeks" className="self-center" />
           </div>
 
           {/* Period indicator */}
@@ -506,7 +508,7 @@ export default function TruckView() {
           {/* Cards pequeñas — secundarias */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-              <p className="text-[10px] text-gray-500 mb-1">Gross Orders</p>
+              <p className="text-[10px] text-gray-500 mb-1 flex items-center gap-1">Gross Orders<InfoTip id="truck.summary" size={12} /></p>
               <p className="text-sm font-bold text-green-400">{fmt(animGross)}</p>
               <p className="text-[9px] text-gray-600 mt-0.5">solo pagadas</p>
             </div>
@@ -530,7 +532,8 @@ export default function TruckView() {
           </>)}
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 border border-gray-800 w-full sm:w-fit overflow-x-auto">
+          <div className="flex items-center gap-2 mb-4 max-w-full">
+          <div className="flex gap-1 bg-gray-900 rounded-lg p-1 border border-gray-800 w-full sm:w-fit overflow-x-auto">
             {TABS.map(t => (
               <button
                 key={t.key}
@@ -542,6 +545,8 @@ export default function TruckView() {
                 {t.label}
               </button>
             ))}
+          </div>
+          <InfoTip id="truck.tabs" />
           </div>
 
           {/* Tab content */}

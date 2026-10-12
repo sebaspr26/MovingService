@@ -7,6 +7,7 @@ import { canAccess } from '../lib/permissions'
 import { truckTypeInfo } from '../lib/trucks'
 import { refreshMaintenance, getMaintenanceCache, allAlerts, markAlertsRead, notifyMaintenanceChanged, fmtMi, LEVEL_STYLES } from '../lib/maintenance'
 import { AlertItem } from './MaintenanceBell'
+import InfoTip from './InfoTip'
 
 /**
  * Notificaciones: every maintenance notification of the user's trucks (the bell only
@@ -55,7 +56,7 @@ export default function Notifications() {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Notificaciones</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Notificaciones</h1><InfoTip id="notifications.page" /></div>
           <p className="text-sm text-gray-500 mt-0.5">
             {data ? `${alerts.length} notificación${alerts.length !== 1 ? 'es' : ''}${unread.length ? ` · ${unread.length} sin leer` : ''}` : 'Cargando...'}
           </p>

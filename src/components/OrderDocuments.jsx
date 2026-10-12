@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { downloadFromUrl } from '../lib/download'
+import InfoTip from './InfoTip'
 
 // pdf.js loader (shared with OrderInvoice)
 let pdfjsPromise = null
@@ -267,7 +268,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documentos</h3>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">Documentos<InfoTip id="order.docs" size={14} /></h3>
           <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{docs.length}</span>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete, isSuperAdmin } from '../lib/permissions'
 import { createDispatcherPayment, deleteDispatcherPayment, emailSettlement, dispatcherProfileRate } from '../lib/dispatcherPayments'
 import { normEmail } from '../lib/dispatcherUnions'
+import InfoTip from './InfoTip'
 
 function fmtDate(d) {
   if (!d) return '—'
@@ -224,7 +225,7 @@ export default function UnionPaymentModal({ union, memberUsers, onClose, highlig
           {/* History */}
           <div className={`flex-col overflow-hidden ${showNew ? 'hidden lg:flex lg:flex-1 lg:border-r lg:border-gray-800' : 'flex flex-1'}`}>
             <div className="px-5 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Historial de Pagos<InfoTip id="payment.history" size={13} className="ml-1.5" /></p>
               <span className="text-[10px] text-gray-600">{groups.length} registro{groups.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
@@ -315,7 +316,7 @@ export default function UnionPaymentModal({ union, memberUsers, onClose, highlig
           {showNew && (
             <div className="flex-1 lg:flex-none lg:w-[380px] lg:shrink-0 flex flex-col overflow-hidden bg-gray-900/30 animate-panel-stretch-in">
               <div className="px-5 py-4 border-b border-gray-800 shrink-0">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-3">Nuevo Pago<InfoTip id="payment.eligible" size={13} className="ml-1.5" /></p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-gray-800/70 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Gross</p>

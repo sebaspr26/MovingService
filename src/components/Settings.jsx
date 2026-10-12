@@ -5,6 +5,7 @@ import { useCompany } from '../context/CompanyContext'
 import { isSuperAdmin } from '../lib/permissions'
 import { hasFeature, setCompanyFeature } from '../lib/company'
 import { useToast } from './Toast'
+import InfoTip, { useHelpTipsEnabled, setHelpTipsEnabled } from './InfoTip'
 
 // Optional modules each company can turn on for itself
 const MODULES = [
@@ -60,7 +61,7 @@ export default function Settings() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Configuraci&oacute;n</h1>
+        <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-white">Configuraci&oacute;n</h1><InfoTip id="settings.page" /></div>
         <p className="text-sm text-gray-500 mt-1">Preferencias de la aplicaci&oacute;n</p>
       </div>
 
@@ -84,7 +85,33 @@ export default function Settings() {
         </div>
       </div>
 
+      <HelpTips />
+
       {canManageModules && <CompanyModules />}
+    </div>
+  )
+}
+
+// Switch for the (i) help icons next to titles and actions (kept in this browser)
+function HelpTips() {
+  const on = useHelpTipsEnabled()
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="px-5 py-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-white">Ayudas en pantalla</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Muestra el icono (i) junto a los títulos y acciones. Pasa el mouse (o toca) para ver cómo se usa. Se guarda en este navegador.</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          onClick={() => setHelpTipsEnabled(!on)}
+          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${on ? 'bg-emerald-600' : 'bg-gray-700'}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+        </button>
+      </div>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { STATUS_CONFIG } from '../lib/orders'
 import { truckTypeLabel } from '../lib/trucks'
+import InfoTip from './InfoTip'
 
 const PAGE_SIZE = 50
 
@@ -526,7 +527,7 @@ export default function Auditoria() {
     <div className="animate-tab-in">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Auditoría</h1>
+          <div className="flex items-center gap-2"><h1 className="text-xl sm:text-2xl font-bold text-white">Auditoría</h1><InfoTip id="audit.page" /></div>
           <p className="text-sm text-gray-500 mt-0.5">Historial de todo lo que mueve el balance: órdenes, gastos, contabilidad, ciclos, camiones y choferes</p>
         </div>
       </div>

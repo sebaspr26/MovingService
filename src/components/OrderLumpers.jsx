@@ -7,6 +7,7 @@ import { fetchOrderLumpers, lumperAmount, sumUnpaidLumpers } from '../lib/lumper
 import { createLumpers, updateLumper, deleteLumper, setLumpersPaid } from '../lib/lumperActions'
 import DatePicker from './DatePicker'
 import ReceiptViewer from './ReceiptViewer'
+import InfoTip from './InfoTip'
 
 const fmt = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
@@ -195,12 +196,12 @@ export default function OrderLumpers({ orderId, orderNumber, truckId, cycleId, t
         />
       )}
       <div className="flex items-center justify-between px-4 py-2.5">
-        <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5"><InfoTip id="order.lumper" /><button onClick={() => setOpen(o => !o)} className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-white">Lumper</h2>
           {lumpers.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 font-medium">{lumpers.length}</span>
           )}
-        </button>
+        </button></div>
         <div className="flex items-center gap-2">
           {canEdit && drafts === null && (
             <button onClick={() => { setOpen(true); setDrafts([]); setFile(null) }}

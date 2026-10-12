@@ -9,6 +9,7 @@ import AddReceiptModal from './AddReceiptModal'
 import ReceiptViewer from './ReceiptViewer'
 import { fetchCycleLumpers, lumperDate, lumperAmount, sumUnpaidLumpers } from '../lib/lumpers'
 import { setLumpersPaid } from '../lib/lumperActions'
+import InfoTip from './InfoTip'
 
 
 const FILTERS = [
@@ -298,12 +299,12 @@ export default function ExpensesTab({ truckId, truckName, period, cycle, onDataC
             </svg>
           </button>
           {!readOnly && (
-            <button
+            <div className="flex items-center gap-1.5"><InfoTip id="truck.addExpense" /><button
               onClick={() => { setEditRow(null); setShowModal(true) }}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-500 transition-colors"
             >
               + Agregar
-            </button>
+            </button></div>
           )}
         </div>
       </div>

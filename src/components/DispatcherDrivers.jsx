@@ -7,6 +7,7 @@ import { isSuperAdmin, getAllowedTruckIds } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import PdfViewer from './PdfViewer'
 import { downloadFromUrl } from '../lib/download'
+import InfoTip from './InfoTip'
 
 function docUrl(filePath) {
   return supabase.storage.from('company-docs').getPublicUrl(filePath).data?.publicUrl
@@ -181,7 +182,7 @@ export default function DispatcherDrivers() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Conductores</h1>
+        <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-white">Conductores</h1><InfoTip id="drivers.page" /></div>
         <p className="text-sm text-gray-500 mt-1">
           {isAdmin ? 'Todos los conductores activos' : 'Conductores de tus órdenes asignadas'}
         </p>
