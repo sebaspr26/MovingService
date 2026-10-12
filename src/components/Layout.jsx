@@ -116,6 +116,7 @@ export default function Layout() {
   const topLevelPaths = ['/', '/inicio', '/orders', '/company', '/statistics', '/settings', '/informacion', '/profiles', '/profile', '/conductores', '/pagos', '/pagos/conductores', '/pagos/dispatchers', '/historial-pagos', '/auditoria', '/mantenimiento', '/reportes', '/reportes/ifta', '/reportes/auditoria']
   const isSubPage = !topLevelPaths.includes(location.pathname)
   const [showMobileUserMenu, setShowMobileUserMenu] = useState(false)
+  const [userHover, setUserHover] = useState(false) // sidebar profile button
   const [showMobileSwitcher, setShowMobileSwitcher] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
 
@@ -436,10 +437,16 @@ export default function Layout() {
             <button
               onClick={() => navigate('/profile')}
               title={collapsed ? userName : undefined}
-              className="flex items-center gap-3 flex-1 py-2 pr-3 rounded-lg hover:bg-gray-800 min-w-0 w-full"
+              onMouseEnter={() => setUserHover(true)}
+              onMouseLeave={() => setUserHover(false)}
+              className={`flex items-center gap-3 flex-1 py-2 pr-3 rounded-lg min-w-0 w-full ${collapsed ? '' : 'hover:bg-gray-800'}`}
               style={{ paddingLeft: collapsed ? 6 : 10, transition: 'padding 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s' }}
             >
-              <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={collapsed ? 36 : 28} bg="var(--color-gray-900)" />
+              {/* Collapsed: no highlight box (it made the ring look broken); the picture grows a little.
+                  Expanded: the gap of the ring follows the highlighted background */}
+              <span className="shrink-0 inline-flex" style={{ transform: collapsed && userHover ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.2s ease' }}>
+                <Avatar name={userMeta.name} fallback={session?.user?.email} src={userAvatarUrl} kind={kindOfRole(userMeta.role)} size={collapsed ? 36 : 28} bg={!collapsed && userHover ? 'var(--color-gray-800)' : 'var(--color-gray-900)'} />
+              </span>
               <span
                 className="text-sm text-gray-400 truncate flex-1 text-left"
                 style={{
