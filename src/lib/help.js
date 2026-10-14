@@ -496,10 +496,9 @@ export const HELP = {
     text: 'La caja de cada dispatcher y admin: lo que entra (sus pagos de comisión y sus abonos) menos lo que se le envía (envíos y préstamos). Si entró un pago de $500 y se le enviaron $100, en caja quedan $400.',
     steps: [
       'Ingresos: cada pago de comisión de Pago Dispatchers entra solo y muestra cuánto se envió y cuánto queda.',
-      'Pedir envío: pide que te manden parte de tu caja (por ejemplo $100). Al enviarse, sale de tu caja.',
-      'Solicitar préstamo: dinero adelantado aunque no tengas en caja; puede dejarla negativa.',
-      'Registrar abono: si le entregaste dinero a la empresa por fuera, repórtalo y se suma a tu caja al confirmarse.',
+      'Historial: cada movimiento y cómo quedó la caja después de él.',
+      'Para pedir un envío o un préstamo, o avisar de un abono, habla con el super admin: él lo registra.',
     ],
-    tip: 'El super admin aprueba lo que pides, envía dinero desde cada pago y ve la caja de todos.',
+    tip: 'Solo el super admin envía dinero, registra préstamos y abonos y ve la caja de todos.',
   },
 }

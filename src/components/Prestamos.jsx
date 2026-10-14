@@ -97,7 +97,7 @@ function SelfView({ company }) {
   const [data, reload] = useCajaData(company, session, user.email)
   return (
     <div className="animate-tab-in max-w-5xl">
-      <Header subtitle="Tu caja: lo que entra (tus pagos) menos lo que se te envía" />
+      <Header subtitle="Tu caja: lo que entra (tus pagos) menos lo que se te envía. El super admin registra los envíos, préstamos y abonos." />
       {!data ? <Spinner /> : <CajaPanel company={company} user={user} caja={cajaOf(user.email, data)} isSuper={false} onChanged={reload} />}
     </div>
   )
@@ -315,8 +315,8 @@ function CajaPanel({ company, user, caja, isSuper, onChanged }) {
             <p className="text-sm text-gray-300 mt-0.5">{tone.label(you)}</p>
           </div>
         </div>
-        {/* Actions: three equal buttons, icon + label (stacked on phones) */}
-        <div className="grid grid-cols-3 gap-2 mt-4">
+        {/* Actions — only the super admin moves money; dispatchers/admins just see their caja */}
+        {isSuper && <div className="grid grid-cols-3 gap-2 mt-4">
           <ActionButton onClick={() => setModal({ kind: 'payout' })} cls="bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/30" icon={ICONS.send}>
             {isSuper ? 'Enviar dinero' : 'Pedir envío'}
           </ActionButton>
@@ -326,7 +326,7 @@ function CajaPanel({ company, user, caja, isSuper, onChanged }) {
           <ActionButton onClick={() => setModal({ kind: 'deposit' })} cls="bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/30" icon={ICONS.deposit}>
             Abono
           </ActionButton>
-        </div>
+        </div>}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
           <Mini label="Entró" value={caja.earned} color="emerald" />
           <Mini label="Se envió" value={-caja.sent} color="orange" />
