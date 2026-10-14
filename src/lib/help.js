@@ -489,4 +489,17 @@ export const HELP = {
     title: 'Configuración',
     text: 'Elige el color de la aplicación y, si eres administrador, activa módulos extra de la empresa como IFTA.',
   },
+
+  // ───────────── Préstamos ─────────────
+  'prestamos.page': {
+    title: 'Préstamos',
+    text: 'La caja de cada dispatcher y admin: cuánto le debe la empresa. Sube con sus pagos de comisión y con lo que abone; baja cuando se le envía el dinero o cuando pide un préstamo (puede quedar negativa).',
+    steps: [
+      'Tus pagos de comisión (de Pago Dispatchers) aparecen solos y quedan "Por enviar" hasta que el super admin marca que te los envió.',
+      'Solicitar préstamo: pides dinero adelantado; al aprobarse se descuenta de tu caja.',
+      'Registrar abono: si le entregaste dinero a la empresa por fuera, repórtalo; al confirmarse se suma a tu caja.',
+      'El historial muestra cada movimiento y cómo quedó la caja después de él.',
+    ],
+    tip: 'El super admin ve todas las cajas, aprueba o rechaza préstamos y abonos y marca los pagos enviados.',
+  },
 }

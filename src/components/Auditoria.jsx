@@ -56,6 +56,18 @@ const ACTIONS = {
   delete_user: { label: 'Usuario eliminado', color: 'red', icon: ICON.delete },
   update_driver: { label: 'Chofer editado', color: 'blue', icon: ICON.update },
   delete_driver: { label: 'Chofer eliminado', color: 'red', icon: ICON.delete },
+  // Préstamos (caja of each dispatcher/admin)
+  caja_loan_requested: { label: 'Préstamo solicitado', color: 'yellow', icon: ICON.create },
+  caja_loan_approved: { label: 'Préstamo aprobado', color: 'violet', icon: ICON.update },
+  caja_loan_rejected: { label: 'Préstamo rechazado', color: 'red', icon: ICON.delete },
+  caja_loan_canceled: { label: 'Préstamo cancelado', color: 'red', icon: ICON.delete },
+  caja_loan_registered: { label: 'Préstamo registrado', color: 'violet', icon: ICON.create },
+  caja_deposit_requested: { label: 'Abono reportado', color: 'yellow', icon: ICON.create },
+  caja_deposit_approved: { label: 'Abono confirmado', color: 'emerald', icon: ICON.update },
+  caja_deposit_rejected: { label: 'Abono rechazado', color: 'red', icon: ICON.delete },
+  caja_deposit_canceled: { label: 'Abono cancelado', color: 'red', icon: ICON.delete },
+  caja_deposit_registered: { label: 'Abono registrado', color: 'emerald', icon: ICON.create },
+  caja_payout_sent: { label: 'Pago enviado (caja)', color: 'cyan', icon: ICON.update },
 }
 
 const COLOR_CLASSES = {
@@ -345,6 +357,15 @@ function EntryDetails({ row, dispatcherNames }) {
         <div className="col-span-2 text-gray-600">Sale de los gastos del ciclo y pasa a Gastos Propietario (no cuenta en el balance)</div>
       </div>
     )
+  } else if (row.action.startsWith('caja_')) {
+    content = (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div><span className="text-gray-500">Usuario:</span> <span className="text-gray-300">{fmtVal(row.entity_name || info.user)}</span></div>
+        <div><span className="text-gray-500">Monto:</span> <span className="text-gray-300">{info.amount != null ? fmtMoney(info.amount) : '—'}</span></div>
+        {info.payment_number != null && <div><span className="text-gray-500">Pago:</span> <span className="text-gray-300">#{info.payment_number}</span></div>}
+        {info.note && <div className="col-span-2"><span className="text-gray-500">Nota:</span> <span className="text-gray-300">{fmtVal(info.note)}</span></div>}
+      </div>
+    )
   } else if (['update_driver', 'delete_driver'].includes(row.action)) {
     content = (
       <>
@@ -383,6 +404,9 @@ const HAS_DETAILS_ACTIONS = new Set([
   'create_order', 'update_order', 'delete_order',
   'create_accounting', 'update_accounting', 'delete_accounting',
   'transfer_to_owner', 'update_driver', 'delete_driver',
+  'caja_loan_requested', 'caja_loan_approved', 'caja_loan_rejected', 'caja_loan_canceled', 'caja_loan_registered',
+  'caja_deposit_requested', 'caja_deposit_approved', 'caja_deposit_rejected', 'caja_deposit_canceled', 'caja_deposit_registered',
+  'caja_payout_sent',
 ])
 
 export default function Auditoria() {
