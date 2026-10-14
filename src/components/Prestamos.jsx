@@ -46,9 +46,9 @@ const Money = ({ value }) => <>{fmt(useCountUp(Number(value) || 0))}</>
 
 // label(you): text for the user himself (true) or for the super admin
 function balanceTone(balance) {
-  if (balance > 0.004) return { text: 'text-emerald-400', label: you => you ? 'Tu dinero guardado en la empresa' : 'Guardado en la empresa' }
-  if (balance < -0.004) return { text: 'text-red-400', label: you => you ? 'Le debes a la empresa' : 'Le debe a la empresa' }
-  return { text: 'text-gray-300', label: () => 'Caja en cero' }
+  if (balance > 0.004) return { text: 'text-emerald-400', hero: 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-gray-900 to-gray-900', label: you => you ? 'Tu dinero guardado en la empresa' : 'Guardado en la empresa' }
+  if (balance < -0.004) return { text: 'text-red-400', hero: 'border-red-500/30 bg-gradient-to-br from-red-500/15 via-gray-900 to-gray-900', label: you => you ? 'Le debes a la empresa' : 'Le debe a la empresa' }
+  return { text: 'text-gray-200', hero: 'border-gray-700 bg-gray-900', label: () => 'Caja en cero' }
 }
 
 const STATUS_CHIP = {
@@ -175,13 +175,23 @@ function SuperView({ company }) {
 
   return (
     <div className="animate-tab-in">
-      <Header subtitle="La caja de cada dispatcher y admin: lo que se les debe, préstamos y abonos" />
+      <Header subtitle="La caja de cada dispatcher y admin: lo que entra menos lo que se les envía" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <Tile label="Entró" value={income} tone="text-emerald-400" />
-        <Tile label="Se envió" value={outgo} tone="text-red-400" />
-        <Tile label="En cajas" value={inCaja} tone={inCaja < 0 ? 'text-red-400' : 'text-white'} />
-        <Tile label="Por aprobar" count={pending.length} tone={pending.length ? 'text-yellow-400' : 'text-gray-300'} />
+      <div className={`rounded-2xl border p-4 sm:p-5 mb-6 ${balanceTone(inCaja).hero}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-300">En cajas</p>
+            <p className={`text-4xl sm:text-5xl font-extrabold tabular-nums leading-tight ${inCaja < 0 ? 'text-red-400' : 'text-white'}`}><Money value={inCaja} /></p>
+          </div>
+          {pending.length > 0 && (
+            <span className="shrink-0 mt-1 px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-400 text-gray-950">{pending.length} por aprobar</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <Mini label="Entró" value={income} color="emerald" />
+          <Mini label="Se envió" value={-outgo} color="orange" />
+        </div>
+        <div className="mt-3 h-1.5 rounded-full bg-emerald-500/35 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${income > 0 ? Math.min(outgo / income, 1) * 100 : 0}%` }} /></div>
       </div>
 
       {pending.length > 0 && (
@@ -189,7 +199,7 @@ function SuperView({ company }) {
           <h2 className="text-xs uppercase tracking-wider text-yellow-400 font-semibold mb-2">Por aprobar</h2>
           <div className="space-y-2">
             {pending.map(m => (
-              <div key={m.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+              <div key={m.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
                 <Avatar name={m.user.name} kind={kindOfRole(m.user.role)} size={36} />
                 <div className="flex-1 min-w-[160px]">
                   <p className="text-sm text-white font-medium">{m.user.name}</p>
@@ -210,29 +220,35 @@ function SuperView({ company }) {
         </section>
       )}
 
-      <h2 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Cajas</h2>
+      <h2 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">Cajas ({cajas.length})</h2>
       {cajas.length === 0 ? (
         <p className="text-sm text-gray-500 py-10 text-center">No hay dispatchers ni admins en esta empresa.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           {cajas.map(({ user, caja }) => {
             const tone = balanceTone(caja.balance)
+            const inn = caja.earned + caja.deposits
+            const out = caja.sent + caja.loans
             return (
               <button key={user.email} onClick={() => setOpenEmail(user.email)}
-                className="text-left rounded-xl border border-gray-800 bg-gray-900 hover:bg-gray-800/60 hover:border-gray-700 transition-colors p-4">
+                className="text-left rounded-xl border border-gray-700/70 bg-gray-900 hover:bg-gray-800 active:scale-[0.99] transition px-3.5 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={user.name} kind={user.noAccount ? 'inactive' : kindOfRole(user.role)} size={40} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                    <p className="text-[11px] text-gray-500">{user.noAccount ? 'Sin cuenta' : user.role === 'admin' ? 'Admin' : 'Dispatcher'}</p>
+                    <p className="text-sm font-bold text-white truncate">{user.name}</p>
+                    <p className="text-[11px] text-gray-400 tabular-nums truncate">
+                      <span className="text-emerald-400">+{fmt(inn)}</span> · <span className="text-orange-300">−{fmt(out)}</span>
+                    </p>
                   </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-lg font-extrabold tabular-nums ${tone.text}`}><Money value={caja.balance} /></p>
+                    {caja.pending.length > 0
+                      ? <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-gray-950">{caja.pending.length} por aprobar</span>
+                      : <p className="text-[10px] text-gray-500 uppercase tracking-wide">en caja</p>}
+                  </div>
+                  <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                 </div>
-                <p className="mt-3 text-[10px] uppercase tracking-wider text-gray-500">En caja</p>
-                <p className={`text-2xl font-bold tabular-nums ${tone.text}`}><Money value={caja.balance} /></p>
-                <p className="text-[11px] text-gray-500 tabular-nums">Entró {fmt(caja.earned + caja.deposits)} · Se envió {fmt(caja.sent + caja.loans)}</p>
-                {caja.pending.length > 0 && (
-                  <div className="mt-2"><Chip cls="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">{caja.pending.length} por aprobar</Chip></div>
-                )}
+                <div className="mt-2.5 h-1 rounded-full bg-emerald-500/35 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${inn > 0 ? Math.min(out / inn, 1) * 100 : 0}%` }} /></div>
               </button>
             )
           })}
@@ -289,37 +305,38 @@ function CajaPanel({ company, user, caja, isSuper, onChanged }) {
   return (
     <div className="space-y-5">
       {/* In / out / in caja */}
-      <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-        <div className="flex flex-wrap items-start gap-4">
+      <div className={`rounded-2xl border p-4 sm:p-5 ${tone.hero}`}>
+        <div className="flex flex-wrap items-center gap-4">
           {isSuper && <Avatar name={user.name} kind={user.noAccount ? 'inactive' : kindOfRole(user.role)} size={48} />}
           <div className="flex-1 min-w-[180px]">
-            {isSuper && <p className="text-sm font-semibold text-white">{user.name}</p>}
-            <p className="text-[11px] uppercase tracking-wider text-gray-500 mt-0.5">En caja</p>
-            <p className={`text-3xl sm:text-4xl font-bold tabular-nums ${tone.text}`}><Money value={caja.balance} /></p>
-            <p className="text-xs text-gray-500 mt-0.5">{tone.label(you)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setModal({ kind: 'payout' })} className="px-3 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-500">
-              {isSuper ? 'Enviar dinero' : 'Pedir envío'}
-            </button>
-            <button onClick={() => setModal({ kind: 'loan' })} className="px-3 py-2 rounded-lg text-sm font-medium border border-red-500/30 text-red-300 hover:bg-red-500/10">
-              {isSuper ? 'Registrar préstamo' : 'Solicitar préstamo'}
-            </button>
-            <button onClick={() => setModal({ kind: 'deposit' })} className="px-3 py-2 rounded-lg text-sm font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10">
-              Registrar abono
-            </button>
+            {isSuper && <p className="text-base font-bold text-white">{user.name}</p>}
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-300 mt-0.5">En caja</p>
+            <p className={`text-4xl sm:text-5xl font-extrabold tabular-nums leading-tight ${tone.text}`}><Money value={caja.balance} /></p>
+            <p className="text-sm text-gray-300 mt-0.5">{tone.label(you)}</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-          <Mini label="Entró (pagos)" value={caja.earned} />
-          <Mini label="Se envió" value={-caja.sent} />
-          <Mini label="Préstamos" value={-caja.loans} />
-          <Mini label="Abonos" value={caja.deposits} />
+        {/* Actions: three equal buttons, icon + label (stacked on phones) */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <ActionButton onClick={() => setModal({ kind: 'payout' })} cls="bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/30" icon={ICONS.send}>
+            {isSuper ? 'Enviar dinero' : 'Pedir envío'}
+          </ActionButton>
+          <ActionButton onClick={() => setModal({ kind: 'loan' })} cls="bg-red-500/20 text-red-200 border border-red-500/40 hover:bg-red-500/30" icon={ICONS.loan}>
+            {isSuper ? 'Préstamo' : 'Pedir préstamo'}
+          </ActionButton>
+          <ActionButton onClick={() => setModal({ kind: 'deposit' })} cls="bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/30" icon={ICONS.deposit}>
+            Abono
+          </ActionButton>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+          <Mini label="Entró" value={caja.earned} color="emerald" />
+          <Mini label="Se envió" value={-caja.sent} color="orange" />
+          <Mini label="Préstamos" value={-caja.loans} color="red" />
+          <Mini label="Abonos" value={caja.deposits} color="teal" />
         </div>
         {isSuper && caja.toSend.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs rounded-lg bg-gray-800/50 text-gray-400 px-3 py-2">
-            <span className="flex-1">¿Ya le pagaste por fuera lo de pagos anteriores? Márcalo de una vez ({fmt(leftInPayments)} en {caja.toSend.length} pago{caja.toSend.length > 1 ? 's' : ''}).</span>
-            <button onClick={sendAllLeft} disabled={!!busy} className="px-2.5 py-1 rounded-md bg-gray-700/60 text-gray-200 hover:bg-gray-700 font-medium disabled:opacity-50">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 text-xs rounded-lg bg-gray-950/50 border border-gray-700/60 text-gray-300 px-3 py-2.5">
+            <span className="sm:flex-1">¿Ya le pagaste por fuera lo de pagos anteriores? Márcalo de una vez ({fmt(leftInPayments)} en {caja.toSend.length} pago{caja.toSend.length > 1 ? 's' : ''}).</span>
+            <button onClick={sendAllLeft} disabled={!!busy} className="px-3 py-2 sm:py-1.5 rounded-lg bg-gray-700 text-white hover:bg-gray-600 font-semibold disabled:opacity-50">
               {busy === 'all' ? 'Marcando...' : 'Marcar todo como enviado'}
             </button>
           </div>
@@ -332,7 +349,7 @@ function CajaPanel({ company, user, caja, isSuper, onChanged }) {
           <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-semibold mb-2">{isSuper ? 'Por aprobar' : 'Esperando aprobación'}</h3>
           <div className="space-y-2">
             {caja.pending.map(m => (
-              <div key={m.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+              <div key={m.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
                 <div className="flex-1 min-w-[160px]">
                   <p className="text-sm text-white font-medium">{REQUEST_LABEL[m.kind](you)}</p>
                   <p className="text-xs text-gray-400">{shortDate(m.created_at)}{m.note ? ` · “${m.note}”` : ''}</p>
@@ -354,10 +371,10 @@ function CajaPanel({ company, user, caja, isSuper, onChanged }) {
 
       {/* Incoming payments / history */}
       <section>
-        <div className="flex gap-1 border-b border-gray-800 mb-3">
+        <div className="grid grid-cols-2 gap-1 p-1 mb-3 rounded-xl bg-gray-900 border border-gray-800 sm:inline-grid sm:w-80">
           {[['ingresos', `Ingresos (${caja.payments.length})`], ['historial', 'Historial']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-3 py-2 -mb-px text-sm font-medium border-b-2 transition-colors ${tab === key ? 'border-orange-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>
+              className={`py-2 rounded-lg text-sm font-semibold transition-colors ${tab === key ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>
               {label}
             </button>
           ))}
@@ -444,30 +461,37 @@ function Payments({ caja, isSuper, onSend }) {
         const total = Number(p.payout) || 0
         const pct = total ? Math.min(p.sentAmount / total, 1) * 100 : 0
         return (
-          <div key={p.id} className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
+          <div key={p.id} className="rounded-xl border border-gray-700/70 bg-gray-900 px-4 py-3">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <div className="min-w-[120px]">
-                <p className="text-sm text-gray-200 font-medium">Pago #{p.payment_number}</p>
-                <p className="text-[11px] text-gray-500">{shortDate(p.pay_date)} · {shortDate(p.period_start)} – {shortDate(p.period_end)}</p>
+              {/* Title + button share the first row on phones; the numbers go under */}
+              <div className="flex items-center gap-3 w-full sm:w-auto sm:min-w-[140px]">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-bold">Pago #{p.payment_number}</p>
+                  <p className="text-[11px] text-gray-400">{shortDate(p.pay_date)} · {shortDate(p.period_start)} – {shortDate(p.period_end)}</p>
+                </div>
+                <div className="sm:hidden"><SendCell p={p} isSuper={isSuper} onSend={onSend} /></div>
               </div>
               <div className="flex-1 grid grid-cols-3 gap-2 min-w-[240px] text-right">
-                <div><p className="text-[10px] uppercase text-gray-500">Entró</p><p className="text-sm tabular-nums text-gray-100 font-medium">{fmt(total)}</p></div>
-                <div><p className="text-[10px] uppercase text-gray-500">Se envió</p><p className="text-sm tabular-nums text-red-300">{p.sentAmount ? `−${fmt(p.sentAmount)}` : fmt(0)}</p></div>
-                <div><p className="text-[10px] uppercase text-gray-500">Queda</p><p className={`text-sm tabular-nums font-semibold ${p.remaining > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>{fmt(p.remaining)}</p></div>
+                <div><p className="text-[10px] font-semibold uppercase text-gray-400">Entró</p><p className="text-sm tabular-nums text-white font-semibold">{fmt(total)}</p></div>
+                <div><p className="text-[10px] font-semibold uppercase text-gray-400">Se envió</p><p className="text-sm tabular-nums text-orange-300 font-semibold">{p.sentAmount ? `−${fmt(p.sentAmount)}` : fmt(0)}</p></div>
+                <div><p className="text-[10px] font-semibold uppercase text-gray-400">Queda</p><p className={`text-base tabular-nums font-bold ${p.remaining > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>{fmt(p.remaining)}</p></div>
               </div>
-              {isSuper && (p.remaining > 0 ? (
-                <button onClick={() => onSend(p)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-600/90 text-white hover:bg-orange-500">Enviar</button>
-              ) : (
-                <span className="text-xs text-gray-500 w-[58px] text-center">Enviado</span>
-              ))}
+              <div className="hidden sm:block"><SendCell p={p} isSuper={isSuper} onSend={onSend} /></div>
             </div>
             {/* How much of it went out */}
-            <div className="mt-2 h-1 rounded-full bg-emerald-500/20 overflow-hidden"><div className="h-full bg-red-400/70" style={{ width: `${pct}%` }} /></div>
+            <div className="mt-2.5 h-1.5 rounded-full bg-emerald-500/35 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${pct}%` }} /></div>
           </div>
         )
       })}
     </div>
   )
+}
+
+function SendCell({ p, isSuper, onSend }) {
+  if (!isSuper) return null
+  return p.remaining > 0
+    ? <button onClick={() => onSend(p)} className="px-4 py-2 rounded-lg text-xs font-bold bg-orange-600 text-white hover:bg-orange-500 active:scale-95 transition">Enviar</button>
+    : <span className="text-xs font-semibold text-gray-400 w-[64px] inline-block text-center">Enviado ✓</span>
 }
 
 function MovementModal({ kind, payment, balance, isSuper, user, onClose, onSubmit }) {
@@ -572,25 +596,34 @@ function Header({ subtitle }) {
   )
 }
 
-function Tile({ label, value, count, tone }) {
+const MINI_COLORS = {
+  emerald: 'border-emerald-500/30 text-emerald-300', orange: 'border-orange-500/30 text-orange-300',
+  red: 'border-red-500/30 text-red-300', teal: 'border-teal-500/30 text-teal-300',
+}
+function Mini({ label, value, color }) {
+  const v = useCountUp(value)
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-xl font-bold tabular-nums ${tone}`}>{count != null ? count : <Money value={value} />}</p>
+    <div className={`rounded-xl bg-gray-950/50 border px-3 py-2.5 ${MINI_COLORS[color]}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 truncate">{label}</p>
+      <p className={`text-base font-bold tabular-nums ${Math.abs(value) < 0.005 ? 'text-gray-400' : ''}`}>{signed(v)}</p>
     </div>
   )
 }
 
-function Mini({ label, value }) {
-  return (
-    <div className="rounded-lg bg-gray-800/40 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</p>
-      <p className={`text-sm font-semibold tabular-nums ${value < 0 ? 'text-red-300' : value > 0 ? 'text-emerald-300' : 'text-gray-300'}`}>{signed(useCountUp(value))}</p>
-    </div>
-  )
+const ICONS = {
+  send: 'M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5',
+  loan: 'M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z',
+  deposit: 'M12 4.5v15m7.5-7.5h-15',
 }
 
-const Chip = ({ cls, children }) => <span className={`text-[10px] px-1.5 py-0.5 rounded border ${cls}`}>{children}</span>
+function ActionButton({ onClick, cls, icon, children }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold active:scale-[0.97] transition ${cls}`}>
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
+      <span className="leading-tight text-center">{children}</span>
+    </button>
+  )
+}
 
 function Spinner() {
   return <div className="flex justify-center py-24"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>

@@ -10,7 +10,7 @@ import DateRangePicker from './DateRangePicker'
 import MultiSelect from './MultiSelect'
 import { useToast, friendlyError } from './Toast'
 import { useAuth } from '../context/AuthContext'
-import { isSuperAdmin, canAccess } from '../lib/permissions'
+import { isSuperAdmin, canAccess, getPerCompanyMeta } from '../lib/permissions'
 import { getActiveCompanyId } from '../lib/company'
 import { auditedBalanceWrite } from '../lib/balance'
 import { refreshFollowingDeadheads } from '../lib/deadhead'
@@ -174,6 +174,8 @@ export default function OrdersView() {
   const { isLight } = useTheme()
   const userRole = session?.user?.user_metadata?.role
   const isDriver = userRole === 'driver' || userRole === 'driver_lease'
+  // A dispatcher without "ver todas las órdenes" only ever sees his own: no Dispatcher filter
+  const onlyOwnOrders = userRole === 'dispatcher' && getPerCompanyMeta(session).permissions?.orders?.ver_todas_ordenes !== true
   const [orders, setOrders] = useState([])
   const [trucks, setTrucks] = useState([])
   const [brokers, setBrokers] = useState({})
@@ -617,13 +619,16 @@ export default function OrdersView() {
             <div className="sm:w-[120px]">
               <MultiSelect value={filterTrucks} onChange={setFilterTrucks} placeholder="Truck" options={trucks.map(t => ({ value: t.id, label: `${t.number} - ${t.name}` }))} />
             </div>
-            <div className="sm:w-[120px]">
-              <MultiSelect value={filterDispatchers} onChange={setFilterDispatchers} placeholder="Dispatcher" options={dispatcherOptions} />
-            </div>
+            {!onlyOwnOrders && (
+              <div className="sm:w-[120px]">
+                <MultiSelect value={filterDispatchers} onChange={setFilterDispatchers} placeholder="Dispatcher" options={dispatcherOptions} />
+              </div>
+            )}
             <div className="sm:w-[120px]">
               <MultiSelect value={filterBrokers} onChange={setFilterBrokers} placeholder="Broker" options={brokerList.map(b => ({ value: b.id, label: b.name }))} />
             </div>
-            <div className="sm:w-[180px]">
+            {/* Phones: alone on its row when there's no Dispatcher filter */}
+            <div className={`sm:w-[180px] ${onlyOwnOrders ? 'col-span-2' : ''}`}>
               <DateRangePicker dateFrom={filterDateFrom} dateTo={filterDateTo} onChange={({ from, to }) => { setFilterDateFrom(from); setFilterDateTo(to) }} />
             </div>
           </div>
