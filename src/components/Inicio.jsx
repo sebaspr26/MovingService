@@ -3,6 +3,8 @@ import Avatar, { kindOfRole } from './Avatar'
 import { useAuth } from '../context/AuthContext'
 import { canAccess, isSuperAdmin } from '../lib/permissions'
 import { supabase } from '../lib/supabase'
+import { useCompany } from '../context/CompanyContext'
+import { canSeePrestamos } from '../lib/prestamos'
 
 const NAV_CARDS = [
   {
@@ -76,6 +78,16 @@ const NAV_CARDS = [
     icon: <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z" />,
   },
   {
+    to: '/prestamos',
+    label: 'Préstamos',
+    description: 'Caja, envíos y préstamos',
+    iconColor: '#eab308',
+    bg: 'rgba(234,179,8,0.1)',
+    border: 'rgba(234,179,8,0.22)',
+    loansOnly: true, // only companies with the feature (Dacrisam)
+    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3" />,
+  },
+  {
     to: '/historial-pagos',
     label: 'Historial de Pagos',
     description: 'Mis liquidaciones',
@@ -109,6 +121,7 @@ const NAV_CARDS = [
 
 export default function Inicio() {
   const { session } = useAuth()
+  const { activeCompany } = useCompany()
   const role = session?.user?.user_metadata?.role
   const name = session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || 'Usuario'
   const firstName = name.split(' ')[0]
@@ -120,6 +133,7 @@ export default function Inicio() {
   const isDriver = role === 'driver' || role === 'driver_lease'
   const cards = NAV_CARDS.filter(item => {
     if (item.superAdminOnly) return isSuperAdmin(session)
+    if (item.loansOnly) return canSeePrestamos(session, activeCompany)
     if (item.adminOnly) return isSuperAdmin(session) || role === 'admin'
     if (item.notSuperAdmin) return !isSuperAdmin(session)
     if (item.moduleKey) return canAccess(session, item.moduleKey)
