@@ -67,7 +67,11 @@ const ACTIONS = {
   caja_deposit_rejected: { label: 'Abono rechazado', color: 'red', icon: ICON.delete },
   caja_deposit_canceled: { label: 'Abono cancelado', color: 'red', icon: ICON.delete },
   caja_deposit_registered: { label: 'Abono registrado', color: 'emerald', icon: ICON.create },
-  caja_payout_sent: { label: 'Pago enviado (caja)', color: 'cyan', icon: ICON.update },
+  caja_payout_sent: { label: 'Dinero enviado (caja)', color: 'cyan', icon: ICON.update },
+  caja_payout_requested: { label: 'Envío solicitado', color: 'yellow', icon: ICON.create },
+  caja_payout_approved: { label: 'Envío aprobado', color: 'cyan', icon: ICON.update },
+  caja_payout_rejected: { label: 'Envío rechazado', color: 'red', icon: ICON.delete },
+  caja_payout_canceled: { label: 'Envío cancelado', color: 'red', icon: ICON.delete },
 }
 
 const COLOR_CLASSES = {
@@ -406,7 +410,7 @@ const HAS_DETAILS_ACTIONS = new Set([
   'transfer_to_owner', 'update_driver', 'delete_driver',
   'caja_loan_requested', 'caja_loan_approved', 'caja_loan_rejected', 'caja_loan_canceled', 'caja_loan_registered',
   'caja_deposit_requested', 'caja_deposit_approved', 'caja_deposit_rejected', 'caja_deposit_canceled', 'caja_deposit_registered',
-  'caja_payout_sent',
+  'caja_payout_sent', 'caja_payout_requested', 'caja_payout_approved', 'caja_payout_rejected', 'caja_payout_canceled',
 ])
 
 export default function Auditoria() {

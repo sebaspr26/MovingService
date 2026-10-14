@@ -3,16 +3,18 @@ import { hasFeature } from './company'
 import { logAudit } from './auditLog'
 
 // Préstamos (only companies with features.prestamos — Dacrisam). Each
-// dispatcher/admin has a "caja" = what the company owes them:
-//   + their commission payments (dispatcher_payments, made in Pago Dispatchers)
-//   - payments the super admin marks as sent            (caja_movements 'payout')
-//   - loans they asked for and the super admin approved ('loan', can go negative)
-//   + money they handed over outside the app, confirmed ('deposit')
-// Loans/deposits wait as 'pending' until approved or rejected. See 040_prestamos.sql.
+// dispatcher/admin has a "caja": what comes in minus what goes out.
+//   IN:  their commission payments (dispatcher_payments, from Pago Dispatchers)
+//        money they hand over outside the app ('deposit', once confirmed)
+//   OUT: money sent to them, any amount ('payout'; may point to the payment
+//        it comes from — a $500 payment with $100 sent leaves $400 in caja)
+//        loans ('loan', can leave the caja negative)
+// What the user asks for (send, loan, deposit) waits as 'pending' until the
+// super admin approves or rejects it. See 040/041_prestamos*.sql.
 
 export const PRESTAMO_ROLES = ['super_admin', 'admin', 'dispatcher']
 
-export const KIND_LABEL = { payout: 'Pago enviado', loan: 'Préstamo', deposit: 'Abono' }
+export const KIND_LABEL = { payout: 'Envío', loan: 'Préstamo', deposit: 'Abono' }
 
 const lower = s => String(s || '').trim().toLowerCase()
 const money = n => Math.round((Number(n) || 0) * 100) / 100
@@ -43,8 +45,9 @@ export async function loadCajaData(companyId, email = null) {
 
 /**
  * One user's caja from the company data:
- * { balance, earned, sent, loans, deposits, toSend: [payments not sent yet],
- *   sentByPayment: {paymentId: movement}, pending: [pending loans/deposits],
+ * { balance (in caja), earned, deposits (in), sent, loans (out),
+ *   payments: [newest first, each with sentAmount and remaining],
+ *   toSend: payments with something left, pending: [pending requests],
  *   history: [{ date, kind, label, amount (signed), status, balance?, ... }] }
  */
 export function cajaOf(email, { payments, movements }) {
@@ -54,8 +57,15 @@ export function cajaOf(email, { payments, movements }) {
   const approved = moves.filter(m => m.status === 'approved')
   const sum = (rows, k = 'amount') => money(rows.reduce((s, r) => s + (Number(r[k]) || 0), 0))
 
+  // How much of each incoming payment was already sent
   const sentByPayment = {}
-  for (const m of approved) if (m.kind === 'payout' && m.dispatcher_payment_id) sentByPayment[m.dispatcher_payment_id] = m
+  for (const m of approved) {
+    if (m.kind === 'payout' && m.dispatcher_payment_id) sentByPayment[m.dispatcher_payment_id] = money((sentByPayment[m.dispatcher_payment_id] || 0) + Number(m.amount))
+  }
+  const withSent = mine.map(p => {
+    const sentAmount = sentByPayment[p.id] || 0
+    return { ...p, sentAmount, remaining: money(Math.max((Number(p.payout) || 0) - sentAmount, 0)) }
+  })
 
   const earned = sum(mine, 'payout')
   const sent = sum(approved.filter(m => m.kind === 'payout'))
@@ -66,7 +76,7 @@ export function cajaOf(email, { payments, movements }) {
   const entries = [
     ...mine.map(p => ({
       id: `p-${p.id}`, date: p.pay_date || String(p.created_at).slice(0, 10), at: p.created_at,
-      kind: 'earned', label: `Pago de comisión #${p.payment_number ?? ''}`.trim(), amount: money(p.payout), status: 'approved', payment: p,
+      kind: 'earned', label: `Entró pago #${p.payment_number ?? ''}`.trim(), amount: money(p.payout), status: 'approved', payment: p,
     })),
     ...moves.map(m => ({
       id: m.id, date: String(m.decided_at || m.created_at).slice(0, 10), at: m.decided_at || m.created_at,
@@ -83,8 +93,8 @@ export function cajaOf(email, { payments, movements }) {
   return {
     balance: money(earned - sent - loans + deposits),
     earned, sent, loans, deposits,
-    toSend: mine.filter(p => !sentByPayment[p.id]),
-    sentByPayment,
+    payments: withSent,
+    toSend: withSent.filter(p => p.remaining > 0),
     pending: moves.filter(m => m.status === 'pending'),
     history: entries.reverse(),
   }
@@ -106,18 +116,20 @@ function audit(session, action, row, extra = {}) {
  * A user asks for a loan / reports money handed over (pending), or the super
  * admin registers one directly (`approve: true`).
  */
-export async function createMovement(session, companyId, { kind, user, amount, note, approve = false }) {
+export async function createMovement(session, companyId, { kind, user, amount, note, approve = false, payment = null }) {
   const by = actor(session)
   const row = {
     company_id: companyId, user_email: lower(user.email), user_name: user.name || null,
     kind, amount: money(amount), note: note?.trim() || null,
+    dispatcher_payment_id: payment?.id || null,
     status: approve ? 'approved' : 'pending',
     requested_by_email: by.email, requested_by_name: by.name,
     ...(approve ? { decided_by_email: by.email, decided_by_name: by.name, decided_at: new Date().toISOString() } : {}),
   }
   const { data, error } = await supabase.from('caja_movements').insert(row).select().single()
   if (error) throw error
-  audit(session, approve ? `caja_${kind}_registered` : `caja_${kind}_requested`, data)
+  audit(session, approve ? (kind === 'payout' ? 'caja_payout_sent' : `caja_${kind}_registered`) : `caja_${kind}_requested`, data,
+    payment ? { payment_number: payment.payment_number } : {})
   return data
 }
 
@@ -142,14 +154,15 @@ export async function cancelMovement(session, movement) {
   audit(session, `caja_${movement.kind}_canceled`, movement)
 }
 
-/** Super admin marks commission payments as sent to the user. */
-export async function markPaymentsSent(session, companyId, user, payments) {
+/** Super admin sends what's left of each of these payments (e.g. ones already paid before Préstamos). */
+export async function sendRemaining(session, companyId, user, payments) {
+  payments = payments.filter(p => p.remaining > 0)
   if (!payments.length) return []
   const by = actor(session)
   const now = new Date().toISOString()
   const rows = payments.map(p => ({
     company_id: companyId, user_email: lower(user.email), user_name: user.name || p.dispatcher_name || null,
-    kind: 'payout', amount: money(p.payout), status: 'approved', dispatcher_payment_id: p.id,
+    kind: 'payout', amount: money(p.remaining), status: 'approved', dispatcher_payment_id: p.id,
     note: `Pago #${p.payment_number ?? ''}`.trim(),
     requested_by_email: by.email, requested_by_name: by.name,
     decided_by_email: by.email, decided_by_name: by.name, decided_at: now,
