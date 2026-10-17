@@ -22,7 +22,7 @@ export async function loadOrders(session, companyId) {
   const scoped = q => companyId ? q.eq('company_id', companyId) : q
   const [ordersRes, trucksRes, brokersRes, dispPayRes, drvPayRes] = await Promise.all([
     scoped(supabase.from('orders').select(LIST_COLUMNS).order('pu_date', { ascending: false })),
-    scoped(supabase.from('trucks').select('id, name, number')),
+    scoped(supabase.from('trucks').select('id, name, number, discount_percent')),
     scoped(supabase.from('brokers').select('id, name, type')),
     scoped(supabase.from('dispatcher_payments').select('id, order_ids, payment_number')),
     scoped(supabase.from('driver_payments').select('id, order_ids, payment_number')),
