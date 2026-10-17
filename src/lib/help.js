@@ -493,9 +493,9 @@ export const HELP = {
   // ───────────── Préstamos ─────────────
   'prestamos.page': {
     title: 'Préstamos',
-    text: 'La caja de cada dispatcher y admin: lo que entra (sus pagos de comisión y sus abonos) menos lo que se le envía (envíos y préstamos). Si entró un pago de $500 y se le enviaron $100, en caja quedan $400.',
+    text: 'La caja de cada dispatcher y admin: lo que entra (sus abonos y los pagos de comisión anteriores) menos lo que se le envía (envíos y préstamos). Hacerle un pago o settlement en Pago Dispatchers no cambia su caja.',
     steps: [
-      'Ingresos: cada pago de comisión de Pago Dispatchers entra solo y muestra cuánto se envió y cuánto queda.',
+      'Ingresos: los pagos de comisión de antes del 17 de octubre de 2026, con cuánto se envió y cuánto queda. Los pagos y settlements nuevos de Pago Dispatchers ya no entran aquí.',
       'Historial: cada movimiento y cómo quedó la caja después de él.',
       'Para pedir un envío o un préstamo, o avisar de un abono, habla con el super admin: él lo registra.',
     ],

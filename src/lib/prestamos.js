@@ -5,6 +5,8 @@ import { logAudit } from './auditLog'
 // Préstamos (only companies with features.prestamos — Dacrisam). Each
 // dispatcher/admin has a "caja": what comes in minus what goes out.
 //   IN:  their commission payments (dispatcher_payments, from Pago Dispatchers)
+//        created BEFORE PAYMENTS_CUTOFF only — newer payments/settlements no
+//        longer touch the caja (old ones stay so no balance jumps)
 //        money they hand over outside the app ('deposit', once confirmed)
 //   OUT: money sent to them, any amount ('payout'; may point to the payment
 //        it comes from — a $500 payment with $100 sent leaves $400 in caja)
@@ -15,6 +17,9 @@ import { logAudit } from './auditLog'
 export const PRESTAMO_ROLES = ['super_admin', 'admin', 'dispatcher']
 
 export const KIND_LABEL = { payout: 'Envío', loan: 'Préstamo', deposit: 'Abono' }
+
+// Dispatcher payments created from this moment on are not part of Préstamos
+const PAYMENTS_CUTOFF = '2026-10-17T04:45:00Z'
 
 const lower = s => String(s || '').trim().toLowerCase()
 const money = n => Math.round((Number(n) || 0) * 100) / 100
@@ -31,7 +36,7 @@ export function canSeePrestamos(session, company) {
 export async function loadCajaData(companyId, email = null) {
   let pq = supabase.from('dispatcher_payments')
     .select('id, dispatcher_email, dispatcher_name, payout, pay_date, period_start, period_end, payment_number, created_at')
-    .eq('company_id', companyId).order('pay_date', { ascending: false })
+    .eq('company_id', companyId).lt('created_at', PAYMENTS_CUTOFF).order('pay_date', { ascending: false })
   let mq = supabase.from('caja_movements').select('*').eq('company_id', companyId).order('created_at', { ascending: false })
   if (email) {
     pq = pq.ilike('dispatcher_email', email.trim())
