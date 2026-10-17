@@ -644,7 +644,11 @@ export default function Auditoria() {
         <div className="space-y-6">
           {groups.map(group => (
             <div key={group.key}>
-              <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-widest mb-2.5">{dayLabel(group.date)}</p>
+              {/* Sticky: the day stays pinned at the top while scrolling its entries; the next
+                  day's label pushes it out (sticky is bounded by this group's wrapper) */}
+              <div className="sticky top-0 z-10 mb-2.5 pointer-events-none">
+                <span className="inline-block text-[11px] font-semibold text-gray-300 uppercase tracking-widest bg-gray-900 border border-gray-700 rounded-full px-3 py-1 shadow-lg shadow-black/30">{dayLabel(group.date)}</span>
+              </div>
               <div className="space-y-2">
                 {group.entries.map(row => {
                   const cfg = ACTIONS[row.action] || { label: row.action, color: 'blue', icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75' }
