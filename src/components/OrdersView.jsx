@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { askLumpersOnOrderPaid } from '../lib/lumperActions'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
-import { STATUS_CONFIG, ALL_STATUSES, fmt } from '../lib/orders'
+import { STATUS_CONFIG, ALL_STATUSES, fmt, orderNet } from '../lib/orders'
 import { getOrdersCache, refreshOrders, patchOrdersCache, loadDispatcherDirectory, migrateDispatcherNames } from '../lib/ordersData'
 import OrderDetail from './OrderDetail'
 import DateRangePicker from './DateRangePicker'
@@ -927,6 +927,8 @@ export default function OrdersView() {
                 const tMiles = Math.round(filtered.reduce((s, r) => s + (Number(r.miles) || 0), 0))
                 const tDH = Math.round(filtered.reduce((s, r) => s + (Number(r.dead_miles) || 0), 0))
                 const tRate = filtered.reduce((s, r) => s + (Number(r.rate) || 0), 0)
+                // Lo que entra de verdad: cada orden con su propio descuento (mismo fallback que el balance del camion)
+                const tNet = filtered.reduce((s, r) => s + orderNet(r, Number(truckMap[r.truck_id]?.discount_percent) || 13), 0)
                 const tMi = tMiles + tDH
                 const rpm = tMi > 0 ? (tRate / tMi) : 0
                 return (
@@ -943,6 +945,10 @@ export default function OrdersView() {
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500">Revenue</span>
                       <span className="text-[12px] font-bold text-green-400 tabular-nums"><AnimatedNum value={tRate} fmt={fmt} /></span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500">Total real</span>
+                      <span className="text-[12px] font-bold text-emerald-300 tabular-nums"><AnimatedNum value={tNet} fmt={fmt} /></span>
                     </div>
                     {rpm > 0 && (
                       <div className="flex items-center justify-between">
