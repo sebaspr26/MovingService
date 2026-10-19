@@ -1,5 +1,17 @@
 const API_KEY = import.meta.env.VITE_HERE_API_KEY
 
+// HERE answers 503 "Temporary error" / 429 now and then (it comes and goes per
+// request): retry a couple of times before giving up
+const RETRY_DELAYS = [700, 1500]
+async function hereFetch(url) {
+  let res
+  for (let i = 0; ; i++) {
+    res = await fetch(url)
+    if (res.ok || (res.status < 500 && res.status !== 429) || i >= RETRY_DELAYS.length) return res
+    await new Promise(r => setTimeout(r, RETRY_DELAYS[i]))
+  }
+}
+
 /**
  * Geocode an address/city string to { lat, lng }
  * Returns null if not found.
@@ -19,7 +31,7 @@ export async function geocode(query) {
 
 async function geocodeUncached(query) {
   const url = `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(query)}&in=countryCode:USA&apiKey=${API_KEY}`
-  const res = await fetch(url)
+  const res = await hereFetch(url)
   if (!res.ok) {
     console.warn(`[HERE Geocode] HTTP ${res.status} for "${query}"`)
     return null
@@ -47,7 +59,7 @@ export async function calculateTruckRoute(origin, destination) {
   if (!from || !to) return null
 
   const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&return=summary,polyline&apiKey=${API_KEY}`
-  const res = await fetch(url)
+  const res = await hereFetch(url)
   if (!res.ok) {
     console.warn(`[HERE TruckRoute] HTTP ${res.status}`)
     return null
@@ -97,10 +109,12 @@ export async function calculateMultiStopRoute(stops) {
   const vias = coords.slice(1, -1).map(c => `&via=${c.lat},${c.lng}`).join('')
 
   const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&apiKey=${API_KEY}`
-  const res = await fetch(url)
+  const res = await hereFetch(url)
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
     console.warn(`[HERE MultiRoute] HTTP ${res.status}: ${errText}`)
+    // Not the cities' fault: say so instead of "verifica las ciudades"
+    if (res.status >= 500 || res.status === 429) throw new Error('el servicio de mapas (HERE) no está respondiendo. Intenta de nuevo en unos minutos.')
     return null
   }
   const data = await res.json()
@@ -214,7 +228,7 @@ export async function routeMilesByState(locations) {
   const url = `https://router.hereapi.com/v8/routes?transportMode=truck&origin=${origin}&destination=${destination}${vias}&return=summary,polyline&spans=stateCode,length&departureTime=any&apiKey=${API_KEY}`
   // departureTime=any: time-independent route, so the same order always splits
   // the same way between states (by default HERE routes with current traffic)
-  const res = await fetch(url)
+  const res = await hereFetch(url)
   if (!res.ok) {
     console.warn(`[HERE StateMiles] HTTP ${res.status}`)
     return null
