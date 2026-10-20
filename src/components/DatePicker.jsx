@@ -28,8 +28,11 @@ const DEFAULT_TRIGGER = 'w-full bg-gray-800 border border-gray-700 rounded-lg px
 // className overrides the trigger box (size/colors) so the picker can match the
 // surrounding form; style is for inline-styled forms (e.g. SetPassword glass inputs).
 // min is a YYYY-MM-DD string — earlier days are disabled.
-export default function DatePicker({ value, onChange, placeholder = 'Seleccionar...', className = DEFAULT_TRIGGER, style, min }) {
+export default function DatePicker({ value: rawValue, onChange, placeholder = 'Seleccionar...', className = DEFAULT_TRIGGER, style, min }) {
   const today = new Date()
+  // A value that isn't YYYY-MM-DD (e.g. "10/14/2026" from the scanner) used to
+  // render an Invalid Date and crash the whole screen — treat it as empty
+  const value = typeof rawValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawValue) && !isNaN(new Date(rawValue + 'T00:00:00')) ? rawValue : ''
   const parsed = value ? new Date(value + 'T00:00:00') : null
   const [open, setOpen] = useState(false)
   const [rect, setRect] = useState(null)

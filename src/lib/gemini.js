@@ -64,12 +64,24 @@ export function isScannerBusy() {
   return isProcessing
 }
 
+// Always returns YYYY-MM-DD (current year) or '' — the model sometimes answers
+// "10/14/2026", "2026-10-14T08:30" or "Oct 14, 2026", and a date in any other
+// shape broke the date pickers
 function forceCurrentYear(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return dateStr
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return dateStr
-  const currentYear = new Date().getFullYear()
-  return `${currentYear}-${match[2]}-${match[3]}`
+  if (dateStr == null || dateStr === '') return ''
+  const s = String(dateStr).trim()
+  const pad = n => String(n).padStart(2, '0')
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/) // ISO, maybe with a time
+  let month, day
+  if (m) { month = +m[2]; day = +m[3] }
+  else if ((m = s.match(/^(\d{1,2})[/.-](\d{1,2})(?:[/.-]\d{2,4})?$/))) { month = +m[1]; day = +m[2] } // US MM/DD[/YY]
+  else {
+    const d = new Date(s)
+    if (isNaN(d)) return ''
+    month = d.getMonth() + 1; day = d.getDate()
+  }
+  if (!(month >= 1 && month <= 12 && day >= 1 && day <= 31)) return ''
+  return `${new Date().getFullYear()}-${pad(month)}-${pad(day)}`
 }
 
 function normalizeScannedDates(result) {
@@ -84,7 +96,15 @@ function normalizeScannedDates(result) {
 
   // Several receipts in one image (kind: 'receipt')
   if (Array.isArray(result.receipts)) {
-    result.receipts = result.receipts.map(r => ({ ...r, date: forceCurrentYear(r.date) }))
+    // Text fields go straight into inputs and labels: an object or array there crashed the screen
+    const text = v => (v == null || typeof v === 'object') ? '' : String(v)
+    const TEXT_KEYS = ['vendor', 'invoice_number', 'receipt_number', 'city', 'notes', 'description', 'category']
+    const clean = o => { const c = { ...o }; for (const k of TEXT_KEYS) if (k in c) c[k] = text(c[k]); return c }
+    result.receipts = result.receipts.filter(r => r && typeof r === 'object').map(r => ({
+      ...clean(r),
+      date: forceCurrentYear(r.date),
+      items: Array.isArray(r.items) ? r.items.filter(i => i && typeof i === 'object').map(clean) : [],
+    }))
   }
 
   // Legacy single-item data + orders
