@@ -62,6 +62,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
   const [orders, setOrders] = useState([])
   const [blockedOrders, setBlockedOrders] = useState([]) // no pagadas
   const [brokers, setBrokers] = useState({})
+  const [driverNames, setDriverNames] = useState({}) // driver id -> name
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showNew, setShowNew] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -117,7 +118,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
 
   async function fetchData() {
     setLoading(true)
-    const [paymentsRes, ordersRes, brokersRes] = await Promise.all([
+    const [paymentsRes, ordersRes, brokersRes, driversRes] = await Promise.all([
       (() => {
         let q = supabase.from('dispatcher_payments')
           .select('*')
@@ -128,7 +129,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
       })(),
       (() => {
         let q = supabase.from('orders')
-          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id, cycle_id, paid')
+          .select('id, order_number, pu_city, do_city, pu_date, do_date, rate, miles, dead_miles, broker_id, status, truck_id, cycle_id, paid, driver_id, driver_name')
           .eq('dispatcher', dispatcherEmail)
           .in('status', ['booked', 'assigned', 'in_transit', 'delivered', 'invoiced', 'paid'])
           .order('pu_date', { ascending: false })
@@ -136,6 +137,8 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
         return q
       })(),
       (() => { const q = supabase.from('brokers').select('id, name'); const cId = getActiveCompanyId(); return cId ? q.eq('company_id', cId) : q })(),
+      // Driver names, to group the orders by the drivers this dispatcher moved
+      (() => { const q = supabase.from('drivers').select('id, name'); return cId ? q.eq('company_id', cId) : q })(),
     ])
 
     const existingPayments = paymentsRes.data || []
@@ -150,7 +153,30 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
     setOrders(notUsed.filter(o => o.paid === true))
     setBlockedOrders(notUsed.filter(o => o.paid !== true))
     setBrokers(bMap)
+    setDriverNames(Object.fromEntries((driversRes.data || []).map(d => [d.id, d.name])))
     setLoading(false)
+  }
+
+  // Orders grouped by driver (driver_id, else the legacy driver_name), biggest group first
+  function byDriver(list) {
+    const groups = new Map()
+    for (const o of list) {
+      const name = (driverNames[o.driver_id] || o.driver_name || '').trim()
+      const key = name.toUpperCase() || '—'
+      if (!groups.has(key)) groups.set(key, { key, name: name || 'Sin conductor', orders: [] })
+      groups.get(key).orders.push(o)
+    }
+    return [...groups.values()].sort((a, b) => (a.key === '—') - (b.key === '—') || b.orders.length - a.orders.length || a.name.localeCompare(b.name))
+  }
+
+  function toggleGroup(group) {
+    const ids = group.orders.map(o => o.id)
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      const all = ids.every(id => next.has(id))
+      ids.forEach(id => all ? next.delete(id) : next.add(id))
+      return next
+    })
   }
 
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
@@ -643,7 +669,25 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                   <div className="text-center py-16 text-gray-600 text-sm">Sin órdenes disponibles<br /><span className="text-xs text-gray-700">Todas las órdenes ya tienen pago</span></div>
                 ) : (
                   <>
-                    {orders.map((o, i) => {
+                    {byDriver(orders).map(group => {
+                      const picked = group.orders.filter(o => selectedIds.has(o.id)).length
+                      const allPicked = picked === group.orders.length
+                      return (
+                    <div key={group.key} className="pb-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group)}
+                        className="w-full flex items-center gap-2 px-1 pt-1 pb-1.5 text-left group/driver"
+                      >
+                        <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                        </svg>
+                        <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-widest truncate">{group.name}</span>
+                        <span className="text-[10px] text-gray-600 shrink-0">{group.orders.length} · {fmt(group.orders.reduce((s, o) => s + (Number(o.rate) || 0), 0))}</span>
+                        <span className="ml-auto text-[10px] text-gray-500 group-hover/driver:text-orange-400 shrink-0">{allPicked ? 'Quitar' : picked ? `${picked}/${group.orders.length} · Todas` : 'Todas'}</span>
+                      </button>
+                      <div className="space-y-1">
+                    {group.orders.map((o, i) => {
                       const isSelected = selectedIds.has(o.id)
                       const broker = brokers[o.broker_id]
                       return (
@@ -682,13 +726,26 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                         </button>
                       )
                     })}
+                      </div>
+                    </div>
+                      )
+                    })}
 
                     {/* Cargas bloqueadas (no pagadas) */}
                     {blockedOrders.length > 0 && (
                       <>
                         {orders.length > 0 && <div className="h-px bg-gray-800/80 my-2" />}
                         <p className="text-[9px] text-gray-600 uppercase tracking-widest font-semibold px-1 pb-1">Pendientes de pago ({blockedOrders.length})</p>
-                        {blockedOrders.map(o => {
+                        {byDriver(blockedOrders).map(group => (
+                        <div key={group.key} className="pb-2 space-y-1">
+                          <p className="flex items-center gap-2 px-1 pt-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+                            <svg className="w-3.5 h-3.5 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                            </svg>
+                            <span className="truncate">{group.name}</span>
+                            <span className="normal-case tracking-normal font-normal text-gray-600 shrink-0">{group.orders.length} · {fmt(group.orders.reduce((s, o) => s + (Number(o.rate) || 0), 0))}</span>
+                          </p>
+                        {group.orders.map(o => {
                           const STATUS_LABEL = { booked: 'Reservada', assigned: 'Asignada', in_transit: 'En Tránsito', delivered: 'Entregada', invoiced: 'Facturada' }
                           const canOverride = isSuperAdmin(session)
                           const broker = brokers[o.broker_id]
@@ -725,6 +782,8 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                             </div>
                           )
                         })}
+                        </div>
+                        ))}
                       </>
                     )}
                   </>
