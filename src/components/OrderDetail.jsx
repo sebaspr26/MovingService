@@ -217,7 +217,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
-  const [saveStep, setSaveStep] = useState({ pct: 0, label: '' }) // progress bar shown while saving
   const [dirty, setDirty] = useState(false)
   const [rcFullscreen, setRcFullscreen] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
@@ -665,7 +664,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     }
 
     setScanning(true)
-    toast.info('Leyendo Rate Confirmation... Esto puede tardar unos segundos.')
     try {
       const res = await analyzeReceipt(file)
       if (res.data) {
@@ -893,7 +891,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     if (!rate && rate !== 0) { toast.warning('Rate es requerido'); return }
 
     setSaving(true)
-    setSaveStep({ pct: 8, label: 'Validando...' })
     try {
       // Persiste el MC# del broker seleccionado como parte del mismo guardado —
       // antes se guardaba solo, en background, sin feedback ni garantia real
@@ -910,7 +907,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         }
       }
 
-      setSaveStep({ pct: 20, label: 'Preparando la orden...' })
       const pStart = periodStart || puDate || new Date().toISOString().split('T')[0]
       const pEnd = periodEnd || doDate || pStart
 
@@ -956,7 +952,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
       // Solo las ordenes pagadas afectan el balance del ciclo (via orderNet en el
       // credito) — el snapshot antes/despues solo tiene sentido para esas
-      setSaveStep({ pct: 38, label: isNew ? 'Creando la orden...' : 'Guardando cambios...' })
       const affectsBalance = isNew && record.paid && record.truck_id && record.cycle_id
       const balanceBefore = affectsBalance ? await computeTruckBalance(record.truck_id, record.cycle_id) : null
 
@@ -1013,7 +1008,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           refreshFollowingDeadheads({ truckId: saved.truck_id, fromDate: saved.pu_date, excludeOrderId: id, session })
         }
       }
-      setSaveStep({ pct: 70, label: 'Guardando paradas...' })
       // This order is (now) the previous delivery of the truck's next order(s)
       if (record.truck_id && record.pu_date) {
         refreshFollowingDeadheads({ truckId: record.truck_id, fromDate: record.pu_date, excludeOrderId: orderId, session })
@@ -1047,10 +1041,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
       // Upload RC if pending
       if (rcFile) {
-        setSaveStep({ pct: 85, label: 'Subiendo el RC...' })
         await uploadRcToStorage(orderId)
       }
-      setSaveStep({ pct: 100, label: 'Listo' })
 
       setDirty(false)
       toast.success(isNew ? 'Orden creada' : 'Orden actualizada')
@@ -1190,15 +1182,6 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           the right. On phones the actions are equal-size icon buttons (they used to
           wrap under the title, left-aligned, with Eliminar between the others) */}
       <div className="relative flex items-center justify-between gap-2">
-        {/* Progress while saving: overlaid under the header so nothing below it moves */}
-        {saving && (
-          <div className="absolute left-0 right-0 -bottom-2.5 flex items-center gap-2 pointer-events-none" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={saveStep.pct} aria-label="Guardando">
-            <div className="flex-1 h-1 rounded-full bg-gray-800 overflow-hidden">
-              <div className="h-full rounded-full bg-orange-500 transition-[width] duration-500 ease-out" style={{ width: `${saveStep.pct}%` }} />
-            </div>
-            <span className="text-[10px] text-gray-500 tabular-nums whitespace-nowrap">{saveStep.label} {saveStep.pct}%</span>
-          </div>
-        )}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button onClick={async () => {
             if (dirty) {
@@ -1271,10 +1254,17 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
             disabled={saving}
             className="h-8 px-3 sm:px-4 inline-flex items-center bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
-            {saving ? `Guardando ${saveStep.pct}%` : 'Guardar'}
+            {saving ? (
+              <>
+                <span className="w-3 h-3 mr-1.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Guardando...
+              </>
+            ) : 'Guardar'}
           </button></>
         </div>
       </div>
+
+      {scanning && <RcScanProgress />}
 
       {/* Status bar — always visible at top */}
       <div className={`relative bg-gray-900 border rounded-xl p-3 ${isTerminalStatus(status) ? STATUS_CONFIG[status].border : 'border-gray-800'}`}>
@@ -2236,7 +2226,8 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
                       onChange={(e) => { if (e.target.files[0]) handleRcFile(e.target.files[0]) }}
                     />
                   </div>
-                  <div className="p-2 bg-gray-950">
+                  <div className="relative p-2 bg-gray-950">
+                    {scanning && <RcScanProgress overlay />}
                     {rcFile?.type?.startsWith('image/') ? (
                       <img src={rcPreviewUrl} alt="Rate Confirmation" className="w-full rounded border border-gray-800" />
                     ) : (
@@ -2342,6 +2333,45 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
           await supabase.from('orders').update({ status: 'invoiced' }).eq('id', id)
         }
       }} />}
+    </div>
+  )
+}
+
+// What the scanner is doing while it reads the RC (it takes 5-20s and the screen
+// used to look frozen). The steps are paced by time, not real progress.
+const RC_SCAN_STEPS = ['Leyendo el documento...', 'Buscando número de orden y broker...', 'Leyendo paradas y fechas...', 'Revisando rate y millas...', 'Casi listo...']
+
+function RcScanProgress({ overlay = false }) {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => Math.min(s + 1, RC_SCAN_STEPS.length - 1)), 3500)
+    return () => clearInterval(t)
+  }, [])
+  const card = (
+    <div className="flex items-center gap-3">
+      <div className="relative w-9 h-9 shrink-0 rounded-lg bg-purple-600/15 border border-purple-500/40 flex items-center justify-center">
+        <svg className="w-4.5 h-4.5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Zm3.75 11.625a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+        </svg>
+        <span className="absolute inset-0 rounded-lg border border-purple-400/60 animate-ping" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-purple-200">Escaneando el Rate Confirmation</p>
+        <p key={step} className="text-xs text-gray-400 animate-tab-in truncate">{RC_SCAN_STEPS[step]} Los campos se llenan solos.</p>
+        <div className="mt-2 h-1 rounded-full bg-gray-800 overflow-hidden">
+          <div className="h-full w-1/3 rounded-full bg-purple-500 rc-scan-bar" />
+        </div>
+      </div>
+    </div>
+  )
+  if (!overlay) {
+    return <div role="status" aria-live="polite" className="bg-gray-900 border border-purple-700/40 rounded-xl p-3 animate-tab-in">{card}</div>
+  }
+  // Over the RC preview: dimmed document with a line sweeping down it
+  return (
+    <div role="status" className="absolute inset-0 z-10 rounded overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-gray-950) 55%, transparent)' }}>
+      <div className="rc-scan-line absolute left-0 right-0 h-16" />
+      <div className="absolute left-3 right-3 bottom-3 bg-gray-900/95 border border-purple-700/40 rounded-lg p-3 shadow-xl">{card}</div>
     </div>
   )
 }

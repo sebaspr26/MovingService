@@ -506,6 +506,23 @@ select.sel option {
 .jiggle { animation: jiggle 0.26s ease-in-out infinite; transform-origin: 50% 60%; }
 @media (prefers-reduced-motion: reduce) { .jiggle { animation: none; } }
 
+/* RC scanner (OrderDetail RcScanProgress): a purple line sweeping down the
+   document + an indeterminate bar */
+@keyframes rc-scan-sweep {
+  0%   { top: -4rem; }
+  100% { top: 100%; }
+}
+.rc-scan-line {
+  background: linear-gradient(to bottom, transparent, rgb(168 85 247 / 0.28) 70%, rgb(192 132 252 / 0.9) 98%, transparent);
+  animation: rc-scan-sweep 2.2s ease-in-out infinite;
+}
+@keyframes rc-scan-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.rc-scan-bar { animation: rc-scan-bar 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .rc-scan-line, .rc-scan-bar { animation: none; } }
+
 /* Number inputs: no native browser up/down arrows (the app has its own look) */
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
