@@ -14,6 +14,7 @@ import { getActiveCycle, getActiveCycleId } from '../lib/cycles'
 import { logAudit } from '../lib/auditLog'
 import { computeTruckBalance, logBalanceChange, auditedBalanceWrite } from '../lib/balance'
 import OrderDocuments from './OrderDocuments'
+import { useDocScanner } from './DocScanner'
 import OrderInvoice from './OrderInvoice'
 import OrderLumpers from './OrderLumpers'
 import { clearInvoiceCache } from '../lib/invoiceCache'
@@ -301,6 +302,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
   // Order documents tracking
   const [orderDocs, setOrderDocs] = useState([])
   const [showPodUpload, setShowPodUpload] = useState(false)
+  const { scannerEl, scanFile } = useDocScanner()
   const podFileRef = useRef()
 
   // Route calculation
@@ -1093,6 +1095,9 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
     if (!file) return
     if (!id || isNew) { toast.error('Guarda la orden primero'); return }
     setShowPodUpload(false)
+    // Photo -> scanner (crop + clean up) first; canceled = nothing uploaded
+    file = await scanFile(file)
+    if (!file) return
     toast.info('Subiendo POD...')
     try {
       const ext = file.name.split('.').pop()
@@ -1177,6 +1182,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
 
   return (
     <div className="space-y-4">
+      {scannerEl}
       {/* Header */}
       {/* One row on every screen: back + title (truncates) on the left, actions on
           the right. On phones the actions are equal-size icon buttons (they used to

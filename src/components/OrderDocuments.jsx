@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useToast, friendlyError } from './Toast'
 import { downloadFromUrl } from '../lib/download'
 import InfoTip from './InfoTip'
+import { useDocScanner } from './DocScanner'
 
 // pdf.js loader (shared with OrderInvoice)
 let pdfjsPromise = null
@@ -59,6 +60,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
   const [viewerLoading, setViewerLoading] = useState(false)
   const [draggingType, setDraggingType] = useState(null)
   const dragCounters = useRef({ RC: 0, POD: 0 })
+  const { scannerEl, scanFile } = useDocScanner()
 
   useEffect(() => {
     if (orderId) fetchDocs()
@@ -83,6 +85,15 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
     if (docType === 'RC' && !mcNumber) {
       toast.warning('Ingresa el MC# del broker antes de subir el RC')
       return
+    }
+    // A POD photo goes through the scanner first (crop + clean up); PDFs pass straight through
+    if (docType === 'POD') {
+      file = await scanFile(file)
+      if (!file) {
+        const ref = fileRefs[docType]
+        if (ref?.current) ref.current.value = ''
+        return
+      }
     }
     setUploading(docType)
     try {
@@ -265,6 +276,7 @@ export default function OrderDocuments({ orderId, onDocsChange, mcNumber }) {
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      {scannerEl}
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
