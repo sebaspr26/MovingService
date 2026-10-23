@@ -16,6 +16,19 @@ const ADDRESS_BOX = { flex: '1 1 180px', minWidth: 0, overflowWrap: 'anywhere', 
 
 const fmtCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
+// Vercel rejects request bodies over 4.5MB (413). A bigger PDF (invoice + RC +
+// POD scans) goes to Storage first and only its URL travels; api/send-invoice.js
+// hands that URL to Resend, which downloads and attaches it.
+const INLINE_PDF_MAX_BASE64 = 3 * 1024 * 1024
+async function pdfAttachment(pdfBase64, fileName, orderId) {
+  if (pdfBase64.length <= INLINE_PDF_MAX_BASE64) return { pdfBase64 }
+  const bytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0))
+  const path = `email-attachments/${orderId || 'orden'}/${Date.now()}-${fileName.replace(/[^\w.-]+/g, '_')}`
+  const { error } = await supabase.storage.from('order-docs').upload(path, new Blob([bytes], { type: 'application/pdf' }), { contentType: 'application/pdf' })
+  if (error) throw new Error('No se pudo preparar el PDF para el email: ' + error.message)
+  return { pdfUrl: supabase.storage.from('order-docs').getPublicUrl(path).data.publicUrl }
+}
+
 function friendlyEmailError(status, message) {
   if (status === 413) return 'El archivo adjunto es demasiado grande para enviar por email. Intenta usar "Imprimir / PDF" y enviarlo manualmente.'
   if (status === 429) return 'Demasiados emails enviados. Espera un momento e intenta de nuevo.'
@@ -318,11 +331,13 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
       const actualBytes = pdfBase64.length * 0.75
       const sizeMB = (actualBytes / 1024 / 1024).toFixed(1)
 
-      if (actualBytes > 8 * 1024 * 1024) {
+      // Resend allows 40MB per email; leave room for the base64 encoding
+      if (actualBytes > 28 * 1024 * 1024) {
         toast.warning(`El PDF es muy grande (${sizeMB} MB). Intenta con menos documentos adjuntos.`)
         setSendingEmail(false)
         return
       }
+      const attachment = await pdfAttachment(pdfBase64, fileName, order.id)
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -342,7 +357,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               <p style="font-size: 12px; color: #888; margin-top: 24px;">${companyName} — ${companyDba}</p>
             </div>
           `,
-          pdfBase64,
+          ...attachment,
           fileName,
         }),
       })
@@ -422,11 +437,12 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
 
       const fileName = `POD_${order.order_number || 'ETG'}.pdf`
 
-      if (pdfBase64.length > 3 * 1024 * 1024) {
+      if (pdfBase64.length * 0.75 > 28 * 1024 * 1024) {
         toast.warning('El PDF es muy grande. Intenta con menos documentos.')
         setSendingPod(false)
         return
       }
+      const attachment = await pdfAttachment(pdfBase64, fileName, order.id)
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -445,7 +461,7 @@ export default function OrderInvoice({ orderId, onClose, onEmailSent }) {
               <p style="font-size: 12px; color: #888; margin-top: 24px;">${companyName}${companyDba ? ` — ${companyDba}` : ''}</p>
             </div>
           `,
-          pdfBase64,
+          ...attachment,
           fileName,
         }),
       })

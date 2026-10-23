@@ -7,7 +7,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { to, cc, subject, html, pdfBase64, fileName } = req.body
+  const { to, cc, subject, html, pdfBase64, pdfUrl, fileName } = req.body
+
+  // Big PDFs arrive as a link to our own Storage (the body limit is 4.5MB) —
+  // never attach a file from anywhere else
+  const storagePrefix = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/order-docs/email-attachments/`
+  if (pdfUrl && !String(pdfUrl).startsWith(storagePrefix)) {
+    return res.status(400).json({ error: 'Adjunto no valido' })
+  }
 
   if (!to || !subject) {
     return res.status(400).json({ error: 'Missing required fields: to, subject' })
@@ -30,6 +37,9 @@ export default async function handler(req, res) {
         filename: fileName || 'invoice.pdf',
         content: Buffer.from(pdfBase64, 'base64'),
       }]
+    } else if (pdfUrl) {
+      // Resend downloads the file itself
+      emailOptions.attachments = [{ filename: fileName || 'invoice.pdf', path: pdfUrl }]
     }
 
     const { data, error } = await resend.emails.send(emailOptions)
