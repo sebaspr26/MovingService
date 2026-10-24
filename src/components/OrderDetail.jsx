@@ -965,7 +965,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         const { data: existing } = await supabase.from('orders').select('id')
           .eq('truck_id', truckId).eq('order_number', record.order_number).limit(1)
         if (existing && existing.length > 0) {
-          const ok = await toast.confirm(`Ya existe una orden "${record.order_number}" para este camion. ¿Crear de todas formas?`)
+          const ok = await toast.confirm(`Ya existe una orden "${record.order_number}" para este camion. ¿Crear de todas formas?`, { confirmText: 'Crear igual', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
           if (!ok) { setSaving(false); return }
         }
 
@@ -1191,7 +1191,7 @@ export default function OrderDetail({ orderId: propId, onClose, onSaved, default
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button onClick={async () => {
             if (dirty) {
-              const ok = await toast.confirm('Tienes cambios sin guardar. ¿Salir sin guardar?')
+              const ok = await toast.confirm('Tienes cambios sin guardar. ¿Salir sin guardar?', { confirmText: 'Salir sin guardar', cancelText: 'Seguir editando', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
               if (!ok) return
             }
             isDrawer ? onClose?.() : navigate('/orders')

@@ -61,7 +61,7 @@ export default function ExpensesTable({ truckId, period, cycle, onDataChange, re
           const { data: existing } = await supabase.from('expenses').select('id')
             .eq('truck_id', truckId).eq('invoice_number', record.invoice_number).limit(1)
           if (existing && existing.length > 0) {
-            const ok = await toast.confirm(`Ya existe un gasto con invoice "${record.invoice_number}". ¿Agregar de todas formas?`)
+            const ok = await toast.confirm(`Ya existe un gasto con invoice "${record.invoice_number}". ¿Agregar de todas formas?`, { confirmText: 'Agregar igual', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
             if (!ok) return
           }
         }

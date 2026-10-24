@@ -136,7 +136,7 @@ export default function UserProfile() {
     const before = assignedTruck.vin_number || ''
     if (next === before) return
     if (next && next.length !== 17) {
-      const ok = await toast.confirm(`Un VIN normalmente tiene 17 caracteres y este tiene ${next.length}. ¿Guardarlo de todas formas?`)
+      const ok = await toast.confirm(`Un VIN normalmente tiene 17 caracteres y este tiene ${next.length}. ¿Guardarlo de todas formas?`, { confirmText: 'Guardar igual', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
       if (!ok) return
     }
     setSavingVin(true)

@@ -215,7 +215,7 @@ export default function OrdersTable({ truckId, truckName, period, cycle, onDataC
         const { data: existing } = await supabase.from('orders').select('id')
           .eq('truck_id', truckId).eq('order_number', record.order_number).limit(1)
         if (existing && existing.length > 0) {
-          const ok = await toast.confirm(`Ya existe una orden con el numero "${record.order_number}". ¿Agregar de todas formas?`)
+          const ok = await toast.confirm(`Ya existe una orden con el numero "${record.order_number}". ¿Agregar de todas formas?`, { confirmText: 'Agregar igual', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
           if (!ok) return
         }
         record.discount_percent = discountPct || 13

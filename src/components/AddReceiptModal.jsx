@@ -231,7 +231,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
             if (existing && existing.length > 0) { dup = table; break }
           }
           if (dup) {
-            const ok = await toast.confirm(`Ya existe un registro de ${dup === 'expenses' ? 'gasto' : dup} con invoice "${r.invoice}". ¿Agregar de todas formas?`)
+            const ok = await toast.confirm(`Ya existe un registro de ${dup === 'expenses' ? 'gasto' : dup} con invoice "${r.invoice}". ¿Agregar de todas formas?`, { confirmText: 'Agregar igual', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
             if (!ok) return
           }
         }
@@ -245,7 +245,7 @@ export default function AddReceiptModal({ isOpen, onClose, onSaved, truckId, tru
         try {
           receiptPath = await uploadReceipt(receiptFile, tid)
         } catch (err) {
-          const ok = await toast.confirm(`No se pudo subir la foto del recibo (${err.message}). ¿Guardar el gasto sin la foto?`)
+          const ok = await toast.confirm(`No se pudo subir la foto del recibo (${err.message}). ¿Guardar el gasto sin la foto?`, { confirmText: 'Guardar sin foto', confirmClass: 'bg-orange-600 hover:bg-orange-500' })
           if (!ok) return
         }
       }
