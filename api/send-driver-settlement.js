@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { cleanAdjustments, adjustmentsNet, adjustmentSummaryRows, adjustmentsTableHtml, adjustmentEmailRows, adjustmentTextLines } from './_adjustments.js'
 import { createClient } from '@supabase/supabase-js'
 
 const resend = new Resend(process.env.RESEND_KEY)
@@ -68,7 +69,9 @@ function logoBlock(logoUrl, companyName) {
   return `<div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#fff3e0;border:2px solid #ea580c;border-radius:10px;font-size:22px;font-weight:800;color:#ea580c;">${initials}</div>`
 }
 
-function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease }) {
+function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease, adjustments = [] }) {
+  // What the loads paid, before the +/− adjustments (payout already includes them)
+  const earned = Number(payout) - adjustmentsNet(adjustments)
   const dot = companyInfo.dot || ''
   const mc = companyInfo.mc || ''
   const address = billing.address || companyInfo.address || ''
@@ -152,7 +155,7 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
         ${isFlat ? '' : `<tr><td style="padding:5px 0;font-size:13px;color:#374151;">Gross Revenue:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmt(gross)}</td></tr>`}
         <tr><td style="padding:5px 0;font-size:13px;color:#374151;">Total Miles:</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;text-align:right;">${fmtMiles(totalMiles)}</td></tr>
         ${isLease ? `<tr><td style="padding:5px 0;font-size:13px;color:#dc2626;">Company Fee (${payRate}%):</td><td style="padding:5px 0;font-size:13px;color:#dc2626;font-weight:700;text-align:right;">−${fmt(companyFee)}</td></tr>` : ''}
-        <tr style="border-top:1.5px solid #d1d5db;"><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">${isLease ? 'Driver Pay:' : 'Total Pay:'}</td><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(payout)}</td></tr>
+        <tr style="border-top:1.5px solid #d1d5db;"><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">${isLease ? 'Driver Pay:' : 'Total Pay:'}</td><td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(earned)}</td></tr>${adjustmentSummaryRows(adjustments, fmt)}
       </table>
     </div>
     <div style="text-align:center;min-width:150px;">
@@ -179,12 +182,13 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
       <tbody>${ordersRows}</tbody>
       <tfoot>
         <tr style="border-top:2px solid #111827;">
-          <td colspan="${isFlat ? 3 : 6}" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">Total Pay:</td>
-          <td style="padding:14px 10px;font-size:16px;font-weight:900;color:#16a34a;text-align:right;">${fmt(payout)}</td>
+          <td colspan="${isFlat ? 3 : 6}" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">${adjustments.length ? 'Loads Pay:' : 'Total Pay:'}</td>
+          <td style="padding:14px 10px;font-size:16px;font-weight:900;color:#16a34a;text-align:right;">${fmt(earned)}</td>
         </tr>
       </tfoot>
     </table>
   </div>
+${adjustmentsTableHtml(adjustments, fmt, earned, payout)}
 
   <!-- Footer -->
   <div style="padding:16px 40px;border-top:1px solid #e5e7eb;background:#f9fafb;text-align:center;">
@@ -194,7 +198,7 @@ function driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paym
 </body></html>`
 }
 
-function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate }) {
+function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate, adjustments = [] }) {
   const payRateDisplay = payMode === 'flat_rate' ? `Fixed ${fmt(payRate)}` : payMode === 'percentage' ? `${payRate}%` : `${payRate}¢/mi`
   return `<!DOCTYPE html>
 <html lang="en">
@@ -244,7 +248,7 @@ function emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, p
           <td style="font-size:12px;color:#6b7280;">Total Miles</td>
           <td align="right" style="font-size:13px;color:#111827;font-weight:700;">${fmtMiles(totalMiles)}</td>
         </tr></table>
-      </td></tr>
+      </td></tr>${adjustmentEmailRows(adjustments, fmt)}
       <tr><td style="padding:18px 20px;background:#f0fdf4;">
         <table width="100%"><tr>
           <td style="font-size:14px;color:#166534;font-weight:800;">Total Pay</td>
@@ -266,19 +270,20 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const { action, paymentNumber, driverEmail, driverName, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders = [], pdfBase64, companyId, isLease } = req.body
+  const adjustments = cleanAdjustments(req.body.adjustments)
   if (!driverName) return res.status(400).json({ error: 'Falta driverName' })
 
   try {
     const { companyName, logoUrl, billing, companyInfo } = await getCompanyData(companyId)
 
-    const html = driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease })
+    const html = driverSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, driverName, driverEmail, truckName, payMode, payRate, gross, totalMiles, payout, payDate, periodStart, periodEnd, orders, isLease, adjustments })
 
     if (action === 'preview') return res.status(200).json({ success: true, html })
 
     if (!driverEmail) return res.status(400).json({ error: 'Este conductor no tiene email registrado' })
 
-    const body = emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate })
-    const text = `${companyName} — Driver Settlement #${paymentNumber}\n\nHi ${driverName},\n\nYour payment for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)} is attached.\n\n${payMode !== 'flat_rate' ? `Gross: ${fmt(gross)}\n` : ''}Miles: ${fmtMiles(totalMiles)}\nTotal Pay: ${fmt(payout)}\n\n— ${companyName}`
+    const body = emailBody({ companyName, logoUrl, driverName, paymentNumber, payMode, payRate, gross, totalMiles, payout, periodStart, periodEnd, payDate, adjustments })
+    const text = `${companyName} — Driver Settlement #${paymentNumber}\n\nHi ${driverName},\n\nYour payment for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)} is attached.\n\n${payMode !== 'flat_rate' ? `Gross: ${fmt(gross)}\n` : ''}Miles: ${fmtMiles(totalMiles)}\n${adjustmentTextLines(adjustments, fmt).map(l => l + '\n').join('')}Total Pay: ${fmt(payout)}\n\n— ${companyName}`
 
     const opts = {
       from: `${companyName} <invoices@etg-tms.com>`,

@@ -12,6 +12,8 @@ import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { computeTruckBalance, logBalanceChange } from '../lib/balance'
 import InfoTip from './InfoTip'
+import { AdjustmentsEditor, AdjustmentsBreakdown } from './PaymentAdjustments'
+import { cleanAdjustments, adjustmentsNet } from '../../api/_adjustments.js'
 
 const MODE_COLORS = {
   flat_rate:  { badge: 'bg-blue-900/30 text-blue-400 border-blue-800/40',   payout: 'text-blue-400',   payoutBg: 'bg-blue-600/15 border-blue-600/30' },
@@ -192,7 +194,10 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
   const gross = grossOf(selectedOrders)
   const totalMiles = totalMilesOf(selectedOrders)
-  const payout = payMode ? calcPayout(payMode, payRate, selectedOrders, isLease) : 0
+  // earned = what the loads pay (also the truck's Pago Chofer expense); payout adds the + / − adjustments
+  const earned = payMode ? calcPayout(payMode, payRate, selectedOrders, isLease) : 0
+  const [adjustments, setAdjustments] = useState([])
+  const payout = earned + adjustmentsNet(cleanAdjustments(adjustments))
 
   function toggleOrder(id) {
     setSelectedIds(prev => {
@@ -219,6 +224,9 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
     if (!payMode) return toast.warning('Este conductor no tiene modo de pago configurado. Configúralo en Perfiles.')
     if (payMode !== 'flat_rate' && !selectedIds.size)
       return toast.warning('Selecciona al menos una orden')
+    if (adjustments.some(a => Number(a.amount) > 0 && !String(a.description || '').trim())) return toast.warning('Escribe el motivo de cada ajuste (ej: Deuda préstamo)')
+    if (payout < 0) return toast.warning('Los descuentos son mayores que el pago. Revisa los ajustes.')
+    const adj = cleanAdjustments(adjustments)
     setSaving(true)
 
     const balanceBefore = (driver.truck_id && activeCycleId) ? await computeTruckBalance(driver.truck_id, activeCycleId) : null
@@ -248,9 +256,15 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
       order_ids: [...selectedIds],
       payment_number: payments.length + 1,
       company_id: getActiveCompanyId(),
+      // Only sent when there are some, so payments keep saving before 042 is run
+      ...(adj.length && { adjustments: adj }),
     }).select().single()
 
-    if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
+    if (error) {
+      toast.error(/adjustments/i.test(error.message || '') ? 'Para guardar ajustes (+/−) falta correr supabase/042_payment_adjustments.sql en Supabase.' : 'Error: ' + error.message)
+      setSaving(false)
+      return
+    }
 
     // Reflejar el pago como gasto en el camion del conductor (categoria Pago Chofer,
     // ya la reconoce el balance del ciclo como debito separado)
@@ -262,7 +276,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
         category: 'Pago Chofer',
         invoice_number: `#${newPayment.payment_number}`,
         description: `Settlement ${driverName} #${newPayment.payment_number}`,
-        amount: payout,
+        amount: earned, // the truck carries what the loads paid; + / − adjustments are only on the settlement
         date: today,
         period_start: periodStart,
         period_end: periodEnd,
@@ -295,13 +309,14 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
         truckId: driver.truck_id,
         cycleId: activeCycleId,
         balanceBefore,
-        extraInfo: { amount: payout, description: newExpense.description, category: 'Pago Chofer' },
+        extraInfo: { amount: earned, description: newExpense.description, category: 'Pago Chofer' },
       })
     }
 
     toast.success('Pago registrado')
     setShowNew(false)
     setSelectedIds(new Set())
+    setAdjustments([])
     await fetchData()
     setSaving(false)
   }
@@ -342,6 +357,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
           gross: payment.gross_revenue,
           totalMiles: payment.total_miles,
           payout: payment.payout,
+          adjustments: payment.adjustments || [],
           payDate: payment.pay_date,
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
@@ -391,6 +407,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
             gross: payment.gross_revenue,
             totalMiles: payment.total_miles,
             payout: payment.payout,
+          adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -420,6 +437,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
           gross: payment.gross_revenue,
           totalMiles: payment.total_miles,
           payout: payment.payout,
+          adjustments: payment.adjustments || [],
           payDate: payment.pay_date,
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
@@ -462,6 +480,7 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
             gross: payment.gross_revenue,
             totalMiles: payment.total_miles,
             payout: payment.payout,
+          adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -633,6 +652,11 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
                                   </div>
                                 ))
                               )}
+                              <AdjustmentsBreakdown
+                                earned={(Number(p.payout) || 0) - adjustmentsNet(cleanAdjustments(p.adjustments))}
+                                adjustments={p.adjustments}
+                                className="mt-2 pt-2 border-t border-gray-800/70 px-1"
+                              />
                             </div>
                           </div>
                         </div>
@@ -796,6 +820,10 @@ export default function DriverPaymentModal({ driver, truck, onClose, highlightPa
                       )}
                     </div>
                     )}
+                    <div className="mb-3">
+                      <AdjustmentsEditor value={adjustments} onChange={setAdjustments} />
+                      <AdjustmentsBreakdown earned={earned} adjustments={adjustments} className="mt-2 px-1" />
+                    </div>
                   </>
                 )}
 

@@ -8,6 +8,8 @@ import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { readPageCache, usePageCacheSave } from '../lib/pageCache'
 import InfoTip from './InfoTip'
+import { AdjustmentsBreakdown } from './PaymentAdjustments'
+import { cleanAdjustments, adjustmentsNet } from '../../api/_adjustments.js'
 
 const fmt = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v)
 const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—'
@@ -97,6 +99,7 @@ export default function PaymentHistory() {
             gross: payment.gross_revenue,
             totalMiles: payment.total_miles,
             payout: payment.payout,
+            adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -112,6 +115,7 @@ export default function PaymentHistory() {
             gross: payment.gross_revenue,
             commissionPct: payment.commission_pct,
             payout: payment.payout,
+            adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -162,6 +166,7 @@ export default function PaymentHistory() {
               gross: payment.gross_revenue,
               totalMiles: payment.total_miles,
               payout: payment.payout,
+              adjustments: payment.adjustments || [],
               payDate: payment.pay_date,
               periodStart: payment.period_start,
               periodEnd: payment.period_end,
@@ -177,6 +182,7 @@ export default function PaymentHistory() {
               gross: payment.gross_revenue,
               commissionPct: payment.commission_pct,
               payout: payment.payout,
+              adjustments: payment.adjustments || [],
               payDate: payment.pay_date,
               periodStart: payment.period_start,
               periodEnd: payment.period_end,
@@ -312,6 +318,11 @@ export default function PaymentHistory() {
                           </div>
                         ))
                       )}
+                      <AdjustmentsBreakdown
+                        earned={(Number(p.payout) || 0) - adjustmentsNet(cleanAdjustments(p.adjustments))}
+                        adjustments={p.adjustments}
+                        className="mt-2 pt-2 border-t border-gray-800/70 px-1"
+                      />
                     </div>
                   </div>
                 </div>

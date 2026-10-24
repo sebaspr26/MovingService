@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { cleanAdjustments, adjustmentsNet, adjustmentSummaryRows, adjustmentsTableHtml, adjustmentEmailRows, adjustmentTextLines } from './_adjustments.js'
 import { createClient } from '@supabase/supabase-js'
 
 const resend = new Resend(process.env.RESEND_KEY)
@@ -35,7 +36,9 @@ function logoBlock(logoUrl, companyName) {
 }
 
 // Full settlement document — used for preview and to generate the PDF on the client
-function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, dispatcherName, dispatcherEmail, commissionPct, gross, payout, payDate, periodStart, periodEnd, orders }) {
+function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, paymentNumber, dispatcherName, dispatcherEmail, commissionPct, gross, payout, payDate, periodStart, periodEnd, orders, adjustments = [] }) {
+  // What the loads earned, before the +/− adjustments (payout already includes them)
+  const earned = Number(payout) - adjustmentsNet(adjustments)
   const ordersRows = orders.map(o => {
     const commission = (Number(o.rate) || 0) * commissionPct / 100
     return `
@@ -132,8 +135,8 @@ function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, 
         </tr>
         <tr style="border-top:1.5px solid #d1d5db;">
           <td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;">Total Credits:</td>
-          <td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(payout)}</td>
-        </tr>
+          <td style="padding:10px 0 5px;font-size:14px;color:#16a34a;font-weight:800;text-align:right;">${fmt(earned)}</td>
+        </tr>${adjustmentSummaryRows(adjustments, fmt)}
       </table>
     </div>
     <div style="text-align:center;min-width:150px;">
@@ -161,12 +164,13 @@ function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, 
       </tbody>
       <tfoot>
         <tr style="border-top:2px solid #111827;">
-          <td colspan="5" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">Total Payout:</td>
-          <td style="padding:14px 10px;font-size:16px;font-weight:900;color:#16a34a;text-align:right;">${fmt(payout)}</td>
+          <td colspan="5" style="padding:14px 10px;font-size:13px;color:#374151;font-weight:700;text-align:right;">${adjustments.length ? 'Total Commission:' : 'Total Payout:'}</td>
+          <td style="padding:14px 10px;font-size:16px;font-weight:900;color:#16a34a;text-align:right;">${fmt(earned)}</td>
         </tr>
       </tfoot>
     </table>
   </div>
+${adjustmentsTableHtml(adjustments, fmt, earned, payout)}
 
   <!-- Footer -->
   <div style="padding:16px 40px;border-top:1px solid #e5e7eb;background:#f9fafb;text-align:center;">
@@ -180,7 +184,7 @@ function dispatcherSettlementHtml({ companyName, logoUrl, billing, companyInfo, 
 }
 
 // Nice short email body — full settlement is in the PDF attachment
-function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate }) {
+function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate, adjustments = [] }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -243,7 +247,7 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
                 </tr>
               </table>
             </td>
-          </tr>
+          </tr>${adjustmentEmailRows(adjustments, fmt)}
           <tr>
             <td style="padding:18px 20px;background:#f0fdf4;">
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -274,7 +278,7 @@ function settlementEmailBody({ companyName, logoUrl, dispatcherName, paymentNumb
 </html>`
 }
 
-function settlementEmailText({ companyName, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate }) {
+function settlementEmailText({ companyName, dispatcherName, paymentNumber, commissionPct, gross, payout, periodStart, periodEnd, payDate, adjustments = [] }) {
   return [
     `${companyName} — Dispatcher Settlement #${paymentNumber}`,
     '',
@@ -284,6 +288,7 @@ function settlementEmailText({ companyName, dispatcherName, paymentNumber, commi
     '',
     `Gross Revenue:   ${fmt(gross)}`,
     `Commission Rate: ${commissionPct}%`,
+    ...adjustmentTextLines(adjustments, fmt),
     `Total Payout:    ${fmt(payout)}`,
     `Pay Date:        ${fmtDate(payDate)}`,
     '',
@@ -311,6 +316,7 @@ export default async function handler(req, res) {
     companyId,
     pdfBase64,
   } = req.body
+  const adjustments = cleanAdjustments(req.body.adjustments)
 
   if (!dispatcherEmail) return res.status(400).json({ error: 'Falta dispatcherEmail' })
 
@@ -321,7 +327,7 @@ export default async function handler(req, res) {
       companyName, logoUrl, billing, companyInfo,
       paymentNumber, dispatcherName, dispatcherEmail,
       commissionPct, gross, payout,
-      payDate, periodStart, periodEnd, orders,
+      payDate, periodStart, periodEnd, orders, adjustments,
     })
 
     // Preview mode — return full document HTML
@@ -334,13 +340,13 @@ export default async function handler(req, res) {
       companyName, logoUrl,
       dispatcherName, paymentNumber,
       commissionPct, gross, payout,
-      periodStart, periodEnd, payDate,
+      periodStart, periodEnd, payDate, adjustments,
     })
 
     const emailText = settlementEmailText({
       companyName, dispatcherName, paymentNumber,
       commissionPct, gross, payout,
-      periodStart, periodEnd, payDate,
+      periodStart, periodEnd, payDate, adjustments,
     })
 
     const emailOptions = {

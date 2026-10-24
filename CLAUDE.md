@@ -127,6 +127,7 @@ supabase/
   037_dispatcher_unions.sql  - Tabla dispatcher_unions (company_id, name, members text[]) + union_id/union_group en dispatcher_payments. Correr a mano; antes de eso la app funciona sin uniones
   038_truck_type.sql         - trucks.truck_type (box_truck/dry_van/reefer, NULL = sin eleccion). Correr a mano
   039_maintenance.sql        - truck_maintenance (config por camion), maintenance_logs (servicios hechos), maintenance_alert_reads (alertas leidas por usuario). Correr a mano
+  042_payment_adjustments.sql - adjustments jsonb en dispatcher_payments y driver_payments: [{type:'deduct'|'add', description, amount}]. Correr a mano; antes de eso los pagos SIN ajustes se guardan igual (la columna solo se manda si hay ajustes)
   034_ifta.sql               - IFTA: company_settings.features (jsonb, { ifta: true } por empresa, Configuracion > Modulos), trucks.ifta (solo dry van), orders.state_miles (millas por estado de la ruta HERE, loaded/empty), tabla ifta_filings (trimestres declarados)
 ```
 
@@ -298,6 +299,12 @@ All tables have RLS enabled with open policies (no auth yet).
 - Preview del settlement: fetch a /api/send-settlement (o send-driver-settlement) con `action: 'preview'` + `companyId`
 - PDF generado en cliente con html2canvas + jsPDF, luego enviado como adjunto
 - PagoDispatchers muestra badge "Sin activar" para usuarios con `needs_password !== false` y sin historial de login — greyed out, no clickable
+
+### Ajustes + / − en pagos (PaymentAdjustments.jsx, api/_adjustments.js)
+- En "Nuevo Pago" de DispatcherPaymentModal y DriverPaymentModal: botones **− Descontar** (deuda, prestamo, multa) y **+ Agregar** (bono, reembolso), cada uno con motivo (obligatorio) y monto
+- `payout` guardado = lo ganado por las cargas + ajustes (es lo que se le paga a la persona). El gasto del camion (Pago Chofer / Pago Dispatcher) NO cambia: sigue siendo lo ganado por las cargas (decision del usuario)
+- Settlement (PDF/preview/email/texto) muestra lo ganado, cada ajuste y el Total Payout; todas las llamadas a /api/send-settlement y /api/send-driver-settlement mandan `adjustments: payment.adjustments || []`
+- Historial (modales y PaymentHistory) muestra el desglose al expandir. UnionPaymentModal todavia NO tiene ajustes
 
 ### Uniones de dispatchers (Pago Dispatchers)
 - Solo el **super admin** crea/edita uniones: Alt+Shift+U = modo union (arrastrar un dispatcher sobre otro pide el nombre; sobre una union lo agrega), tabla "Uniones" (renombrar, sacar miembros, agregar, deshacer, + Nueva union para tactil). Alt+Shift+V alterna ver los dispatchers **separados** (solo super admin)

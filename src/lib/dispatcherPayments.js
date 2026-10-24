@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { computeTruckBalance, logBalanceChange } from './balance'
 import { getActiveCompanyId } from './company'
 import { htmlToPdfBase64 } from './pdf'
+import { cleanAdjustments, adjustmentsNet } from '../../api/_adjustments.js'
 
 // Dispatcher payments, shared by the per-dispatcher modal and the union modal.
 // One payment = one dispatcher_payments row + one "Pago Dispatcher" expense per
@@ -24,14 +25,16 @@ export function dispatcherProfileRate(user, cId = getActiveCompanyId()) {
  * Registers a payment to ONE dispatcher for `orders` at `commissionPct`, reflects
  * it as expenses in Gastos and records it in Auditoria. `union` ({ id, group }) marks
  * it as part of a union payment. Returns the payment, or null if it failed (the
- * error is already toasted).
+ * error is already toasted). `adjustments` (+/−, see PaymentAdjustments.jsx) change
+ * what the dispatcher is paid, not the trucks' expenses.
  */
-export async function createDispatcherPayment({ session, toast, user, orders, commissionPct, paymentNumber, union }) {
+export async function createDispatcherPayment({ session, toast, user, orders, commissionPct, paymentNumber, union, adjustments = [] }) {
   const cId = getActiveCompanyId()
   const dispatcherEmail = user.email || ''
   const dispatcherName = nameOf(user)
   const gross = orders.reduce((s, o) => s + (Number(o.rate) || 0), 0)
-  const payout = gross * commissionPct / 100
+  const adj = cleanAdjustments(adjustments)
+  const payout = gross * commissionPct / 100 + adjustmentsNet(adj)
   const today = new Date().toISOString().split('T')[0]
   const sorted = [...orders].sort((a, b) => (a.pu_date || '') < (b.pu_date || '') ? -1 : 1)
   const periodStart = sorted[0]?.pu_date || today
@@ -50,9 +53,14 @@ export async function createDispatcherPayment({ session, toast, user, orders, co
     payment_number: paymentNumber,
     company_id: cId,
     ...(union && { union_id: union.id, union_group: union.group }),
+    // Only sent when there are some, so payments keep saving before 042 is run
+    ...(adj.length && { adjustments: adj }),
   }).select().single()
 
-  if (error) { toast.error('Error: ' + error.message); return null }
+  if (error) {
+    toast.error(/adjustments/i.test(error.message || '') ? 'Para guardar ajustes (+/−) falta correr supabase/042_payment_adjustments.sql en Supabase.' : 'Error: ' + error.message)
+    return null
+  }
 
   // Reflejar el pago como gasto en cada truck/ciclo correspondiente — un dispatcher
   // puede despachar cargas de varios choferes/trucks, no se mezcla en uno solo
@@ -142,6 +150,7 @@ async function settlementBody(payment, user) {
     gross: payment.gross_revenue,
     commissionPct: payment.commission_pct,
     payout: payment.payout,
+    adjustments: payment.adjustments || [],
     payDate: payment.pay_date,
     periodStart: payment.period_start,
     periodEnd: payment.period_end,

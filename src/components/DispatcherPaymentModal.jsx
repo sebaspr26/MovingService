@@ -12,6 +12,8 @@ import { downloadBase64Pdf } from '../lib/download'
 import { htmlToPdfBase64 } from '../lib/pdf'
 import { createDispatcherPayment, deleteDispatcherPayment, dispatcherProfileRate } from '../lib/dispatcherPayments'
 import InfoTip from './InfoTip'
+import { AdjustmentsEditor, AdjustmentsBreakdown } from './PaymentAdjustments'
+import { cleanAdjustments, adjustmentsNet } from '../../api/_adjustments.js'
 
 function useCountUp(target, duration = 600) {
   const [value, setValue] = useState(target)
@@ -86,6 +88,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
 
   // Editable commission % — pre-filled from profile, overrideable per payment
   const [editPct, setEditPct] = useState(String(profileRate))
+  const [adjustments, setAdjustments] = useState([]) // + / − of the new payment
 
   useEffect(() => { fetchData() }, [])
 
@@ -182,7 +185,8 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
   const selectedOrders = orders.filter(o => selectedIds.has(o.id))
   const gross = selectedOrders.reduce((s, o) => s + (Number(o.rate) || 0), 0)
   const commissionPct = Math.max(0, Math.min(100, Number(editPct) || 0))
-  const payout = gross * commissionPct / 100
+  const earned = gross * commissionPct / 100
+  const payout = earned + adjustmentsNet(cleanAdjustments(adjustments))
 
   function toggleOrder(id) {
     setSelectedIds(prev => {
@@ -208,14 +212,17 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
 
   async function savePayment() {
     if (!selectedIds.size) return toast.warning('Selecciona al menos una orden')
+    if (adjustments.some(a => Number(a.amount) > 0 && !String(a.description || '').trim())) return toast.warning('Escribe el motivo de cada ajuste (ej: Deuda préstamo)')
+    if (payout < 0) return toast.warning('Los descuentos son mayores que el pago. Revisa los ajustes.')
     setSaving(true)
     const created = await createDispatcherPayment({
-      session, toast, user, orders: selectedOrders, commissionPct, paymentNumber: payments.length + 1,
+      session, toast, user, orders: selectedOrders, commissionPct, paymentNumber: payments.length + 1, adjustments,
     })
     if (created) {
       toast.success('Pago registrado correctamente')
       setShowNew(false)
       setSelectedIds(new Set())
+      setAdjustments([])
       await fetchData()
     }
     setSaving(false)
@@ -258,6 +265,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
           gross: payment.gross_revenue,
           commissionPct: payment.commission_pct,
           payout: payment.payout,
+          adjustments: payment.adjustments || [],
           payDate: payment.pay_date,
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
@@ -306,6 +314,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
             gross: payment.gross_revenue,
             commissionPct: payment.commission_pct,
             payout: payment.payout,
+          adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -338,6 +347,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
           gross: payment.gross_revenue,
           commissionPct: payment.commission_pct,
           payout: payment.payout,
+          adjustments: payment.adjustments || [],
           payDate: payment.pay_date,
           periodStart: payment.period_start,
           periodEnd: payment.period_end,
@@ -383,6 +393,7 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
             gross: payment.gross_revenue,
             commissionPct: payment.commission_pct,
             payout: payment.payout,
+          adjustments: payment.adjustments || [],
             payDate: payment.pay_date,
             periodStart: payment.period_start,
             periodEnd: payment.period_end,
@@ -547,6 +558,11 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                                 </div>
                               ))
                             )}
+                            <AdjustmentsBreakdown
+                              earned={(Number(p.payout) || 0) - adjustmentsNet(cleanAdjustments(p.adjustments))}
+                              adjustments={p.adjustments}
+                              className="mt-2 pt-2 border-t border-gray-800/70 px-1"
+                            />
                           </div>
                         </div>
                       </div>
@@ -649,9 +665,11 @@ export default function DispatcherPaymentModal({ user, onClose, highlightPayment
                   </div>
                   <div className="bg-orange-600/15 border border-orange-600/30 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-orange-400 uppercase tracking-wide mb-1">Pago</p>
-                    <p className="text-sm font-bold text-orange-400"><AnimatedMoney value={payout} /></p>
+                    <p className={`text-sm font-bold ${payout < 0 ? 'text-red-400' : 'text-orange-400'}`}><AnimatedMoney value={payout} /></p>
                   </div>
                 </div>
+                <AdjustmentsEditor value={adjustments} onChange={setAdjustments} />
+                <AdjustmentsBreakdown earned={earned} adjustments={adjustments} className="mt-2 px-1" />
                 {orders.length > 0 && (
                   <button
                     onClick={toggleAll}
