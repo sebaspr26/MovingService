@@ -882,37 +882,58 @@ export default function OrdersView() {
             const TILE_COLORS = ['#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa']
             const [first, ...rest] = sorted
             const leftPct = Math.max(42, Math.min(62, Math.round((first.count / total) * 100)))
+            // Click = show only that broker's orders; click it again = all brokers
+            const pickBroker = id => setFilterBrokers(prev => (prev.length === 1 && prev[0] === id ? [] : [id]))
+            const isPicked = id => filterBrokers.length === 1 && filterBrokers[0] === id
+            const tileRing = id => isPicked(id) ? 'ring-2 ring-orange-400 ring-offset-1 ring-offset-gray-900' : ''
             return (
               <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl p-3 mt-2">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-2">Brokers / Customers</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Brokers / Customers</p>
+                  {filterBrokers.length > 0 && (
+                    <button type="button" onClick={() => setFilterBrokers([])} className="text-[10px] text-orange-400 hover:text-orange-300">Ver todos</button>
+                  )}
+                </div>
                 {/* Treemap tiles */}
                 <div className="flex gap-1 h-28 mb-2">
-                  <div
-                    className="rounded-lg flex items-center justify-center p-1.5 text-center shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => pickBroker(first.id)}
+                    title={`${first.name} — ${isPicked(first.id) ? 'quitar filtro' : 'ver solo sus órdenes'}`}
+                    className={`rounded-lg flex items-center justify-center p-1.5 text-center shrink-0 transition hover:brightness-125 active:scale-[0.97] ${tileRing(first.id)}`}
                     style={{ width: `${leftPct}%`, background: TILE_COLORS[0] }}
                   >
                     <span className="text-white text-[9px] font-bold leading-tight">{first.name.length > 20 ? first.name.slice(0, 18) + '…' : first.name}</span>
-                  </div>
+                  </button>
                   <div className="flex flex-col gap-1 flex-1">
                     {rest.slice(0, 4).map((b, i) => (
-                      <div
+                      <button
+                        type="button"
                         key={b.id}
-                        className="rounded-lg flex items-center justify-center p-1 flex-1 text-center overflow-hidden"
+                        onClick={() => pickBroker(b.id)}
+                        title={`${b.name} — ${isPicked(b.id) ? 'quitar filtro' : 'ver solo sus órdenes'}`}
+                        className={`rounded-lg flex items-center justify-center p-1 flex-1 text-center overflow-hidden transition hover:brightness-125 active:scale-[0.97] ${tileRing(b.id)}`}
                         style={{ background: TILE_COLORS[i + 1] }}
                       >
                         <span className="text-white text-[8px] font-semibold leading-tight">{b.name.length > 12 ? b.name.slice(0, 11) + '…' : b.name}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
                 {/* List with counts */}
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                   {sorted.map((b, i) => (
-                    <div key={b.id} className="flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      key={b.id}
+                      onClick={() => pickBroker(b.id)}
+                      title={`${b.name} — ${isPicked(b.id) ? 'quitar filtro' : 'ver solo sus órdenes'}`}
+                      className={`flex items-center gap-1.5 min-w-0 rounded px-0.5 -mx-0.5 text-left transition-colors ${isPicked(b.id) ? 'bg-orange-500/15' : 'hover:bg-gray-800/60'}`}
+                    >
                       <div className="w-2 h-2 rounded-sm shrink-0" style={{ background: TILE_COLORS[i] || TILE_COLORS[5] }} />
-                      <span className="text-[9px] text-gray-500 truncate flex-1">{b.name.length > 9 ? b.name.slice(0, 8) + '…' : b.name}</span>
+                      <span className={`text-[9px] truncate flex-1 ${isPicked(b.id) ? 'text-orange-300' : 'text-gray-500'}`}>{b.name.length > 9 ? b.name.slice(0, 8) + '…' : b.name}</span>
                       <span className="text-[9px] font-bold text-gray-300 tabular-nums shrink-0">{b.count}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
