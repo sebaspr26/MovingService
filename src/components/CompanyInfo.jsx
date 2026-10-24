@@ -1333,9 +1333,17 @@ function SectionCamiones() {
                   className="px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-gray-800/50 transition-colors"
                   onClick={() => toggleExpand(truck.id)}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-orange-900/30 text-orange-400 flex items-center justify-center font-bold text-sm">
-                    #{truck.number}
-                  </div>
+                  {/* Long truck numbers (#12968) shrink to fit instead of spilling out of the box */}
+                  {(() => {
+                    const num = String(truck.number ?? '')
+                    const label = num.length >= 6 ? num : `#${num}` // very long: drop the # to make room
+                    const size = label.length <= 3 ? 'text-sm' : label.length <= 4 ? 'text-xs' : label.length <= 6 ? 'text-[11px]' : 'text-[9px]'
+                    return (
+                      <div title={`#${num}`} className={`w-14 h-10 shrink-0 rounded-lg bg-orange-900/30 text-orange-400 flex items-center justify-center font-bold tabular-nums px-1 overflow-hidden whitespace-nowrap ${size}`}>
+                        <span className="truncate">{label}</span>
+                      </div>
+                    )
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{truck.name}</p>
                     <div className="flex items-center gap-3 mt-0.5">
